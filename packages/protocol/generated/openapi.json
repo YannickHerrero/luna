@@ -1,0 +1,1304 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Luna API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/v1"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "schemas": {
+      "PairingExchangeResponse": {
+        "type": "object",
+        "required": ["deviceId", "token", "bootstrap"],
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 32
+          },
+          "bootstrap": {
+            "type": "object",
+            "required": ["protocolVersion", "cursor", "device", "conversations"],
+            "properties": {
+              "protocolVersion": {
+                "type": "number",
+                "const": 1
+              },
+              "cursor": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "device": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "platform",
+                  "notificationsEnabled",
+                  "createdAt",
+                  "lastSeenAt"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "platform": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "ios"
+                      },
+                      {
+                        "type": "string",
+                        "const": "ipados"
+                      },
+                      {
+                        "type": "string",
+                        "const": "web"
+                      }
+                    ]
+                  },
+                  "notificationsEnabled": {
+                    "type": "boolean"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "lastSeenAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "conversations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "title",
+                    "titleMode",
+                    "state",
+                    "preview",
+                    "activeWorkingDirectory",
+                    "repositories",
+                    "unreadCount",
+                    "createdAt",
+                    "updatedAt",
+                    "version"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "titleMode": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "automatic"
+                        },
+                        {
+                          "type": "string",
+                          "const": "manual"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "creating"
+                        },
+                        {
+                          "type": "string",
+                          "const": "starting"
+                        },
+                        {
+                          "type": "string",
+                          "const": "idle"
+                        },
+                        {
+                          "type": "string",
+                          "const": "working"
+                        },
+                        {
+                          "type": "string",
+                          "const": "compacting"
+                        },
+                        {
+                          "type": "string",
+                          "const": "retrying"
+                        },
+                        {
+                          "type": "string",
+                          "const": "crashed"
+                        },
+                        {
+                          "type": "string",
+                          "const": "restoring"
+                        },
+                        {
+                          "type": "string",
+                          "const": "interrupted"
+                        },
+                        {
+                          "type": "string",
+                          "const": "stopped"
+                        },
+                        {
+                          "type": "string",
+                          "const": "error"
+                        }
+                      ]
+                    },
+                    "preview": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "activeWorkingDirectory": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "repositories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "displayName",
+                          "rootPath",
+                          "active",
+                          "icon",
+                          "firstSeenAt",
+                          "lastSeenAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "displayName": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 160
+                          },
+                          "rootPath": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "branch": {
+                            "type": "string",
+                            "maxLength": 255
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "icon": {
+                            "type": "object",
+                            "required": ["repositoryId", "fallbackText", "fallbackColor"],
+                            "properties": {
+                              "repositoryId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "contentUrl": {
+                                "type": "string"
+                              },
+                              "fallbackText": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 3
+                              },
+                              "fallbackColor": {
+                                "type": "string",
+                                "pattern": "^#[0-9a-fA-F]{6}$"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "firstSeenAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "lastSeenAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "notificationTargetDeviceId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "unreadCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "archivedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "Conversation": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "titleMode",
+          "state",
+          "preview",
+          "activeWorkingDirectory",
+          "repositories",
+          "unreadCount",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "titleMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "automatic"
+              },
+              {
+                "type": "string",
+                "const": "manual"
+              }
+            ]
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "creating"
+              },
+              {
+                "type": "string",
+                "const": "starting"
+              },
+              {
+                "type": "string",
+                "const": "idle"
+              },
+              {
+                "type": "string",
+                "const": "working"
+              },
+              {
+                "type": "string",
+                "const": "compacting"
+              },
+              {
+                "type": "string",
+                "const": "retrying"
+              },
+              {
+                "type": "string",
+                "const": "crashed"
+              },
+              {
+                "type": "string",
+                "const": "restoring"
+              },
+              {
+                "type": "string",
+                "const": "interrupted"
+              },
+              {
+                "type": "string",
+                "const": "stopped"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "activeWorkingDirectory": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "displayName",
+                "rootPath",
+                "active",
+                "icon",
+                "firstSeenAt",
+                "lastSeenAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "rootPath": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "branch": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "icon": {
+                  "type": "object",
+                  "required": ["repositoryId", "fallbackText", "fallbackColor"],
+                  "properties": {
+                    "repositoryId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "contentUrl": {
+                      "type": "string"
+                    },
+                    "fallbackText": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 3
+                    },
+                    "fallbackColor": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "firstSeenAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "lastSeenAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "notificationTargetDeviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "SendMessageResponse": {
+        "type": "object",
+        "required": ["accepted", "message"],
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "object",
+            "required": [
+              "id",
+              "conversationId",
+              "role",
+              "status",
+              "text",
+              "attachments",
+              "ordinal",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "conversationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "clientMessageId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "user"
+                  },
+                  {
+                    "type": "string",
+                    "const": "assistant"
+                  }
+                ]
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "pending"
+                  },
+                  {
+                    "type": "string",
+                    "const": "accepted"
+                  },
+                  {
+                    "type": "string",
+                    "const": "queued"
+                  },
+                  {
+                    "type": "string",
+                    "const": "streaming"
+                  },
+                  {
+                    "type": "string",
+                    "const": "completed"
+                  },
+                  {
+                    "type": "string",
+                    "const": "interrupted"
+                  },
+                  {
+                    "type": "string",
+                    "const": "failed"
+                  }
+                ]
+              },
+              "delivery": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "initial"
+                  },
+                  {
+                    "type": "string",
+                    "const": "steer"
+                  }
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 1000000
+              },
+              "attachments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "fileName",
+                    "mimeType",
+                    "byteSize",
+                    "width",
+                    "height",
+                    "status",
+                    "contentUrl",
+                    "thumbnailUrl",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "mimeType": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "width": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "uploading"
+                        },
+                        {
+                          "type": "string",
+                          "const": "ready"
+                        },
+                        {
+                          "type": "string",
+                          "const": "attached"
+                        },
+                        {
+                          "type": "string",
+                          "const": "failed"
+                        },
+                        {
+                          "type": "string",
+                          "const": "deleted"
+                        }
+                      ]
+                    },
+                    "contentUrl": {
+                      "type": "string"
+                    },
+                    "thumbnailUrl": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "sentByDeviceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "ordinal": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConversationMessages": {
+        "type": "object",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "conversationId",
+                "role",
+                "status",
+                "text",
+                "attachments",
+                "ordinal",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "conversationId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "clientMessageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "user"
+                    },
+                    {
+                      "type": "string",
+                      "const": "assistant"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "pending"
+                    },
+                    {
+                      "type": "string",
+                      "const": "accepted"
+                    },
+                    {
+                      "type": "string",
+                      "const": "queued"
+                    },
+                    {
+                      "type": "string",
+                      "const": "streaming"
+                    },
+                    {
+                      "type": "string",
+                      "const": "completed"
+                    },
+                    {
+                      "type": "string",
+                      "const": "interrupted"
+                    },
+                    {
+                      "type": "string",
+                      "const": "failed"
+                    }
+                  ]
+                },
+                "delivery": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "initial"
+                    },
+                    {
+                      "type": "string",
+                      "const": "steer"
+                    }
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 1000000
+                },
+                "attachments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "fileName",
+                      "mimeType",
+                      "byteSize",
+                      "width",
+                      "height",
+                      "status",
+                      "contentUrl",
+                      "thumbnailUrl",
+                      "createdAt"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "fileName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "mimeType": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "byteSize": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "width": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "height": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "uploading"
+                          },
+                          {
+                            "type": "string",
+                            "const": "ready"
+                          },
+                          {
+                            "type": "string",
+                            "const": "attached"
+                          },
+                          {
+                            "type": "string",
+                            "const": "failed"
+                          },
+                          {
+                            "type": "string",
+                            "const": "deleted"
+                          }
+                        ]
+                      },
+                      "contentUrl": {
+                        "type": "string"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "sentByDeviceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "ordinal": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "nextBeforeOrdinal": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "UploadAttachmentResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "mimeType",
+          "byteSize",
+          "width",
+          "height",
+          "status",
+          "contentUrl",
+          "thumbnailUrl",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "mimeType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "uploading"
+              },
+              {
+                "type": "string",
+                "const": "ready"
+              },
+              {
+                "type": "string",
+                "const": "attached"
+              },
+              {
+                "type": "string",
+                "const": "failed"
+              },
+              {
+                "type": "string",
+                "const": "deleted"
+              }
+            ]
+          },
+          "contentUrl": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TranscriptionResponse": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 100000
+          }
+        },
+        "additionalProperties": false
+      },
+      "Bootstrap": {
+        "type": "object",
+        "required": ["protocolVersion", "cursor", "device", "conversations"],
+        "properties": {
+          "protocolVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "device": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "platform",
+              "notificationsEnabled",
+              "createdAt",
+              "lastSeenAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "platform": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "ios"
+                  },
+                  {
+                    "type": "string",
+                    "const": "ipados"
+                  },
+                  {
+                    "type": "string",
+                    "const": "web"
+                  }
+                ]
+              },
+              "notificationsEnabled": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastSeenAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          },
+          "conversations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title",
+                "titleMode",
+                "state",
+                "preview",
+                "activeWorkingDirectory",
+                "repositories",
+                "unreadCount",
+                "createdAt",
+                "updatedAt",
+                "version"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "titleMode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "automatic"
+                    },
+                    {
+                      "type": "string",
+                      "const": "manual"
+                    }
+                  ]
+                },
+                "state": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "creating"
+                    },
+                    {
+                      "type": "string",
+                      "const": "starting"
+                    },
+                    {
+                      "type": "string",
+                      "const": "idle"
+                    },
+                    {
+                      "type": "string",
+                      "const": "working"
+                    },
+                    {
+                      "type": "string",
+                      "const": "compacting"
+                    },
+                    {
+                      "type": "string",
+                      "const": "retrying"
+                    },
+                    {
+                      "type": "string",
+                      "const": "crashed"
+                    },
+                    {
+                      "type": "string",
+                      "const": "restoring"
+                    },
+                    {
+                      "type": "string",
+                      "const": "interrupted"
+                    },
+                    {
+                      "type": "string",
+                      "const": "stopped"
+                    },
+                    {
+                      "type": "string",
+                      "const": "error"
+                    }
+                  ]
+                },
+                "preview": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "activeWorkingDirectory": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "repositories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "displayName",
+                      "rootPath",
+                      "active",
+                      "icon",
+                      "firstSeenAt",
+                      "lastSeenAt"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "rootPath": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "branch": {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      "active": {
+                        "type": "boolean"
+                      },
+                      "icon": {
+                        "type": "object",
+                        "required": ["repositoryId", "fallbackText", "fallbackColor"],
+                        "properties": {
+                          "repositoryId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "contentUrl": {
+                            "type": "string"
+                          },
+                          "fallbackText": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 3
+                          },
+                          "fallbackColor": {
+                            "type": "string",
+                            "pattern": "^#[0-9a-fA-F]{6}$"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "firstSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "notificationTargetDeviceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "unreadCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "archivedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SyncResponse": {
+        "type": "object",
+        "required": ["cursor", "events", "resetRequired"],
+        "properties": {
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "events": {
+            "type": "array",
+            "items": {}
+          },
+          "resetRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["code", "message", "retryable"],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "authentication_required"
+              },
+              {
+                "type": "string",
+                "const": "forbidden"
+              },
+              {
+                "type": "string",
+                "const": "invalid_request"
+              },
+              {
+                "type": "string",
+                "const": "not_found"
+              },
+              {
+                "type": "string",
+                "const": "conflict"
+              },
+              {
+                "type": "string",
+                "const": "agent_unavailable"
+              },
+              {
+                "type": "string",
+                "const": "agent_rejected"
+              },
+              {
+                "type": "string",
+                "const": "attachment_invalid"
+              },
+              {
+                "type": "string",
+                "const": "transcription_failed"
+              },
+              {
+                "type": "string",
+                "const": "rate_limited"
+              },
+              {
+                "type": "string",
+                "const": "internal_error"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
