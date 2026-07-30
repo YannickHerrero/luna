@@ -5,6 +5,89 @@ use uuid::Uuid;
 
 use crate::{ApiError, Attachment, Bootstrap, Conversation, DevicePlatform, Message};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ThinkingLevel {
+    Off,
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+
+impl ThinkingLevel {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Minimal => "minimal",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Xhigh => "xhigh",
+            Self::Max => "max",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentModel {
+    pub provider: String,
+    pub id: String,
+    pub name: String,
+    pub reasoning: bool,
+    pub context_window: u64,
+    pub supported_thinking_levels: Vec<ThinkingLevel>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextUsage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<u64>,
+    pub context_window: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percent: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationAgentState {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<AgentModel>,
+    pub thinking_level: ThinkingLevel,
+    pub available_models: Vec<AgentModel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_usage: Option<ContextUsage>,
+    pub auto_compaction_enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentModelSelection {
+    pub provider: String,
+    pub model_id: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateConversationAgentRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<AgentModelSelection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_level: Option<ThinkingLevel>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CompactConversationResponse {
+    pub tokens_before: u64,
+    pub estimated_tokens_after: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingExchangeRequest {

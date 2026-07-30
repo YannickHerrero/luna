@@ -307,6 +307,112 @@
         ]
       }
     },
+    "/v1/conversations/{id}/agent": {
+      "get": {
+        "tags": [],
+        "operationId": "conversation_agent_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationAgentState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [],
+        "operationId": "conversation_agent_update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConversationAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationAgentState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      }
+    },
     "/v1/conversations/{id}/archive": {
       "post": {
         "tags": [],
@@ -325,6 +431,50 @@
         "responses": {
           "204": {
             "description": "The conversation was archived"
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      }
+    },
+    "/v1/conversations/{id}/compact": {
+      "post": {
+        "tags": [],
+        "operationId": "conversation_compact",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompactConversationResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -653,6 +803,54 @@
           },
           "phase": {
             "$ref": "#/components/schemas/ActivityPhase"
+          }
+        }
+      },
+      "AgentModel": {
+        "type": "object",
+        "required": [
+          "provider",
+          "id",
+          "name",
+          "reasoning",
+          "contextWindow",
+          "supportedThinkingLevels"
+        ],
+        "properties": {
+          "contextWindow": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "boolean"
+          },
+          "supportedThinkingLevels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ThinkingLevel"
+            }
+          }
+        }
+      },
+      "AgentModelSelection": {
+        "type": "object",
+        "required": ["provider", "modelId"],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
           }
         }
       },
@@ -1018,6 +1216,42 @@
           }
         }
       },
+      "CompactConversationResponse": {
+        "type": "object",
+        "required": ["tokensBefore", "estimatedTokensAfter"],
+        "properties": {
+          "estimatedTokensAfter": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "tokensBefore": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ContextUsage": {
+        "type": "object",
+        "required": ["contextWindow"],
+        "properties": {
+          "contextWindow": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "percent": {
+            "type": ["number", "null"],
+            "format": "double"
+          },
+          "tokens": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
       "Conversation": {
         "type": "object",
         "required": [
@@ -1113,6 +1347,44 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ConversationAgentState": {
+        "type": "object",
+        "required": ["thinkingLevel", "availableModels", "autoCompactionEnabled"],
+        "properties": {
+          "autoCompactionEnabled": {
+            "type": "boolean"
+          },
+          "availableModels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentModel"
+            }
+          },
+          "contextUsage": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContextUsage"
+              }
+            ]
+          },
+          "model": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentModel"
+              }
+            ]
+          },
+          "thinkingLevel": {
+            "$ref": "#/components/schemas/ThinkingLevel"
           }
         }
       },
@@ -1292,7 +1564,7 @@
       },
       "MessageDelivery": {
         "type": "string",
-        "enum": ["initial", "steer"]
+        "enum": ["initial", "steer", "bash"]
       },
       "MessageDelta": {
         "type": "object",
@@ -1901,6 +2173,10 @@
           }
         }
       },
+      "ThinkingLevel": {
+        "type": "string",
+        "enum": ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+      },
       "TitleMode": {
         "type": "string",
         "enum": ["automatic", "manual"]
@@ -1911,6 +2187,31 @@
         "properties": {
           "text": {
             "type": "string"
+          }
+        }
+      },
+      "UpdateConversationAgentRequest": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentModelSelection"
+              }
+            ]
+          },
+          "thinkingLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThinkingLevel"
+              }
+            ]
           }
         }
       },

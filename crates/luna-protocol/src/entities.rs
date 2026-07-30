@@ -71,6 +71,7 @@ pub enum MessageStatus {
 pub enum MessageDelivery {
     Initial,
     Steer,
+    Bash,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]

@@ -116,6 +116,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/conversations/{id}/agent': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['conversation_agent_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch: operations['conversation_agent_update']
+    trace?: never
+  }
   '/v1/conversations/{id}/archive': {
     parameters: {
       query?: never
@@ -126,6 +142,22 @@ export interface paths {
     get?: never
     put?: never
     post: operations['conversation_archive']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/conversations/{id}/compact': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['conversation_compact']
     delete?: never
     options?: never
     head?: never
@@ -280,6 +312,19 @@ export interface components {
       active: boolean
       phase: components['schemas']['ActivityPhase']
     }
+    AgentModel: {
+      /** Format: int64 */
+      contextWindow: number
+      id: string
+      name: string
+      provider: string
+      reasoning: boolean
+      supportedThinkingLevels: components['schemas']['ThinkingLevel'][]
+    }
+    AgentModelSelection: {
+      modelId: string
+      provider: string
+    }
     AgentTask: {
       createdAt: components['schemas']['String']
       /** Format: uuid */
@@ -392,6 +437,20 @@ export interface components {
       /** Format: uuid */
       requestId: string
     }
+    CompactConversationResponse: {
+      /** Format: int64 */
+      estimatedTokensAfter: number
+      /** Format: int64 */
+      tokensBefore: number
+    }
+    ContextUsage: {
+      /** Format: int64 */
+      contextWindow: number
+      /** Format: double */
+      percent?: number | null
+      /** Format: int64 */
+      tokens?: number | null
+    }
     Conversation: {
       activeWorkingDirectory: string
       activities: components['schemas']['AgentActivity'][]
@@ -413,6 +472,13 @@ export interface components {
       updatedAt: components['schemas']['String']
       /** Format: int64 */
       version: number
+    }
+    ConversationAgentState: {
+      autoCompactionEnabled: boolean
+      availableModels: components['schemas']['AgentModel'][]
+      contextUsage?: null | components['schemas']['ContextUsage']
+      model?: null | components['schemas']['AgentModel']
+      thinkingLevel: components['schemas']['ThinkingLevel']
     }
     ConversationList: {
       conversations: components['schemas']['Conversation'][]
@@ -478,7 +544,7 @@ export interface components {
       messageId: string
     }
     /** @enum {string} */
-    MessageDelivery: 'initial' | 'steer'
+    MessageDelivery: 'initial' | 'steer' | 'bash'
     MessageDelta: {
       /** Format: int64 */
       chunkIndex: number
@@ -709,9 +775,15 @@ export interface components {
       resetRequired: boolean
     }
     /** @enum {string} */
+    ThinkingLevel: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    /** @enum {string} */
     TitleMode: 'automatic' | 'manual'
     TranscriptionResponse: {
       text: string
+    }
+    UpdateConversationAgentRequest: {
+      model?: null | components['schemas']['AgentModelSelection']
+      thinkingLevel?: null | components['schemas']['ThinkingLevel']
     }
     UpdateConversationRequest: {
       /** Format: uuid */
@@ -944,6 +1016,76 @@ export interface operations {
       }
     }
   }
+  conversation_agent_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConversationAgentState']
+        }
+      }
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
+  conversation_agent_update: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateConversationAgentRequest']
+      }
+    }
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConversationAgentState']
+        }
+      }
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
   conversation_archive: {
     parameters: {
       query?: never
@@ -961,6 +1103,35 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+    }
+  }
+  conversation_compact: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CompactConversationResponse']
+        }
+      }
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
       }
     }
   }

@@ -35,6 +35,12 @@ bridge.on('data', chunk => {
   }
 })
 let input = ''
+const models = [
+  {provider:'openai-codex',id:'gpt-5.6-sol',name:'GPT-5.6 Sol',reasoning:true,contextWindow:400000,thinkingLevelMap:{xhigh:'xhigh',max:'max'}},
+  {provider:'local',id:'fast',name:'Fast Local',reasoning:false,contextWindow:32000}
+]
+let currentModel = models[0]
+let thinkingLevel = 'xhigh'
 const reply = value => process.stdout.write(JSON.stringify(value) + '\\n')
 process.stdin.on('data', chunk => {
   input += chunk.toString('utf8')
@@ -43,7 +49,25 @@ process.stdin.on('data', chunk => {
     const request = JSON.parse(input.slice(0, index))
     input = input.slice(index + 1)
     if (request.type === 'get_state') {
-      reply({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'e2e-session',sessionFile:process.env.LUNA_FAKE_SESSION_FILE,isStreaming:false}})
+      reply({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'e2e-session',sessionFile:process.env.LUNA_FAKE_SESSION_FILE,model:currentModel,thinkingLevel,isStreaming:false,isCompacting:false,autoCompactionEnabled:true}})
+    } else if (request.type === 'get_available_models') {
+      reply({id:request.id,type:'response',command:request.type,success:true,data:{models}})
+    } else if (request.type === 'get_session_stats') {
+      reply({id:request.id,type:'response',command:request.type,success:true,data:{contextUsage:{tokens:120000,contextWindow:currentModel.contextWindow,percent:30}}})
+    } else if (request.type === 'set_model') {
+      currentModel = models.find(model => model.provider === request.provider && model.id === request.modelId)
+      thinkingLevel = currentModel.reasoning ? thinkingLevel : 'off'
+      reply({id:request.id,type:'response',command:request.type,success:true,data:currentModel})
+    } else if (request.type === 'set_thinking_level') {
+      thinkingLevel = request.level
+      reply({id:request.id,type:'response',command:request.type,success:true})
+    } else if (request.type === 'compact') {
+      reply({type:'compaction_start',reason:'manual'})
+      const result = {summary:'Compacted',firstKeptEntryId:'entry',tokensBefore:120000,estimatedTokensAfter:24000,details:{}}
+      reply({type:'compaction_end',reason:'manual',result,aborted:false,willRetry:false})
+      reply({id:request.id,type:'response',command:request.type,success:true,data:result})
+    } else if (request.type === 'bash') {
+      reply({id:request.id,type:'response',command:request.type,success:true,data:{output:'README.md\\napps\\ncrates\\n',exitCode:0,cancelled:false,truncated:false}})
     } else if (request.type === 'get_entries') {
       reply({id:request.id,type:'response',command:'get_entries',success:true,data:{entries:[],leafId:null}})
     } else if (request.type === 'prompt') {
@@ -75,8 +99,8 @@ process.stdin.on('data', chunk => {
         reply({type:'message_update',assistantMessageEvent:{type:'thinking_end',contentIndex:0}})
       }
       reply({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:steering ? ' after steering' : 'Working response from Pi'}})
-    } else if (request.type === 'abort') {
-      reply({id:request.id,type:'response',command:'abort',success:true})
+    } else if (request.type === 'abort' || request.type === 'abort_bash' || request.type === 'abort_retry') {
+      reply({id:request.id,type:'response',command:request.type,success:true})
     }
   }
 })
@@ -203,6 +227,34 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(prompt).toHaveValue('Draft for the first conversation')
   await prompt.fill('')
 
+  await page.getByRole('button', { name: 'Agent settings' }).click()
+  const agentDialog = page.getByRole('dialog', { name: 'Agent settings' })
+  await expect(agentDialog).toBeVisible()
+  await expect(agentDialog).toContainText('120K / 400K tokens')
+  const mobileSheetBounds = await agentDialog.boundingBox()
+  expect(mobileSheetBounds).not.toBeNull()
+  expect(mobileSheetBounds?.x).toBe(0)
+  expect(mobileSheetBounds?.width).toBe(375)
+  expect(
+    Math.abs(812 - ((mobileSheetBounds?.y ?? 0) + (mobileSheetBounds?.height ?? 0))),
+  ).toBeLessThan(2)
+  await page.getByLabel('Model').selectOption({ label: 'Fast Local' })
+  await expect(page.getByLabel('Thinking effort')).toHaveValue('off')
+  await expect(page.getByLabel('Thinking effort')).toBeDisabled()
+  await page.getByRole('button', { name: 'Apply model settings' }).click()
+  await page.getByRole('button', { name: 'Compact context' }).click()
+  await expect(agentDialog).toContainText('Pi will summarize older context')
+  await page.getByRole('button', { name: 'Compact now' }).click()
+  await expect(agentDialog).toContainText('24K / 32K tokens')
+  const agentAccessibility = await new AxeBuilder({ page }).include('.agent-dialog').analyze()
+  expect(
+    agentAccessibility.violations.filter((violation) =>
+      ['serious', 'critical'].includes(violation.impact ?? ''),
+    ),
+  ).toEqual([])
+  await page.getByRole('button', { name: 'Close agent settings' }).click()
+  await expect(agentDialog).toBeHidden()
+
   const composer = page.locator('.composer')
   const composerBounds = await composer.boundingBox()
   expect(composerBounds).not.toBeNull()
@@ -327,6 +379,17 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expectTranscriptAtBottom(page)
   await expectConversationInViewport(page)
   await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: 'Agent settings' }).click()
+  await expect(agentDialog).toBeVisible()
+  await expect(agentDialog).toContainText('Conversation context')
+  const desktopDialogBounds = await agentDialog.boundingBox()
+  expect(desktopDialogBounds).not.toBeNull()
+  expect(desktopDialogBounds?.width).toBeLessThanOrEqual(540)
+  expect(desktopDialogBounds?.x).toBeGreaterThan(300)
+  expect(desktopDialogBounds?.y).toBeGreaterThan(40)
+  await page.keyboard.press('Escape')
+  await expect(agentDialog).toBeHidden()
+  await expect(page.getByPlaceholder('Steer Pi…')).toBeVisible()
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
@@ -339,8 +402,15 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(transcript.nth(0)).toContainText('Build a Luna smoke test')
   await expect(transcript.nth(1)).toContainText('Working response from Pi after steering')
   await expect(transcript.nth(2)).toContainText('Focus on browser acceptance')
-  await page.getByRole('button', { name: 'Interrupt Pi' }).click()
+  await page.getByPlaceholder('Steer Pi…').fill('/stop')
+  await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.locator('.status-pill')).toContainText('Interrupted')
+  await expect(page.getByText('/stop', { exact: true })).toHaveCount(0)
+
+  await page.getByPlaceholder('Message Luna…').fill('!ls')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByText('README.md', { exact: false })).toBeVisible()
+  await expect(page.getByText(/Exit code:/)).toBeVisible()
 
   page.once('dialog', (dialog) => void dialog.accept('Luna acceptance'))
   await page.getByTitle('Rename conversation').click()

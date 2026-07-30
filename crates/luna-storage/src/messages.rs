@@ -77,11 +77,13 @@ impl Database {
             .fetch_one(&mut *transaction)
             .await?;
             transaction.commit().await?;
+            let dispatch_required = state == "accepted"
+                || (state == "failed" && message.delivery != Some(MessageDelivery::Bash));
             return Ok(AcceptedDispatch {
                 dispatch_id: Uuid::parse_str(&dispatch_id)?,
                 message,
                 created: false,
-                dispatch_required: matches!(state.as_str(), "accepted" | "failed"),
+                dispatch_required,
                 events: vec![],
             });
         }
@@ -495,6 +497,7 @@ fn parse_delivery(value: &str) -> Result<MessageDelivery, StorageError> {
     match value {
         "initial" => Ok(MessageDelivery::Initial),
         "steer" => Ok(MessageDelivery::Steer),
+        "bash" => Ok(MessageDelivery::Bash),
         value => Err(StorageError::InvalidEnum(value.into())),
     }
 }
@@ -503,5 +506,6 @@ fn delivery_name(value: MessageDelivery) -> &'static str {
     match value {
         MessageDelivery::Initial => "initial",
         MessageDelivery::Steer => "steer",
+        MessageDelivery::Bash => "bash",
     }
 }

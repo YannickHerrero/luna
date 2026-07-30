@@ -5,8 +5,9 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use luna_protocol::{
-    ApiError, AttachmentResponse, Conversation, ConversationMessages, ErrorCode,
-    PairingCodeRequestResponse, PairingExchangeResponse, SendMessageResponse,
+    ApiError, AttachmentResponse, CompactConversationResponse, Conversation,
+    ConversationAgentState, ConversationMessages, ErrorCode, PairingCodeRequestResponse,
+    PairingExchangeResponse, SendMessageResponse,
 };
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
@@ -40,6 +41,12 @@ bridge.on('data', chunk => {
   }
 })
 let input = ''
+const models = [
+  {provider:'openai-codex',id:'gpt-5.6-sol',name:'GPT-5.6 Sol',reasoning:true,contextWindow:400000,thinkingLevelMap:{xhigh:'xhigh',max:'max'}},
+  {provider:'local',id:'fast',name:'Fast Local',reasoning:false,contextWindow:32000}
+]
+let currentModel = models[0]
+let thinkingLevel = 'xhigh'
 process.stdin.on('data', chunk => {
   input += chunk.toString('utf8')
   while (input.includes('\n')) {
@@ -47,7 +54,27 @@ process.stdin.on('data', chunk => {
     const request = JSON.parse(input.slice(0, index))
     input = input.slice(index + 1)
     if (request.type === 'get_state') {
-      console.log(JSON.stringify({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'fake-session',sessionFile:'/tmp/fake-luna-session.jsonl',isStreaming:false}}))
+      console.log(JSON.stringify({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'fake-session',sessionFile:'/tmp/fake-luna-session.jsonl',model:currentModel,thinkingLevel,isStreaming:false,isCompacting:false,autoCompactionEnabled:true}}))
+    } else if (request.type === 'get_available_models') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:{models}}))
+    } else if (request.type === 'get_session_stats') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:{contextUsage:{tokens:120000,contextWindow:currentModel.contextWindow,percent:30}}}))
+    } else if (request.type === 'set_model') {
+      currentModel = models.find(model => model.provider === request.provider && model.id === request.modelId)
+      thinkingLevel = currentModel.reasoning ? thinkingLevel : 'off'
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:currentModel}))
+    } else if (request.type === 'set_thinking_level') {
+      thinkingLevel = request.level
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true}))
+    } else if (request.type === 'bash') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:{output:'file.txt\n',exitCode:0,cancelled:false,truncated:false}}))
+    } else if (request.type === 'compact') {
+      console.log(JSON.stringify({type:'compaction_start',reason:'manual'}))
+      const result = {summary:'Compacted',firstKeptEntryId:'entry',tokensBefore:120000,estimatedTokensAfter:24000,details:{}}
+      console.log(JSON.stringify({type:'compaction_end',reason:'manual',result,aborted:false,willRetry:false}))
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:result}))
+    } else if (request.type === 'abort' || request.type === 'abort_bash' || request.type === 'abort_retry') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true}))
     } else if (request.type === 'prompt') {
       if (!request.images || request.images.length !== 1 || !request.images[0].data) process.exit(2)
       console.log(JSON.stringify({id:request.id,type:'response',command:'prompt',success:true}))
@@ -637,6 +664,235 @@ async fn websocket_replays_and_streams_persistent_events() {
 
     socket.close(None).await.expect("close");
     server.abort();
+    built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn executes_bang_messages_through_the_pi_session() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Shell commands",
+                        "platform": "web"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+    let create_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conversations")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("create response");
+    let conversation: Conversation = response_json(create_response).await;
+    let messages_endpoint = format!("/v1/conversations/{}/messages", conversation.id);
+    let send_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(&messages_endpoint)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(
+                    serde_json::json!({
+                        "clientMessageId": uuid::Uuid::new_v4(),
+                        "text": "!ls",
+                        "attachmentIds": []
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("send response");
+    assert_eq!(send_response.status(), StatusCode::ACCEPTED);
+    let sent: SendMessageResponse = response_json(send_response).await;
+    assert_eq!(
+        sent.message.delivery,
+        Some(luna_protocol::MessageDelivery::Bash)
+    );
+
+    let mut messages = None;
+    for _ in 0..40 {
+        let response = built
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&messages_endpoint)
+                    .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("messages response");
+        let current: ConversationMessages = response_json(response).await;
+        if current.messages.len() == 2 {
+            messages = Some(current);
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let messages = messages.expect("shell output message").messages;
+    assert_eq!(messages[0].text, "!ls");
+    assert_eq!(messages[1].role, luna_protocol::MessageRole::Assistant);
+    assert!(messages[1].text.contains("file.txt"));
+    assert!(messages[1].text.contains("Exit code: `0`"));
+    built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn reads_updates_and_compacts_conversation_agent_state() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Agent controls",
+                        "platform": "web"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+    let create_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conversations")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("create response");
+    let conversation: Conversation = response_json(create_response).await;
+    let endpoint = format!("/v1/conversations/{}/agent", conversation.id);
+    let state_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(&endpoint)
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("agent state response");
+    assert_eq!(state_response.status(), StatusCode::OK);
+    let state: ConversationAgentState = response_json(state_response).await;
+    assert_eq!(
+        state.model.as_ref().map(|model| model.id.as_str()),
+        Some("gpt-5.6-sol")
+    );
+    assert_eq!(state.available_models.len(), 2);
+    assert_eq!(
+        state.context_usage.as_ref().and_then(|usage| usage.tokens),
+        Some(120_000)
+    );
+    let local = state
+        .available_models
+        .iter()
+        .find(|model| model.id == "fast")
+        .expect("local model");
+    assert_eq!(
+        local.supported_thinking_levels,
+        vec![luna_protocol::ThinkingLevel::Off]
+    );
+    let gpt = state
+        .available_models
+        .iter()
+        .find(|model| model.id == "gpt-5.6-sol")
+        .expect("GPT model");
+    assert!(
+        gpt.supported_thinking_levels
+            .contains(&luna_protocol::ThinkingLevel::Max)
+    );
+
+    let update_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(&endpoint)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(
+                    serde_json::json!({
+                        "model": {"provider": "local", "modelId": "fast"},
+                        "thinkingLevel": "off"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("agent update response");
+    assert_eq!(update_response.status(), StatusCode::OK);
+    let state: ConversationAgentState = response_json(update_response).await;
+    assert_eq!(
+        state.model.as_ref().map(|model| model.id.as_str()),
+        Some("fast")
+    );
+    assert_eq!(state.thinking_level, luna_protocol::ThinkingLevel::Off);
+
+    let compact_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/v1/conversations/{}/compact", conversation.id))
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("compact response");
+    assert_eq!(compact_response.status(), StatusCode::OK);
+    let compacted: CompactConversationResponse = response_json(compact_response).await;
+    assert_eq!(compacted.tokens_before, 120_000);
+    assert_eq!(compacted.estimated_tokens_after, 24_000);
     built.runtime.shutdown().await;
 }
 

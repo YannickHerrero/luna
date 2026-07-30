@@ -49,7 +49,11 @@ export const MessageStatusSchema = Type.Union([
   Type.Literal('interrupted'),
   Type.Literal('failed'),
 ])
-export const MessageDeliverySchema = Type.Union([Type.Literal('initial'), Type.Literal('steer')])
+export const MessageDeliverySchema = Type.Union([
+  Type.Literal('initial'),
+  Type.Literal('steer'),
+  Type.Literal('bash'),
+])
 
 export const AttachmentStatusSchema = Type.Union([
   Type.Literal('uploading'),

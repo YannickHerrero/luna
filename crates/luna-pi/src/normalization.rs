@@ -13,7 +13,7 @@ pub enum NormalizedPiEvent {
     ToolEnded { failed: bool },
     QueueUpdated { steering: usize, follow_up: usize },
     CompactionStarted,
-    CompactionEnded,
+    CompactionEnded { succeeded: bool, aborted: bool },
     RetryStarted,
     RetryEnded { succeeded: bool },
     ExtensionUiRequest { request: Value },
@@ -74,7 +74,13 @@ pub fn normalize_event(value: &Value) -> NormalizedPiEvent {
                 .map_or(0, Vec::len),
         },
         Some("compaction_start") => NormalizedPiEvent::CompactionStarted,
-        Some("compaction_end") => NormalizedPiEvent::CompactionEnded,
+        Some("compaction_end") => NormalizedPiEvent::CompactionEnded {
+            succeeded: value.get("result").is_some_and(|result| !result.is_null()),
+            aborted: value
+                .get("aborted")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        },
         Some("auto_retry_start") => NormalizedPiEvent::RetryStarted,
         Some("auto_retry_end") => NormalizedPiEvent::RetryEnded {
             succeeded: value
@@ -94,6 +100,32 @@ mod tests {
     use serde_json::json;
 
     use super::{NormalizedPiEvent, normalize_event};
+
+    #[test]
+    fn normalizes_compaction_completion() {
+        assert_eq!(
+            normalize_event(&json!({
+                "type": "compaction_end",
+                "result": { "tokensBefore": 150_000, "estimatedTokensAfter": 32_000 },
+                "aborted": false
+            })),
+            NormalizedPiEvent::CompactionEnded {
+                succeeded: true,
+                aborted: false,
+            }
+        );
+        assert_eq!(
+            normalize_event(&json!({
+                "type": "compaction_end",
+                "result": null,
+                "aborted": true
+            })),
+            NormalizedPiEvent::CompactionEnded {
+                succeeded: false,
+                aborted: true,
+            }
+        );
+    }
 
     #[test]
     fn normalizes_streamed_thinking_blocks() {

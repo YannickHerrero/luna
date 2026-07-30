@@ -10,11 +10,12 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use luna_protocol::{
-    ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, ConversationList,
-    ConversationMessages, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
-    PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
+    CompactConversationResponse, ConversationAgentState, ConversationList, ConversationMessages,
+    CreateConversationRequest, ErrorCode, Message, MessageDelivery, PROTOCOL_VERSION,
+    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
     SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState,
-    SyncResponse, UpdateConversationRequest,
+    SyncResponse, UpdateConversationAgentRequest, UpdateConversationRequest,
 };
 use serde::Deserialize;
 use tracing::warn;
@@ -67,6 +68,11 @@ pub fn router(state: AppState) -> Router {
             "/v1/conversations/{id}/messages",
             get(list_messages).post(send_message),
         )
+        .route(
+            "/v1/conversations/{id}/agent",
+            get(get_conversation_agent).patch(update_conversation_agent),
+        )
+        .route("/v1/conversations/{id}/compact", post(compact_conversation))
         .route("/v1/conversations/{id}/abort", post(abort_conversation))
         .route("/v1/conversations/{id}/archive", post(archive_conversation))
         .with_state(state)
@@ -350,7 +356,35 @@ async fn accept_message(
         .conversation(conversation_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    let delivery = if matches!(
+    let delivery = if text.starts_with("!!") {
+        return Err(AppError::InvalidRequest(
+            "Double-bang shell commands are not supported.".into(),
+        ));
+    } else if let Some(command) = text.strip_prefix('!') {
+        if command.trim().is_empty() {
+            return Err(AppError::InvalidRequest(
+                "Enter a command after the exclamation mark.".into(),
+            ));
+        }
+        if !attachment_ids.is_empty() {
+            return Err(AppError::InvalidRequest(
+                "Shell commands cannot include attachments.".into(),
+            ));
+        }
+        if matches!(
+            conversation.state,
+            SessionState::Starting
+                | SessionState::Working
+                | SessionState::Compacting
+                | SessionState::Retrying
+                | SessionState::Restoring
+        ) {
+            return Err(AppError::Conflict(
+                "Stop the current Pi operation before running a shell command.".into(),
+            ));
+        }
+        MessageDelivery::Bash
+    } else if matches!(
         conversation.state,
         SessionState::Working | SessionState::Compacting | SessionState::Retrying
     ) {
@@ -390,6 +424,36 @@ async fn accept_message(
         });
     }
     Ok(accepted.message)
+}
+
+async fn get_conversation_agent(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ConversationAgentState>, AppError> {
+    Ok(Json(state.runtime.agent_state(id).await?))
+}
+
+async fn update_conversation_agent(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+    Json(request): Json<UpdateConversationAgentRequest>,
+) -> Result<Json<ConversationAgentState>, AppError> {
+    if request.model.is_none() && request.thinking_level.is_none() {
+        return Err(AppError::InvalidRequest(
+            "Choose a model or thinking level to update.".into(),
+        ));
+    }
+    Ok(Json(state.runtime.update_agent(id, request).await?))
+}
+
+async fn compact_conversation(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+) -> Result<Json<CompactConversationResponse>, AppError> {
+    Ok(Json(state.runtime.compact_context(id).await?))
 }
 
 async fn abort_conversation(

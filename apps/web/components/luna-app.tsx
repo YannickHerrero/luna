@@ -38,6 +38,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import ReactMarkdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
+import { AgentControls } from './agent-controls.js'
+import { ApiFailure, api, messageFromError } from '../lib/api.js'
 import { applyLatestMessage, sortConversations, upsertConversation } from '../lib/conversations.js'
 import { applyServerEvent, type LunaClientState, type LunaEvent } from '../lib/events.js'
 import { formatConversationTimestamp, formatMessageTimestamp } from '../lib/time.js'
@@ -545,6 +547,15 @@ function ConversationView({
   const busy = ['working', 'compacting', 'retrying', 'restoring', 'starting'].includes(
     conversation.state,
   )
+  const stop = useCallback(async () => {
+    try {
+      await api<void>(`/v1/conversations/${conversation.id}/abort`, { method: 'POST' })
+      return true
+    } catch (requestError) {
+      onError(messageFromError(requestError))
+      return false
+    }
+  }, [conversation.id, onError])
   useLayoutEffect(() => {
     const transcript = messageScroll.current
     if (!transcript || messages.length === 0) return
@@ -557,11 +568,17 @@ function ConversationView({
   }, [conversation.activities, conversation.taskList, messages])
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onBack()
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
+      if (busy) {
+        event.preventDefault()
+        void stop()
+      } else {
+        onBack()
+      }
     }
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
-  }, [onBack])
+  }, [busy, onBack, stop])
 
   const rename = async () => {
     const title = window.prompt('Conversation title', conversation.title)?.trim()
@@ -643,6 +660,7 @@ function ConversationView({
         onDraftChange={onDraftChange}
         onDraftSent={onDraftSent}
         onMessage={onMessage}
+        onStop={stop}
         onError={onError}
       />
     </div>
@@ -721,6 +739,7 @@ function Composer({
   onDraftChange,
   onDraftSent,
   onMessage,
+  onStop,
   onError,
 }: {
   conversation: Conversation
@@ -729,6 +748,7 @@ function Composer({
   onDraftChange: (update: (draft: ComposerDraft) => ComposerDraft) => void
   onDraftSent: () => void
   onMessage: (message: Message) => void
+  onStop: () => Promise<boolean>
   onError: (message: string | undefined) => void
 }) {
   const { text, files } = draft
@@ -771,9 +791,17 @@ function Composer({
   const sendMessage = async () => {
     const trimmed = text.trim()
     if ((!trimmed && files.length === 0) || sending) return
+    if (trimmed.startsWith('!') && files.length > 0) {
+      onError('Shell commands cannot include attachments.')
+      return
+    }
     setSending(true)
     onError(undefined)
     try {
+      if (trimmed === '/stop') {
+        if (!busy || (await onStop())) onDraftSent()
+        return
+      }
       const attachments: Attachment[] = []
       for (const file of files) {
         const body = new FormData()
@@ -802,14 +830,6 @@ function Composer({
       onError(messageFromError(requestError))
     } finally {
       setSending(false)
-    }
-  }
-
-  const abort = async () => {
-    try {
-      await api<void>(`/v1/conversations/${conversation.id}/abort`, { method: 'POST' })
-    } catch (requestError) {
-      onError(messageFromError(requestError))
     }
   }
 
@@ -877,6 +897,7 @@ function Composer({
         </div>
       )}
       <div className="composer">
+        <AgentControls conversationId={conversation.id} busy={busy} onError={onError} />
         <button
           className="icon-button"
           aria-label="Attach image"
@@ -913,7 +934,7 @@ function Composer({
           <button
             className="icon-button stop-action"
             aria-label="Interrupt Pi"
-            onClick={() => void abort()}
+            onClick={() => void onStop()}
           >
             <CircleStop size={19} />
           </button>
@@ -1101,35 +1122,6 @@ function LoadingScreen() {
       <span className="button-spinner" />
     </main>
   )
-}
-
-class ApiFailure extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message)
-  }
-}
-
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers)
-  if (init.body && typeof init.body === 'string') headers.set('content-type', 'application/json')
-  const response = await fetch(path, { ...init, headers, credentials: 'include' })
-  if (!response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      { message?: string; error?: { message?: string } } | undefined
-    throw new ApiFailure(
-      response.status,
-      body?.message ?? body?.error?.message ?? 'Luna could not complete the request.',
-    )
-  }
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
-}
-
-function messageFromError(error: unknown): string {
-  return error instanceof Error ? error.message : 'Luna could not complete the request.'
 }
 
 function stateLabel(state: Conversation['state']): string {
