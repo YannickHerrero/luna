@@ -20,12 +20,16 @@ async fn tracks_multiple_repositories_and_the_active_root() {
             display_name: "first",
             branch: Some("main"),
             active: true,
+            icon_storage_key: Some("first.png"),
+            icon_source: Some("ios_app_icon"),
+            icon_fingerprint: Some("first-hash"),
             observed_at: "2026-03-20T12:01:00Z",
         })
         .await
         .expect("first repository");
     assert!(first.changed);
     assert!(first.repositories[0].active);
+    assert!(first.repositories[0].icon.content_url.is_some());
     let repeated = database
         .observe_repository(RepositoryObservation {
             conversation_id,
@@ -34,6 +38,9 @@ async fn tracks_multiple_repositories_and_the_active_root() {
             display_name: "first",
             branch: Some("main"),
             active: true,
+            icon_storage_key: Some("first.png"),
+            icon_source: Some("ios_app_icon"),
+            icon_fingerprint: Some("first-hash"),
             observed_at: "2026-03-20T12:02:00Z",
         })
         .await
@@ -47,6 +54,9 @@ async fn tracks_multiple_repositories_and_the_active_root() {
             display_name: "second",
             branch: Some("feature"),
             active: true,
+            icon_storage_key: None,
+            icon_source: None,
+            icon_fingerprint: None,
             observed_at: "2026-03-20T12:03:00Z",
         })
         .await

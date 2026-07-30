@@ -345,7 +345,13 @@ function ConversationCell({
   const repo = conversation.repositories[0]
   return (
     <button className={`conversation-cell ${selected ? 'selected' : ''}`} onClick={onSelect}>
-      <span className="avatar">{repo?.icon.fallbackText ?? '☾'}</span>
+      <span className="avatar">
+        {repo?.icon.contentUrl ? (
+          <img src={repo.icon.contentUrl} alt="" />
+        ) : (
+          (repo?.icon.fallbackText ?? '☾')
+        )}
+      </span>
       <span className="cell-copy">
         <span className="cell-title">{conversation.title}</span>
         <span className="cell-preview">
@@ -649,7 +655,7 @@ function Composer({
           ref={fileInput}
           hidden
           type="file"
-          accept="image/png,image/jpeg,image/gif,image/webp"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
           multiple
           onChange={(event) => addFiles(Array.from(event.target.files ?? []))}
         />

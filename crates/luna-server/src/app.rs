@@ -59,7 +59,12 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
             )
             .await?;
     }
-    let maintenance = Maintenance::spawn(database.clone(), config.event_retention_days);
+    let maintenance = Maintenance::spawn(
+        database.clone(),
+        config.event_retention_days,
+        config.attachment_directory.clone(),
+        config.attachment_retention_days,
+    );
     let events = EventHub::new(database.clone());
     let runtime = Arc::new(ConversationRuntime::new(
         SessionRuntimeConfig {
@@ -72,6 +77,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         database.clone(),
         events.clone(),
         config.attachment_directory.clone(),
+        config.repository_icon_directory.clone(),
     ));
     let transcription = TranscriptionService::new(
         config.transcription_api_key.clone(),

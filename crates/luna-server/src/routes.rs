@@ -52,6 +52,7 @@ pub fn router(state: AppState) -> Router {
             "/v1/attachments/{id}/thumbnail",
             get(media::attachment_thumbnail),
         )
+        .route("/v1/repositories/{id}/icon", get(media::repository_icon))
         .route(
             "/v1/conversations",
             get(list_conversations).post(create_conversation),

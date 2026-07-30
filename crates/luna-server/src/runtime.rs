@@ -17,6 +17,7 @@ use luna_protocol::{
     RepositoriesUpdated, ServerEvent, SessionState, SteeringQueueChanged, WorkspaceUpdated,
 };
 use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
+use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use tracing::warn;
 use uuid::Uuid;
@@ -28,6 +29,7 @@ pub struct ConversationRuntime {
     database: Database,
     events: EventHub,
     attachment_directory: PathBuf,
+    repository_icon_directory: PathBuf,
     pumps: Mutex<HashSet<Uuid>>,
     stopping: Mutex<HashSet<Uuid>>,
     shutting_down: AtomicBool,
@@ -40,12 +42,14 @@ impl ConversationRuntime {
         database: Database,
         events: EventHub,
         attachment_directory: PathBuf,
+        repository_icon_directory: PathBuf,
     ) -> Self {
         Self {
             supervisor: SessionSupervisor::new(config),
             database,
             events,
             attachment_directory,
+            repository_icon_directory,
             pumps: Mutex::new(HashSet::new()),
             stopping: Mutex::new(HashSet::new()),
             shutting_down: AtomicBool::new(false),
@@ -437,6 +441,7 @@ impl ConversationRuntime {
             .and_then(|name| name.to_str())
             .unwrap_or("Repository")
             .to_owned();
+        let icon = self.prepare_repository_icon(&root).await?;
         let timestamp = now()?;
         let observation = self
             .database
@@ -447,6 +452,9 @@ impl ConversationRuntime {
                 display_name: &display_name,
                 branch: branch.as_deref(),
                 active,
+                icon_storage_key: icon.as_ref().map(|icon| icon.storage_key.as_str()),
+                icon_source: icon.as_ref().map(|icon| icon.source.as_str()),
+                icon_fingerprint: icon.as_ref().map(|icon| icon.fingerprint.as_str()),
                 observed_at: &timestamp,
             })
             .await?;
@@ -463,6 +471,56 @@ impl ConversationRuntime {
                 .await?;
         }
         Ok(())
+    }
+
+    async fn prepare_repository_icon(
+        &self,
+        root: &std::path::Path,
+    ) -> Result<Option<RepositoryIconAsset>, AppError> {
+        let root = root.to_owned();
+        let discovered = tokio::task::spawn_blocking(move || discover_repository_icon(&root))
+            .await
+            .map_err(|error| AppError::DependencyUnavailable(error.to_string()))?;
+        let Some((source_path, source)) = discovered else {
+            return Ok(None);
+        };
+        let bytes = tokio::fs::read(&source_path).await?;
+        if bytes.is_empty() || bytes.len() > 10 * 1024 * 1024 {
+            return Ok(None);
+        }
+        let extension = source_path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_ascii_lowercase)
+            .filter(|extension| matches!(extension.as_str(), "png" | "jpg" | "jpeg" | "webp"))
+            .unwrap_or_else(|| "png".into());
+        let fingerprint = format!("{:x}", Sha256::digest(&bytes));
+        let storage_key = format!("{fingerprint}.{extension}");
+        let destination = self.repository_icon_directory.join(&storage_key);
+        if !tokio::fs::try_exists(&destination).await? {
+            tokio::fs::create_dir_all(&self.repository_icon_directory).await?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                tokio::fs::set_permissions(
+                    &self.repository_icon_directory,
+                    std::fs::Permissions::from_mode(0o700),
+                )
+                .await?;
+            }
+            tokio::fs::write(&destination, bytes).await?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                tokio::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o600))
+                    .await?;
+            }
+        }
+        Ok(Some(RepositoryIconAsset {
+            storage_key,
+            source,
+            fingerprint,
+        }))
     }
 
     async fn generate_initial_title(&self, conversation_id: Uuid) -> Result<(), AppError> {
@@ -521,6 +579,134 @@ impl ConversationRuntime {
             )
             .await?;
         Ok(())
+    }
+}
+
+struct RepositoryIconAsset {
+    storage_key: String,
+    source: String,
+    fingerprint: String,
+}
+
+fn discover_repository_icon(root: &std::path::Path) -> Option<(PathBuf, String)> {
+    let mut candidates: Vec<(u64, PathBuf, String)> = Vec::new();
+    for config_name in ["app.json", "app.config.json"] {
+        let config_path = root.join(config_name);
+        if let Ok(bytes) = std::fs::read(&config_path)
+            && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+            && let Some(icon) = value
+                .get("expo")
+                .and_then(|expo| expo.get("icon"))
+                .and_then(serde_json::Value::as_str)
+        {
+            add_icon_candidate(&mut candidates, root.join(icon), 1_000, "expo_icon");
+        }
+    }
+
+    let mut pending = vec![(root.to_owned(), 0_u8)];
+    while let Some((directory, depth)) = pending.pop() {
+        if depth > 7 {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let file_name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if path.is_dir() {
+                if matches!(
+                    file_name.as_str(),
+                    ".git" | "node_modules" | "target" | "build" | "dist" | ".next" | "pods"
+                ) {
+                    continue;
+                }
+                pending.push((path, depth + 1));
+                continue;
+            }
+            if matches!(
+                file_name.as_str(),
+                "manifest.json" | "site.webmanifest" | "manifest.webmanifest"
+            ) && let Ok(bytes) = std::fs::read(&path)
+                && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+                && let Some(icons) = value.get("icons").and_then(serde_json::Value::as_array)
+            {
+                for icon in icons {
+                    if let Some(source) = icon.get("src").and_then(serde_json::Value::as_str) {
+                        add_icon_candidate(
+                            &mut candidates,
+                            path.parent()
+                                .unwrap_or(root)
+                                .join(source.trim_start_matches('/')),
+                            700,
+                            "web_manifest",
+                        );
+                    }
+                }
+            }
+            let extension = path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .map(str::to_ascii_lowercase);
+            if !extension
+                .as_deref()
+                .is_some_and(|extension| matches!(extension, "png" | "jpg" | "jpeg" | "webp"))
+            {
+                continue;
+            }
+            let parent = path
+                .parent()
+                .and_then(std::path::Path::file_name)
+                .and_then(|name| name.to_str())
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            let (score, source) = if parent.ends_with(".appiconset") {
+                (900, "ios_app_icon")
+            } else if file_name.starts_with("ic_launcher") {
+                (800, "android_app_icon")
+            } else if file_name.starts_with("apple-touch-icon") {
+                (650, "apple_touch_icon")
+            } else if matches!(file_name.as_str(), "icon.png" | "app-icon.png" | "logo.png") {
+                (600, "conventional_icon")
+            } else if file_name.starts_with("favicon") {
+                (500, "favicon")
+            } else {
+                continue;
+            };
+            add_icon_candidate(&mut candidates, path, score, source);
+        }
+    }
+    candidates
+        .into_iter()
+        .max_by_key(|(score, _, _)| *score)
+        .map(|(_, path, source)| (path, source))
+}
+
+fn add_icon_candidate(
+    candidates: &mut Vec<(u64, PathBuf, String)>,
+    path: PathBuf,
+    score: u64,
+    source: &str,
+) {
+    let Some(extension) = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+    else {
+        return;
+    };
+    if !matches!(extension.as_str(), "png" | "jpg" | "jpeg" | "webp") {
+        return;
+    }
+    if let Ok(metadata) = std::fs::metadata(&path)
+        && metadata.is_file()
+        && metadata.len() > 0
+    {
+        candidates.push((
+            score.saturating_add(metadata.len().min(10_000_000) / 10_000),
+            path,
+            source.into(),
+        ));
     }
 }
 

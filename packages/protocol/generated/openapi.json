@@ -488,6 +488,33 @@
         }
       }
     },
+    "/v1/repositories/{id}/icon": {
+      "get": {
+        "tags": [],
+        "operationId": "repository_icon",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detected repository icon bytes"
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      }
+    },
     "/v1/sync": {
       "get": {
         "tags": [],

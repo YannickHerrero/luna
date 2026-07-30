@@ -4,6 +4,13 @@ use uuid::Uuid;
 
 use crate::{Database, StorageError};
 
+#[derive(Debug, Clone)]
+pub struct AttachmentFile {
+    pub id: Uuid,
+    pub storage_key: String,
+    pub thumbnail_storage_key: String,
+}
+
 pub struct NewAttachment<'a> {
     pub id: Uuid,
     pub conversation_id: Option<Uuid>,
@@ -84,6 +91,46 @@ impl Database {
         .fetch_optional(self.pool())
         .await?;
         row.map(map_stored_attachment).transpose()
+    }
+
+    pub async fn expired_attachment_files(
+        &self,
+        cutoff: &str,
+    ) -> Result<Vec<AttachmentFile>, StorageError> {
+        let rows: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT a.id, a.storage_key, a.thumbnail_storage_key FROM attachments a LEFT JOIN conversations c ON c.id = a.conversation_id WHERE a.deleted_at IS NULL AND a.created_at < ? AND (c.archived_at < ? OR NOT EXISTS (SELECT 1 FROM message_attachments ma WHERE ma.attachment_id = a.id))",
+        )
+        .bind(cutoff)
+        .bind(cutoff)
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|(id, storage_key, thumbnail_storage_key)| {
+                Ok(AttachmentFile {
+                    id: Uuid::parse_str(&id)?,
+                    storage_key,
+                    thumbnail_storage_key,
+                })
+            })
+            .collect()
+    }
+
+    pub async fn mark_attachment_deleted(
+        &self,
+        id: Uuid,
+        deleted_at: &str,
+    ) -> Result<(), StorageError> {
+        let updated = sqlx::query(
+            "UPDATE attachments SET status = 'deleted', deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(deleted_at)
+        .bind(id.to_string())
+        .execute(self.pool())
+        .await?;
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound);
+        }
+        Ok(())
     }
 
     pub async fn attachments_for_message(

@@ -159,6 +159,15 @@ fn attachment_content() {}
 fn attachment_thumbnail() {}
 
 #[utoipa::path(
+    get,
+    path = "/v1/repositories/{id}/icon",
+    params(("id" = uuid::Uuid, Path)),
+    responses((status = 200, description = "Detected repository icon bytes")),
+    security(("deviceToken" = []))
+)]
+fn repository_icon() {}
+
+#[utoipa::path(
     post,
     path = "/v1/transcriptions",
     request_body(content = String, content_type = "multipart/form-data"),
@@ -187,6 +196,7 @@ fn transcriptions_create() {}
         attachments_upload,
         attachment_content,
         attachment_thumbnail,
+        repository_icon,
         transcriptions_create
     ),
     components(schemas(

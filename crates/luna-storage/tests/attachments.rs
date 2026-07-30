@@ -58,4 +58,21 @@ async fn stores_private_attachment_metadata() {
         stored.attachment.content_url,
         format!("/v1/attachments/{id}/content")
     );
+    let expired = database
+        .expired_attachment_files("2027-03-20T12:00:00Z")
+        .await
+        .expect("expired attachments");
+    assert_eq!(expired.len(), 1);
+    assert_eq!(expired[0].id, id);
+    database
+        .mark_attachment_deleted(id, "2027-03-20T12:00:00Z")
+        .await
+        .expect("delete attachment");
+    assert!(
+        database
+            .stored_attachment(id)
+            .await
+            .expect("attachment query")
+            .is_none()
+    );
 }

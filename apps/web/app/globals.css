@@ -186,6 +186,12 @@ button {
   font: 700 15px var(--font-display);
 }
 
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .cell-copy {
   display: flex;
   min-width: 0;

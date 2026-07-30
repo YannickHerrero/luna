@@ -59,6 +59,15 @@ process.stdin.on('end', () => process.exit(0))
     .expect("fake Pi");
     fs::create_dir_all(directory.join("repository/.git")).expect("fake repository");
     fs::write(directory.join("repository/file.txt"), "repository file").expect("repository file");
+    let mut repository_icon = Vec::new();
+    image::DynamicImage::new_rgba8(4, 4)
+        .write_to(
+            &mut std::io::Cursor::new(&mut repository_icon),
+            image::ImageFormat::Png,
+        )
+        .expect("repository icon");
+    fs::write(directory.join("repository/icon.png"), repository_icon)
+        .expect("repository icon file");
     fs::create_dir_all(directory.join("web")).expect("web directory");
     fs::write(directory.join("web/index.html"), "<h1>Luna PWA</h1>").expect("web index");
     fs::write(directory.join("bridge.ts"), "export default () => {}").expect("bridge extension");
@@ -81,12 +90,14 @@ process.stdin.on('end', () => process.exit(0))
         database_path: directory.join("luna.sqlite"),
         pi_session_directory: directory.join("pi-sessions"),
         attachment_directory: directory.join("attachments"),
+        repository_icon_directory: directory.join("repository-icons"),
         bridge_directory: PathBuf::from("/tmp")
             .join(format!("luna-http-test-{}", std::process::id())),
         web_directory: directory.join("web"),
         pi_executable,
         pi_bridge_path: directory.join("bridge.ts"),
         event_retention_days: 30,
+        attachment_retention_days: 30,
         transcription_model: "gpt-4o-mini-transcribe".into(),
         transcription_api_key: None,
         transcription_base_url: "https://api.openai.com/v1".into(),
@@ -298,6 +309,31 @@ async fn pairs_a_device_and_creates_a_conversation() {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert_eq!(observed_repositories[0].display_name, "repository");
+    let icon_url = observed_repositories[0]
+        .icon
+        .content_url
+        .as_deref()
+        .expect("repository icon URL");
+    let icon_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(icon_url)
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("repository icon response");
+    assert_eq!(icon_response.status(), StatusCode::OK);
+    assert_eq!(
+        icon_response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .expect("icon content type"),
+        "image/png"
+    );
 
     let bootstrap_request = Request::builder()
         .uri("/v1/bootstrap")

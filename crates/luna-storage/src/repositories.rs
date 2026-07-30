@@ -11,6 +11,9 @@ pub struct RepositoryObservation<'a> {
     pub display_name: &'a str,
     pub branch: Option<&'a str>,
     pub active: bool,
+    pub icon_storage_key: Option<&'a str>,
+    pub icon_source: Option<&'a str>,
+    pub icon_fingerprint: Option<&'a str>,
     pub observed_at: &'a str,
 }
 
@@ -19,14 +22,32 @@ pub struct RepositoryObservationResult {
     pub changed: bool,
 }
 
+pub struct RepositoryIconFile {
+    pub storage_key: String,
+}
+
 impl Database {
+    pub async fn repository_icon_file(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<RepositoryIconFile>, StorageError> {
+        let storage_key: Option<String> = sqlx::query_scalar(
+            "SELECT icon_storage_key FROM repositories WHERE id = ? AND icon_storage_key IS NOT NULL",
+        )
+        .bind(id.to_string())
+        .fetch_optional(self.pool())
+        .await?
+        .flatten();
+        Ok(storage_key.map(|storage_key| RepositoryIconFile { storage_key }))
+    }
+
     pub async fn observe_repository(
         &self,
         observation: RepositoryObservation<'_>,
     ) -> Result<RepositoryObservationResult, StorageError> {
         let mut transaction = self.pool().begin().await?;
         let existing = sqlx::query(
-            "SELECT id, display_name, git_directory FROM repositories WHERE canonical_root = ?",
+            "SELECT id, display_name, git_directory, icon_fingerprint FROM repositories WHERE canonical_root = ?",
         )
         .bind(observation.canonical_root)
         .fetch_optional(&mut *transaction)
@@ -36,13 +57,20 @@ impl Database {
                 let id: String = row.get("id");
                 let old_name: String = row.get("display_name");
                 let old_git_directory: String = row.get("git_directory");
+                let old_icon_fingerprint: Option<String> = row.get("icon_fingerprint");
                 let changed = old_name != observation.display_name
-                    || old_git_directory != observation.git_directory;
+                    || old_git_directory != observation.git_directory
+                    || observation
+                        .icon_fingerprint
+                        .is_some_and(|value| Some(value) != old_icon_fingerprint.as_deref());
                 sqlx::query(
-                    "UPDATE repositories SET display_name = ?, git_directory = ?, updated_at = ? WHERE id = ?",
+                    "UPDATE repositories SET display_name = ?, git_directory = ?, icon_storage_key = COALESCE(?, icon_storage_key), icon_source = COALESCE(?, icon_source), icon_fingerprint = COALESCE(?, icon_fingerprint), updated_at = ? WHERE id = ?",
                 )
                 .bind(observation.display_name)
                 .bind(observation.git_directory)
+                .bind(observation.icon_storage_key)
+                .bind(observation.icon_source)
+                .bind(observation.icon_fingerprint)
                 .bind(observation.observed_at)
                 .bind(&id)
                 .execute(&mut *transaction)
@@ -52,12 +80,15 @@ impl Database {
             None => {
                 let id = Uuid::new_v4();
                 sqlx::query(
-                    "INSERT INTO repositories (id, canonical_root, git_directory, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO repositories (id, canonical_root, git_directory, display_name, icon_storage_key, icon_source, icon_fingerprint, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(id.to_string())
                 .bind(observation.canonical_root)
                 .bind(observation.git_directory)
                 .bind(observation.display_name)
+                .bind(observation.icon_storage_key)
+                .bind(observation.icon_source)
+                .bind(observation.icon_fingerprint)
                 .bind(observation.observed_at)
                 .bind(observation.observed_at)
                 .execute(&mut *transaction)

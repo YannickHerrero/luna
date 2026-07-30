@@ -18,11 +18,13 @@ pub struct Config {
     pub database_path: PathBuf,
     pub pi_session_directory: PathBuf,
     pub attachment_directory: PathBuf,
+    pub repository_icon_directory: PathBuf,
     pub bridge_directory: PathBuf,
     pub web_directory: PathBuf,
     pub pi_executable: PathBuf,
     pub pi_bridge_path: PathBuf,
     pub event_retention_days: u32,
+    pub attachment_retention_days: u32,
     pub transcription_model: String,
     pub transcription_api_key: Option<String>,
     pub transcription_base_url: String,
@@ -91,6 +93,7 @@ impl Config {
         );
         let port = parse_u16("LUNA_PORT", local.port.unwrap_or(9870))?;
         let retention = parse_u32("LUNA_EVENT_RETENTION_DAYS", 30)?;
+        let attachment_retention = parse_u32("LUNA_ATTACHMENT_RETENTION_DAYS", 30)?;
         let public_origin = env::var("LUNA_PUBLIC_ORIGIN").ok().or(local.public_origin);
 
         Ok(Self {
@@ -109,6 +112,7 @@ impl Config {
             database_path: data_directory.join("luna.sqlite"),
             pi_session_directory: data_directory.join("pi-sessions"),
             attachment_directory: data_directory.join("attachments"),
+            repository_icon_directory: data_directory.join("repository-icons"),
             bridge_directory,
             web_directory: env_path("LUNA_WEB_DIR", root.join("apps/web/out")),
             data_directory,
@@ -122,6 +126,7 @@ impl Config {
                 root.join("integrations/pi/luna-bridge.ts"),
             ),
             event_retention_days: retention,
+            attachment_retention_days: attachment_retention,
             transcription_model: env::var("LUNA_TRANSCRIPTION_MODEL")
                 .unwrap_or_else(|_| "gpt-4o-mini-transcribe".into()),
             transcription_api_key: env::var("LUNA_TRANSCRIPTION_API_KEY")
