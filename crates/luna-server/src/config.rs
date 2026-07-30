@@ -7,7 +7,7 @@ use directories::BaseDirs;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub bind_host: String,
     pub port: u16,
@@ -23,6 +23,8 @@ pub struct Config {
     pub pi_bridge_path: PathBuf,
     pub event_retention_days: u32,
     pub transcription_model: String,
+    pub transcription_api_key: Option<String>,
+    pub transcription_base_url: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -120,6 +122,11 @@ impl Config {
             event_retention_days: retention,
             transcription_model: env::var("LUNA_TRANSCRIPTION_MODEL")
                 .unwrap_or_else(|_| "gpt-4o-mini-transcribe".into()),
+            transcription_api_key: env::var("LUNA_TRANSCRIPTION_API_KEY")
+                .ok()
+                .or_else(|| env::var("OPENAI_API_KEY").ok()),
+            transcription_base_url: env::var("LUNA_TRANSCRIPTION_BASE_URL")
+                .unwrap_or_else(|_| "https://api.openai.com/v1".into()),
         })
     }
 }

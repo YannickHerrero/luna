@@ -81,6 +81,8 @@ process.stdin.on('end', () => process.exit(0))
         pi_bridge_path: PathBuf::from("bridge.ts"),
         event_retention_days: 30,
         transcription_model: "gpt-4o-mini-transcribe".into(),
+        transcription_api_key: None,
+        transcription_base_url: "https://api.openai.com/v1".into(),
     }
 }
 
@@ -416,4 +418,80 @@ async fn websocket_replays_and_streams_persistent_events() {
     socket.close(None).await.expect("close");
     server.abort();
     built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn proxies_voice_transcription_without_persisting_audio() {
+    let upstream_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("upstream listener");
+    let upstream_address = upstream_listener.local_addr().expect("upstream address");
+    let upstream = tokio::spawn(async move {
+        axum::serve(
+            upstream_listener,
+            axum::Router::new().route(
+                "/audio/transcriptions",
+                axum::routing::post(|| async {
+                    axum::Json(serde_json::json!({ "text": "Transcribed locally" }))
+                }),
+            ),
+        )
+        .await
+        .expect("upstream");
+    });
+    let directory = tempfile::tempdir().expect("temp directory");
+    let mut server_config = config(directory.path());
+    server_config.transcription_api_key = Some("test-key".into());
+    server_config.transcription_base_url = format!("http://{upstream_address}");
+    let built = app::build(server_config).await.expect("app");
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Recorder",
+                        "platform": "ios"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+    let boundary = "luna-audio-boundary";
+    let mut body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.webm\"\r\nContent-Type: audio/webm\r\n\r\n"
+    )
+    .into_bytes();
+    body.extend_from_slice(b"temporary audio bytes");
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/transcriptions")
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(body))
+                .expect("request"),
+        )
+        .await
+        .expect("transcription response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let transcription: luna_protocol::TranscriptionResponse = response_json(response).await;
+    assert_eq!(transcription.text, "Transcribed locally");
+    assert!(!directory.path().join("attachments").exists());
+    upstream.abort();
 }

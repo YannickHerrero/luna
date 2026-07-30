@@ -25,6 +25,7 @@ use crate::{
     extract::{AuthenticatedDevice, validate_origin, validate_tailnet},
     media,
     state::AppState,
+    transcription,
 };
 
 pub fn router(state: AppState) -> Router {
@@ -34,6 +35,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/sync", get(sync))
         .route("/v1/events", get(events_socket))
+        .route(
+            "/v1/transcriptions",
+            post(transcription::transcribe).layer(DefaultBodyLimit::max(27 * 1024 * 1024)),
+        )
         .route(
             "/v1/attachments",
             post(media::upload_attachment).layer(DefaultBodyLimit::max(22 * 1024 * 1024)),

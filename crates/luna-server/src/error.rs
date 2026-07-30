@@ -30,6 +30,10 @@ pub enum AppError {
     AuthenticationRequired,
     #[error("forbidden")]
     Forbidden,
+    #[error("transcription failed: {0}")]
+    TranscriptionFailed(String),
+    #[error("rate limited")]
+    RateLimited,
 }
 
 impl IntoResponse for AppError {
@@ -58,6 +62,18 @@ impl IntoResponse for AppError {
                 ErrorCode::Forbidden,
                 "This request is not allowed.",
                 false,
+            ),
+            Self::TranscriptionFailed(_) => (
+                StatusCode::BAD_GATEWAY,
+                ErrorCode::TranscriptionFailed,
+                "Luna could not transcribe this recording.",
+                true,
+            ),
+            Self::RateLimited => (
+                StatusCode::TOO_MANY_REQUESTS,
+                ErrorCode::RateLimited,
+                "Transcription is temporarily rate limited.",
+                true,
             ),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,

@@ -6,7 +6,7 @@ use luna_storage::Database;
 
 use crate::{
     auth::AuthService, config::Config, error::AppError, events::EventHub, routes,
-    runtime::ConversationRuntime, state::AppState,
+    runtime::ConversationRuntime, state::AppState, transcription::TranscriptionService,
 };
 
 pub struct BuiltApp {
@@ -47,7 +47,18 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         events.clone(),
         config.attachment_directory.clone(),
     ));
-    let state = AppState::new(config, database.clone(), events, runtime.clone());
+    let transcription = TranscriptionService::new(
+        config.transcription_api_key.clone(),
+        config.transcription_base_url.clone(),
+        config.transcription_model.clone(),
+    )?;
+    let state = AppState::new(
+        config,
+        database.clone(),
+        events,
+        runtime.clone(),
+        transcription,
+    );
     let pairing_code = AuthService::new(database.clone())
         .create_pairing_code()
         .await?;
