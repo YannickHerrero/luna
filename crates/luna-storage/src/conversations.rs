@@ -21,6 +21,19 @@ struct ConversationRow {
 }
 
 #[derive(FromRow)]
+pub struct ConversationRuntimeRecord {
+    pub conversation: Conversation,
+    pub pi_session_id: Option<String>,
+    pub pi_session_path: Option<String>,
+}
+
+#[derive(FromRow)]
+struct RuntimeConversationRow {
+    pi_session_id: Option<String>,
+    pi_session_path: Option<String>,
+}
+
+#[derive(FromRow)]
 struct RepositoryRow {
     id: String,
     display_name: String,
@@ -116,6 +129,26 @@ impl Database {
         }
     }
 
+    pub async fn conversation_runtime(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<ConversationRuntimeRecord>, StorageError> {
+        let Some(conversation) = self.conversation(id).await? else {
+            return Ok(None);
+        };
+        let runtime = sqlx::query_as::<_, RuntimeConversationRow>(
+            "SELECT pi_session_id, pi_session_path FROM conversations WHERE id = ?",
+        )
+        .bind(id.to_string())
+        .fetch_one(self.pool())
+        .await?;
+        Ok(Some(ConversationRuntimeRecord {
+            conversation,
+            pi_session_id: runtime.pi_session_id,
+            pi_session_path: runtime.pi_session_path,
+        }))
+    }
+
     pub async fn set_conversation_session(
         &self,
         id: Uuid,
@@ -148,6 +181,26 @@ impl Database {
             "UPDATE conversations SET state = ?, updated_at = ?, version = version + 1 WHERE id = ?",
         )
         .bind(state_name(state))
+        .bind(updated_at)
+        .bind(id.to_string())
+        .execute(self.pool())
+        .await?;
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound);
+        }
+        Ok(())
+    }
+
+    pub async fn set_working_directory(
+        &self,
+        id: Uuid,
+        working_directory: &str,
+        updated_at: &str,
+    ) -> Result<(), StorageError> {
+        let updated = sqlx::query(
+            "UPDATE conversations SET active_working_directory = ?, updated_at = ?, version = version + 1 WHERE id = ?",
+        )
+        .bind(working_directory)
         .bind(updated_at)
         .bind(id.to_string())
         .execute(self.pool())
