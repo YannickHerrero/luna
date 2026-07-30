@@ -3,6 +3,7 @@ import { connect, type Socket } from 'node:net'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { isToolCallEventType, type ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import { registerPlanProgress } from './plan-progress.js'
 import { instrumentBash, rewriteToolPath } from './workspace.js'
 
 type BridgeCommand =
@@ -36,6 +37,11 @@ export default function lunaBridge(pi: ExtensionAPI) {
     if (socket?.writable && connected) socket.write(line)
     else outgoing.push(line)
   }
+
+  registerPlanProgress(pi, {
+    onChanged: (taskList) =>
+      emit(taskList ? { type: 'task_list_updated', taskList } : { type: 'task_list_cleared' }),
+  })
 
   const handleCommand = (command: BridgeCommand) => {
     if (!command.dispatchId) return

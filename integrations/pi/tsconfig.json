@@ -4,9 +4,13 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
+      "@earendil-works/pi-ai": [
+        "../../packages/pi-runtime/node_modules/@earendil-works/pi-ai/dist/index.d.ts"
+      ],
       "@earendil-works/pi-coding-agent": [
         "../../packages/pi-runtime/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
-      ]
+      ],
+      "typebox": ["../../packages/pi-runtime/node_modules/typebox/build/index.d.mts"]
     },
     "types": ["node", "vitest/globals"]
   },
