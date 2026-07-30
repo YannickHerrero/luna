@@ -1,0 +1,13 @@
+[package]
+name = "luna-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+schemars.workspace = true
+serde.workspace = true
+time.workspace = true
+utoipa.workspace = true
+uuid.workspace = true

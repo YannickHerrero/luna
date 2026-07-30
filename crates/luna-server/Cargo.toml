@@ -1,0 +1,24 @@
+[package]
+name = "luna-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+axum.workspace = true
+directories.workspace = true
+http.workspace = true
+luna-pi = { path = "../luna-pi" }
+luna-protocol = { path = "../luna-protocol" }
+luna-storage = { path = "../luna-storage" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
