@@ -369,7 +369,7 @@ button {
 .message-row.user .message-bubble {
   padding: 10px 15px;
   border-radius: 19px 19px 6px 19px;
-  color: white;
+  color: var(--luna-onAccent);
   background: var(--luna-accent);
   box-shadow: 0 8px 25px color-mix(in srgb, var(--luna-accent) 16%, transparent);
 }

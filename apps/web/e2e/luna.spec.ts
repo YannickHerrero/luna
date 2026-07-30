@@ -1,3 +1,4 @@
+import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -134,11 +135,20 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(page.locator('.title-button strong')).toHaveText('Luna acceptance')
   await page.getByRole('button', { name: 'Toggle theme' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'mocha')
+  await page.locator('.conversation-cell').evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map(async (animation) => animation.finished))
+  })
   const registrationState = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready
     return registration.active?.state
   })
   expect(registrationState).toBe('activated')
+  const accessibility = await new AxeBuilder({ page }).analyze()
+  expect(
+    accessibility.violations.filter((violation) =>
+      ['serious', 'critical'].includes(violation.impact ?? ''),
+    ),
+  ).toEqual([])
 
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Archive conversation' }).click()
