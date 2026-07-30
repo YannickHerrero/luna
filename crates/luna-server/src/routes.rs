@@ -30,7 +30,8 @@ use crate::{
 
 pub fn router(state: AppState) -> Router {
     Router::new()
-        .route("/v1/health/live", get(health))
+        .route("/v1/health/live", get(health_live))
+        .route("/v1/health/ready", get(health_ready))
         .route("/v1/pairing/exchange", post(pair))
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/sync", get(sync))
@@ -68,8 +69,22 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn health() -> Json<serde_json::Value> {
+async fn health_live() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
+}
+
+async fn health_ready(State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
+    state.database.ping().await?;
+    for path in [
+        &state.config.pi_executable,
+        &state.config.pi_bridge_path,
+        &state.config.web_directory,
+    ] {
+        if !tokio::fs::try_exists(path).await? {
+            return Err(AppError::DependencyUnavailable(path.display().to_string()));
+        }
+    }
+    Ok(Json(serde_json::json!({ "status": "ready" })))
 }
 
 async fn pair(

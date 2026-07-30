@@ -35,6 +35,14 @@ impl Database {
         Ok(Self { pool })
     }
 
+    pub async fn ping(&self) -> Result<(), StorageError> {
+        let value: i64 = sqlx::query_scalar("SELECT 1").fetch_one(&self.pool).await?;
+        if value != 1 {
+            return Err(StorageError::Conflict);
+        }
+        Ok(())
+    }
+
     #[must_use]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool

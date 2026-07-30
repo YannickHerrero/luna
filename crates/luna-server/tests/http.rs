@@ -61,6 +61,7 @@ process.stdin.on('end', () => process.exit(0))
     fs::write(directory.join("repository/file.txt"), "repository file").expect("repository file");
     fs::create_dir_all(directory.join("web")).expect("web directory");
     fs::write(directory.join("web/index.html"), "<h1>Luna PWA</h1>").expect("web index");
+    fs::write(directory.join("bridge.ts"), "export default () => {}").expect("bridge extension");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -84,7 +85,7 @@ process.stdin.on('end', () => process.exit(0))
             .join(format!("luna-http-test-{}", std::process::id())),
         web_directory: directory.join("web"),
         pi_executable,
-        pi_bridge_path: PathBuf::from("bridge.ts"),
+        pi_bridge_path: directory.join("bridge.ts"),
         event_retention_days: 30,
         transcription_model: "gpt-4o-mini-transcribe".into(),
         transcription_api_key: None,
@@ -326,6 +327,22 @@ async fn health_does_not_expose_private_state() {
     assert_eq!(
         response_json::<serde_json::Value>(response).await,
         serde_json::json!({"status":"ok"})
+    );
+    let ready_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/health/ready")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("ready response");
+    assert_eq!(ready_response.status(), StatusCode::OK);
+    assert_eq!(
+        response_json::<serde_json::Value>(ready_response).await,
+        serde_json::json!({"status":"ready"})
     );
     let static_response = built
         .router

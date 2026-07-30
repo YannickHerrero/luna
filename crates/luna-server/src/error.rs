@@ -34,6 +34,8 @@ pub enum AppError {
     TranscriptionFailed(String),
     #[error("rate limited")]
     RateLimited,
+    #[error("dependency unavailable: {0}")]
+    DependencyUnavailable(String),
 }
 
 impl IntoResponse for AppError {
@@ -73,6 +75,12 @@ impl IntoResponse for AppError {
                 StatusCode::TOO_MANY_REQUESTS,
                 ErrorCode::RateLimited,
                 "Transcription is temporarily rate limited.",
+                true,
+            ),
+            Self::DependencyUnavailable(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::AgentUnavailable,
+                "Luna is waiting for a required runtime dependency.",
                 true,
             ),
             _ => (
