@@ -8,4 +8,8 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
 allowBuilds:
+  '@google/genai': true
+  better-sqlite3: true
   esbuild: true
+  protobufjs: true
+  sharp: true
