@@ -13,6 +13,7 @@ const message = {
   conversationId: conversation.id,
   text: '',
   status: 'streaming',
+  ordinal: 2,
 } as Message
 const initial: LunaClientState = {
   conversations: [conversation],
@@ -39,6 +40,20 @@ describe('Luna event reducer', () => {
     expect(completed.messages[0]?.text).toBe('Hello')
     expect(completed.messages[0]?.status).toBe('completed')
     expect(completed.cursor).toBe(4)
+  })
+
+  it('keeps live message upserts in transcript order', () => {
+    const state = applyServerEvent(initial, {
+      eventId: 5,
+      conversationId: conversation.id,
+      type: 'message.upserted',
+      payload: {
+        ...message,
+        id: '00000000-0000-0000-0000-000000000003',
+        ordinal: 1,
+      },
+    })
+    expect(state.messages.map((item) => item.ordinal)).toEqual([1, 2])
   })
 
   it('removes archived conversations delivered over the live stream', () => {

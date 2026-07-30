@@ -48,7 +48,7 @@ export function applyServerEvent(state: LunaClientState, event: LunaEvent): Luna
     case 'message.upserted': {
       const message = event.payload as Message
       if (message.conversationId !== state.selectedConversationId) return { ...state, cursor }
-      return { ...state, cursor, messages: upsert(state.messages, message) }
+      return { ...state, cursor, messages: upsertMessage(state.messages, message) }
     }
     case 'message.delta': {
       const delta = event.payload as Delta
@@ -101,6 +101,10 @@ function updateConversation(
     return { ...conversation, title: payload.title }
   })
   return { ...state, cursor, conversations }
+}
+
+function upsertMessage(messages: Message[], message: Message): Message[] {
+  return upsert(messages, message).sort((left, right) => left.ordinal - right.ordinal)
 }
 
 function upsert<T extends Identified>(values: T[], value: T): T[] {

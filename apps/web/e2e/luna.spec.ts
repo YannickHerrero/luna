@@ -123,6 +123,10 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
+  const transcript = page.locator('.message-row')
+  await expect(transcript.nth(0)).toContainText('Build a Luna smoke test')
+  await expect(transcript.nth(1)).toContainText('Working response from Pi after steering')
+  await expect(transcript.nth(2)).toContainText('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Interrupt Pi' }).click()
   await expect(page.locator('.status-pill')).toContainText('Interrupted')
 
