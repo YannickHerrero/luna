@@ -266,6 +266,16 @@ export interface components {
   schemas: {
     /** @enum {string} */
     ActivityPhase: 'thinking' | 'working' | 'compacting' | 'retrying'
+    AgentActivitiesReset: Record<string, never>
+    AgentActivity: {
+      createdAt: components['schemas']['String']
+      /** Format: uuid */
+      id: string
+      /** Format: int64 */
+      sequence: number
+      summary: string
+      updatedAt: components['schemas']['String']
+    }
     AgentActivityChanged: {
       active: boolean
       phase: components['schemas']['ActivityPhase']
@@ -358,6 +368,7 @@ export interface components {
     }
     Conversation: {
       activeWorkingDirectory: string
+      activities: components['schemas']['AgentActivity'][]
       archivedAt?: null | components['schemas']['String']
       createdAt: components['schemas']['String']
       /** Format: uuid */
@@ -567,6 +578,16 @@ export interface components {
           payload: components['schemas']['AgentActivityChanged']
           /** @enum {string} */
           type: 'agent.activity_changed'
+        }
+      | {
+          payload: components['schemas']['AgentActivitiesReset']
+          /** @enum {string} */
+          type: 'agent.activities_reset'
+        }
+      | {
+          payload: components['schemas']['AgentActivity']
+          /** @enum {string} */
+          type: 'agent.activity_upserted'
         }
       | {
           payload: components['schemas']['SteeringQueueChanged']

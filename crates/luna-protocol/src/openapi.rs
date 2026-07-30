@@ -3,13 +3,14 @@
 use utoipa::OpenApi;
 
 use crate::{
-    AgentActivityChanged, ApiError, Attachment, AttachmentResponse, Bootstrap, ClientCommand,
-    CommandAccepted, CommandRejected, Conversation, ConversationList, ConversationMessages,
-    ConversationTitleUpdated, CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message,
-    MessageCompleted, MessageDelta, PairingCodeRequestResponse, PairingExchangeRequest,
-    PairingExchangeResponse, RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest,
-    SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged,
-    SyncResponse, TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
+    AgentActivitiesReset, AgentActivity, AgentActivityChanged, ApiError, Attachment,
+    AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, Conversation,
+    ConversationList, ConversationMessages, ConversationTitleUpdated, CreateConversationRequest,
+    Device, ErrorCode, ErrorResponse, Message, MessageCompleted, MessageDelta,
+    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
+    ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
+    TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -211,6 +212,8 @@ fn transcriptions_create() {}
         transcriptions_create
     ),
     components(schemas(
+        AgentActivitiesReset,
+        AgentActivity,
         AgentActivityChanged,
         ApiError,
         Attachment,

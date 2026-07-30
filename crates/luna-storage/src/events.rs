@@ -1,8 +1,38 @@
 use luna_protocol::{ServerEvent, ServerEventEnvelope};
-use sqlx::FromRow;
+use sqlx::{FromRow, Sqlite, Transaction};
 use uuid::Uuid;
 
 use crate::{Database, StorageError};
+
+pub(crate) async fn insert_event(
+    transaction: &mut Transaction<'_, Sqlite>,
+    conversation_id: Uuid,
+    aggregate_id: Uuid,
+    event: &ServerEvent,
+    created_at: &str,
+) -> Result<ServerEventEnvelope, StorageError> {
+    let event_type = serde_json::to_value(event)?["type"]
+        .as_str()
+        .unwrap_or("unknown")
+        .to_owned();
+    let result = sqlx::query(
+        "INSERT INTO sync_events (type, conversation_id, aggregate_id, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(event_type)
+    .bind(conversation_id.to_string())
+    .bind(aggregate_id.to_string())
+    .bind(serde_json::to_string(event)?)
+    .bind(created_at)
+    .execute(&mut **transaction)
+    .await?;
+    Ok(ServerEventEnvelope {
+        version: 1,
+        event_id: Some(result.last_insert_rowid()),
+        conversation_id: Some(conversation_id),
+        emitted_at: created_at.into(),
+        event: event.clone(),
+    })
+}
 
 #[derive(FromRow)]
 struct EventRow {

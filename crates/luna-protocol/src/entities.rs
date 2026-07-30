@@ -142,6 +142,16 @@ pub struct Repository {
     pub last_seen_at: Timestamp,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentActivity {
+    pub id: Uuid,
+    pub sequence: i64,
+    pub summary: String,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TitleMode {
@@ -159,6 +169,7 @@ pub struct Conversation {
     pub preview: String,
     pub active_working_directory: String,
     pub repositories: Vec<Repository>,
+    pub activities: Vec<AgentActivity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_target_device_id: Option<Uuid>,
     pub unread_count: i64,

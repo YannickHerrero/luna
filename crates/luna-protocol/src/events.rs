@@ -4,7 +4,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    ApiError, Attachment, Conversation, Message, MessageDelivery, Repository, SessionState,
+    AgentActivity, ApiError, Attachment, Conversation, Message, MessageDelivery, Repository,
+    SessionState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -112,6 +113,9 @@ pub struct AgentActivityChanged {
     pub phase: ActivityPhase,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+pub struct AgentActivitiesReset {}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SteeringQueueChanged {
@@ -167,6 +171,10 @@ pub enum ServerEvent {
     SessionStateChanged { state: SessionState },
     #[serde(rename = "agent.activity_changed")]
     AgentActivityChanged(AgentActivityChanged),
+    #[serde(rename = "agent.activities_reset")]
+    AgentActivitiesReset(AgentActivitiesReset),
+    #[serde(rename = "agent.activity_upserted")]
+    AgentActivityUpserted(AgentActivity),
     #[serde(rename = "steering.queue_changed")]
     SteeringQueueChanged(SteeringQueueChanged),
     #[serde(rename = "workspace.updated")]

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod activities;
 mod attachments;
 mod auth;
 mod conversations;

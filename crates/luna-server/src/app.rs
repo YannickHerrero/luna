@@ -51,6 +51,9 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         .await?
     {
         database
+            .reset_agent_activities(conversation_id, &recovered_at)
+            .await?;
+        database
             .append_event(
                 Some(conversation_id),
                 Some(conversation_id),

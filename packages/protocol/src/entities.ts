@@ -120,6 +120,18 @@ export const RepositorySchema = Type.Object(
 )
 export type Repository = Static<typeof RepositorySchema>
 
+export const AgentActivitySchema = Type.Object(
+  {
+    id: IdSchema,
+    sequence: Type.Integer({ minimum: 0 }),
+    summary: Type.String({ minLength: 1, maxLength: 240 }),
+    createdAt: DateTimeSchema,
+    updatedAt: DateTimeSchema,
+  },
+  { additionalProperties: false },
+)
+export type AgentActivity = Static<typeof AgentActivitySchema>
+
 export const ConversationSchema = Type.Object(
   {
     id: IdSchema,
@@ -129,6 +141,7 @@ export const ConversationSchema = Type.Object(
     preview: Type.String({ maxLength: 240 }),
     activeWorkingDirectory: Type.String({ minLength: 1 }),
     repositories: Type.Array(RepositorySchema),
+    activities: Type.Array(AgentActivitySchema),
     notificationTargetDeviceId: Type.Optional(IdSchema),
     unreadCount: Type.Integer({ minimum: 0 }),
     archivedAt: Type.Optional(DateTimeSchema),

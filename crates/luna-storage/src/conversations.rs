@@ -330,6 +330,7 @@ impl Database {
                 })
             })
             .collect::<Result<Vec<_>, StorageError>>()?;
+        let activities = self.agent_activities(id).await?;
         Ok(Conversation {
             id,
             title: row.title,
@@ -342,6 +343,7 @@ impl Database {
             preview: row.preview,
             active_working_directory: row.active_working_directory,
             repositories,
+            activities,
             notification_target_device_id: row
                 .notification_target_device_id
                 .map(|value| Uuid::parse_str(&value))

@@ -225,6 +225,8 @@ impl ConversationRuntime {
         let mut status = session.process.status();
         let mut assistant_message: Option<Uuid> = None;
         let mut chunk_index = 0_i64;
+        let mut activity: Option<ActivityCapture> = None;
+        let mut activity_sequence = 0_i64;
         loop {
             tokio::select! {
                 event = pi_events.recv() => {
@@ -234,6 +236,8 @@ impl ConversationRuntime {
                             event.normalized,
                             &mut assistant_message,
                             &mut chunk_index,
+                            &mut activity,
+                            &mut activity_sequence,
                         ).await,
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
                             warn!(%conversation_id, count, "Pi event pump lagged");
@@ -267,12 +271,21 @@ impl ConversationRuntime {
         event: NormalizedPiEvent,
         assistant_message: &mut Option<Uuid>,
         chunk_index: &mut i64,
+        activity: &mut Option<ActivityCapture>,
+        activity_sequence: &mut i64,
     ) {
         let result: Result<(), AppError> = async {
             match event {
                 NormalizedPiEvent::AgentStarted => {
+                    *activity = None;
+                    *activity_sequence = 0;
                     self.set_state(conversation_id, SessionState::Working)
                         .await?;
+                    let reset = self
+                        .database
+                        .reset_agent_activities(conversation_id, &now()?)
+                        .await?;
+                    self.events.publish(reset);
                     self.events
                         .append(
                             Some(conversation_id),
@@ -284,6 +297,44 @@ impl ConversationRuntime {
                             &now()?,
                         )
                         .await?;
+                }
+                NormalizedPiEvent::ThinkingStarted => {
+                    *activity = Some(ActivityCapture::new(*activity_sequence));
+                    *activity_sequence = activity_sequence.saturating_add(1);
+                    self.events
+                        .append(
+                            Some(conversation_id),
+                            Some(conversation_id),
+                            &ServerEvent::AgentActivityChanged(AgentActivityChanged {
+                                active: true,
+                                phase: ActivityPhase::Thinking,
+                            }),
+                            &now()?,
+                        )
+                        .await?;
+                }
+                NormalizedPiEvent::ThinkingDelta { delta } => {
+                    let capture = activity.get_or_insert_with(|| {
+                        let next = ActivityCapture::new(*activity_sequence);
+                        *activity_sequence = activity_sequence.saturating_add(1);
+                        next
+                    });
+                    if let Some(summary) = capture.update(&delta) {
+                        let (_, event) = self
+                            .database
+                            .upsert_agent_activity(
+                                conversation_id,
+                                capture.id,
+                                capture.sequence,
+                                &summary,
+                                &now()?,
+                            )
+                            .await?;
+                        self.events.publish(event);
+                    }
+                }
+                NormalizedPiEvent::ThinkingEnded => {
+                    *activity = None;
                 }
                 NormalizedPiEvent::TextDelta {
                     content_index,
@@ -318,6 +369,7 @@ impl ConversationRuntime {
                     self.events.publish(event);
                 }
                 NormalizedPiEvent::AgentSettled => {
+                    *activity = None;
                     if let Some(message_id) = assistant_message.take() {
                         let event = self
                             .database
@@ -325,6 +377,11 @@ impl ConversationRuntime {
                             .await?;
                         self.events.publish(event);
                     }
+                    let reset = self
+                        .database
+                        .reset_agent_activities(conversation_id, &now()?)
+                        .await?;
+                    self.events.publish(reset);
                     self.events
                         .append(
                             Some(conversation_id),
@@ -580,6 +637,47 @@ impl ConversationRuntime {
     }
 }
 
+struct ActivityCapture {
+    id: Uuid,
+    sequence: i64,
+    source: String,
+    published_summary: Option<String>,
+}
+
+impl ActivityCapture {
+    fn new(sequence: i64) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            sequence,
+            source: String::new(),
+            published_summary: None,
+        }
+    }
+
+    fn update(&mut self, delta: &str) -> Option<String> {
+        let remaining = 2_048_usize.saturating_sub(self.source.chars().count());
+        self.source.extend(delta.chars().take(remaining));
+        let summary = progress_summary(&self.source)?;
+        if self.published_summary.as_deref() == Some(&summary) {
+            return None;
+        }
+        self.published_summary = Some(summary.clone());
+        Some(summary)
+    }
+}
+
+fn progress_summary(value: &str) -> Option<String> {
+    let line = value.lines().find(|line| !line.trim().is_empty())?.trim();
+    let line = line
+        .trim_start_matches(['#', '>', '-', '*', '_', '`', ' '])
+        .trim_end_matches(['*', '_', '`', ' ']);
+    let compact = line.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.is_empty() {
+        return None;
+    }
+    Some(compact.chars().take(240).collect())
+}
+
 struct RepositoryIconAsset {
     storage_key: String,
     source: String,
@@ -832,7 +930,25 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use super::{evolving_title, title_from_text};
+    use super::{ActivityCapture, evolving_title, progress_summary, title_from_text};
+
+    #[test]
+    fn derives_short_progress_summaries_from_thinking_headings() {
+        assert_eq!(
+            progress_summary("\n**Planning Luna deployment with log verification**\n\nDetails"),
+            Some("Planning Luna deployment with log verification".into())
+        );
+        let mut capture = ActivityCapture::new(0);
+        assert_eq!(
+            capture.update("**Finalizing Luna"),
+            Some("Finalizing Luna".into())
+        );
+        assert_eq!(
+            capture.update(" restart and log validation**\nMore reasoning"),
+            Some("Finalizing Luna restart and log validation".into())
+        );
+        assert_eq!(capture.update(" that stays private"), None);
+    }
 
     #[test]
     fn derives_a_short_title_from_the_first_request() {

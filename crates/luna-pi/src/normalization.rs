@@ -4,6 +4,9 @@ use serde_json::Value;
 pub enum NormalizedPiEvent {
     AgentStarted,
     AgentSettled,
+    ThinkingStarted,
+    ThinkingDelta { delta: String },
+    ThinkingEnded,
     TextDelta { content_index: u64, delta: String },
     MessageEnded { message: Value },
     ToolStarted,
@@ -26,19 +29,28 @@ pub fn normalize_event(value: &Value) -> NormalizedPiEvent {
             let Some(delta) = value.get("assistantMessageEvent") else {
                 return NormalizedPiEvent::Unknown;
             };
-            if delta.get("type").and_then(Value::as_str) != Some("text_delta") {
-                return NormalizedPiEvent::Unknown;
-            }
-            NormalizedPiEvent::TextDelta {
-                content_index: delta
-                    .get("contentIndex")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0),
-                delta: delta
-                    .get("delta")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
+            match delta.get("type").and_then(Value::as_str) {
+                Some("thinking_start") => NormalizedPiEvent::ThinkingStarted,
+                Some("thinking_delta") => NormalizedPiEvent::ThinkingDelta {
+                    delta: delta
+                        .get("delta")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                },
+                Some("thinking_end") => NormalizedPiEvent::ThinkingEnded,
+                Some("text_delta") => NormalizedPiEvent::TextDelta {
+                    content_index: delta
+                        .get("contentIndex")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0),
+                    delta: delta
+                        .get("delta")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                },
+                _ => NormalizedPiEvent::Unknown,
             }
         }
         Some("message_end") => NormalizedPiEvent::MessageEnded {
@@ -74,5 +86,43 @@ pub fn normalize_event(value: &Value) -> NormalizedPiEvent {
             request: value.clone(),
         },
         _ => NormalizedPiEvent::Unknown,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{NormalizedPiEvent, normalize_event};
+
+    #[test]
+    fn normalizes_streamed_thinking_blocks() {
+        assert_eq!(
+            normalize_event(&json!({
+                "type": "message_update",
+                "assistantMessageEvent": { "type": "thinking_start", "contentIndex": 0 }
+            })),
+            NormalizedPiEvent::ThinkingStarted
+        );
+        assert_eq!(
+            normalize_event(&json!({
+                "type": "message_update",
+                "assistantMessageEvent": {
+                    "type": "thinking_delta",
+                    "contentIndex": 0,
+                    "delta": "**Planning Luna deployment**"
+                }
+            })),
+            NormalizedPiEvent::ThinkingDelta {
+                delta: "**Planning Luna deployment**".into()
+            }
+        );
+        assert_eq!(
+            normalize_event(&json!({
+                "type": "message_update",
+                "assistantMessageEvent": { "type": "thinking_end", "contentIndex": 0 }
+            })),
+            NormalizedPiEvent::ThinkingEnded
+        );
     }
 }

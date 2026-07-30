@@ -618,6 +618,32 @@
         "type": "string",
         "enum": ["thinking", "working", "compacting", "retrying"]
       },
+      "AgentActivitiesReset": {
+        "type": "object"
+      },
+      "AgentActivity": {
+        "type": "object",
+        "required": ["id", "sequence", "summary", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
       "AgentActivityChanged": {
         "type": "object",
         "required": ["active", "phase"],
@@ -925,6 +951,7 @@
           "preview",
           "activeWorkingDirectory",
           "repositories",
+          "activities",
           "unreadCount",
           "createdAt",
           "updatedAt",
@@ -933,6 +960,12 @@
         "properties": {
           "activeWorkingDirectory": {
             "type": "string"
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentActivity"
+            }
           },
           "archivedAt": {
             "oneOf": [
@@ -1517,6 +1550,32 @@
               "type": {
                 "type": "string",
                 "enum": ["agent.activity_changed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/AgentActivitiesReset"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["agent.activities_reset"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/AgentActivity"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["agent.activity_upserted"]
               }
             }
           },

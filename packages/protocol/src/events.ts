@@ -1,6 +1,7 @@
 import { Type, type Static, type TSchema } from 'typebox'
 import { ApiErrorSchema, CursorSchema, DateTimeSchema, IdSchema } from './common.js'
 import {
+  AgentActivitySchema,
   AttachmentSchema,
   ConversationSchema,
   MessageDeliverySchema,
@@ -131,6 +132,14 @@ export const AgentActivityChangedEventSchema = envelope(
     { additionalProperties: false },
   ),
 )
+export const AgentActivitiesResetEventSchema = envelope(
+  'agent.activities_reset',
+  Type.Object({}, { additionalProperties: false }),
+)
+export const AgentActivityUpsertedEventSchema = envelope(
+  'agent.activity_upserted',
+  AgentActivitySchema,
+)
 export const SteeringQueueChangedEventSchema = envelope(
   'steering.queue_changed',
   Type.Object(
@@ -172,6 +181,8 @@ export const ServerEventSchema = Type.Union([
   MessageCompletedEventSchema,
   SessionStateChangedEventSchema,
   AgentActivityChangedEventSchema,
+  AgentActivitiesResetEventSchema,
+  AgentActivityUpsertedEventSchema,
   SteeringQueueChangedEventSchema,
   WorkspaceUpdatedEventSchema,
   RepositoriesUpdatedEventSchema,
