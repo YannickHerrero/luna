@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
@@ -136,6 +136,10 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   expect(rootPresentation.textSizeAdjust).toBe('100%')
   expect(rootPresentation.touchAction).toContain('pan-x')
   expect(rootPresentation.touchAction).toContain('pan-y')
+  const pairingOverflow = await page
+    .locator('.pairing-page')
+    .evaluate((element) => window.getComputedStyle(element).overflowY)
+  expect(pairingOverflow).toBe('auto')
   for (const label of ['Pairing code', 'Device name']) {
     expect(
       await page
@@ -189,6 +193,13 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   expect(composerBounds).not.toBeNull()
   expect(composerBounds?.x).toBeGreaterThanOrEqual(16)
   expect(375 - (composerBounds?.x ?? 0) - (composerBounds?.width ?? 0)).toBeGreaterThanOrEqual(16)
+  await expectConversationInViewport(page)
+
+  const rootOverflow = await page.evaluate(() => ({
+    body: window.getComputedStyle(document.body).overflowY,
+    html: window.getComputedStyle(document.documentElement).overflowY,
+  }))
+  expect(rootOverflow).toEqual({ body: 'hidden', html: 'hidden' })
 
   const singleLineHeight = await prompt.evaluate((element) => element.clientHeight)
   await prompt.fill(
@@ -230,6 +241,8 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  await expectTranscriptAtBottom(page)
+  await expectConversationInViewport(page)
   const firstUserMessage = page.locator('.message-row.user').first()
   await firstUserMessage.click()
   const messageTimestamp = firstUserMessage.locator('.message-timestamp')
@@ -265,8 +278,14 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(sortedConversations).toHaveCount(2)
   await expect(sortedConversations.first().locator('.state-dot.working')).toBeVisible()
   await expect(sortedConversations.first().locator('.cell-time')).toHaveAttribute('datetime', /T/)
+  await sortedConversations.nth(1).click()
+  await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
+  await expectConversationInViewport(page)
+  await page.getByRole('button', { name: 'Back' }).click()
   await sortedConversations.first().click()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  await expectTranscriptAtBottom(page)
+  await expectConversationInViewport(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
@@ -345,6 +364,46 @@ function latestPairingCode(): string {
   const code = matches.at(-1)?.[1]
   if (!code) throw new Error('No pairing code in Luna output')
   return code
+}
+
+async function expectConversationInViewport(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const composer = document.querySelector('.composer-wrap')
+        const transcript = document.querySelector('.message-scroll')
+        if (!(composer instanceof HTMLElement) || !(transcript instanceof HTMLElement)) {
+          return undefined
+        }
+        const composerBounds = composer.getBoundingClientRect()
+        const transcriptBounds = transcript.getBoundingClientRect()
+        const viewportTop = window.visualViewport?.offsetTop ?? 0
+        const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight)
+        return {
+          composerAtBottom: Math.abs(composerBounds.bottom - viewportBottom) <= 1,
+          documentScrollY: window.scrollY,
+          transcriptAboveComposer: transcriptBounds.bottom <= composerBounds.top,
+          transcriptVisible: transcriptBounds.top >= viewportTop,
+        }
+      }),
+    )
+    .toEqual({
+      composerAtBottom: true,
+      documentScrollY: 0,
+      transcriptAboveComposer: true,
+      transcriptVisible: true,
+    })
+}
+
+async function expectTranscriptAtBottom(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.locator('.message-scroll').evaluate((element) => {
+        const transcript = element as HTMLElement
+        return Math.ceil(transcript.scrollTop + transcript.clientHeight) >= transcript.scrollHeight
+      }),
+    )
+    .toBe(true)
 }
 
 async function waitForReady(): Promise<void> {

@@ -534,12 +534,14 @@ function ConversationView({
   onRename: (conversation: Conversation) => void
   onError: (message: string | undefined) => void
 }) {
-  const end = useRef<HTMLDivElement>(null)
+  const messageScroll = useRef<HTMLDivElement>(null)
   const busy = ['working', 'compacting', 'retrying', 'restoring', 'starting'].includes(
     conversation.state,
   )
   useEffect(() => {
-    end.current?.scrollIntoView({
+    const transcript = messageScroll.current
+    transcript?.scrollTo({
+      top: transcript.scrollHeight,
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     })
   }, [conversation.activities, messages])
@@ -601,7 +603,7 @@ function ConversationView({
           <Archive size={17} />
         </button>
       </header>
-      <div className="message-scroll">
+      <div ref={messageScroll} className="message-scroll">
         {canLoadEarlier && (
           <button className="load-earlier" onClick={onLoadEarlier}>
             Load earlier messages
@@ -620,7 +622,6 @@ function ConversationView({
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
         {busy && <TypingIndicator activities={conversation.activities} />}
-        <div ref={end} />
       </div>
       <Composer
         conversation={conversation}
