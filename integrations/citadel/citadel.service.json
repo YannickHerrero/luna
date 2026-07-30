@@ -8,9 +8,6 @@
   "environment": {
     "LUNA_BIND_HOST": "127.0.0.1",
     "LUNA_PORT": "9870",
-    "LUNA_PI_EXECUTABLE": "packages/pi-runtime/node_modules/.bin/pi",
-    "LUNA_PI_BRIDGE": "integrations/pi/luna-bridge.ts",
-    "LUNA_WEB_DIR": "apps/web/out",
     "RUST_LOG": "luna_server=info,luna_pi=info"
   },
   "healthCheck": {
