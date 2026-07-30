@@ -18,6 +18,22 @@ pub struct BuiltApp {
 
 pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
     let database = Database::connect(&config.database_path).await?;
+    let recovered_at = crate::auth::now()?;
+    for conversation_id in database
+        .recover_interrupted_conversations(&recovered_at)
+        .await?
+    {
+        database
+            .append_event(
+                Some(conversation_id),
+                Some(conversation_id),
+                &luna_protocol::ServerEvent::SessionStateChanged {
+                    state: luna_protocol::SessionState::Crashed,
+                },
+                &recovered_at,
+            )
+            .await?;
+    }
     let events = EventHub::new(database.clone());
     let runtime = Arc::new(ConversationRuntime::new(
         SessionRuntimeConfig {

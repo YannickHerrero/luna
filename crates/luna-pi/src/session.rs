@@ -72,6 +72,20 @@ impl SessionSupervisor {
         }
     }
 
+    pub async fn active(&self, conversation_id: Uuid) -> Option<Arc<ManagedSession>> {
+        self.sessions
+            .lock()
+            .await
+            .get(&conversation_id)
+            .filter(|session| {
+                matches!(
+                    *session.process.status().borrow(),
+                    crate::ProcessStatus::Running
+                )
+            })
+            .cloned()
+    }
+
     pub async fn activate(
         &self,
         conversation_id: Uuid,

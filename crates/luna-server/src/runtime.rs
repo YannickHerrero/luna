@@ -48,10 +48,17 @@ impl ConversationRuntime {
         self: &Arc<Self>,
         conversation: ConversationRuntimeRecord,
     ) -> Result<Arc<ManagedSession>, AppError> {
+        let conversation_id = conversation.conversation.id;
+        let restoring = conversation.pi_session_path.is_some()
+            && self.supervisor.active(conversation_id).await.is_none();
+        if restoring {
+            self.set_state(conversation_id, SessionState::Restoring)
+                .await?;
+        }
         let session = self
             .supervisor
             .activate(
-                conversation.conversation.id,
+                conversation_id,
                 PathBuf::from(&conversation.conversation.active_working_directory),
                 conversation.pi_session_path.map(PathBuf::from),
             )
@@ -70,10 +77,11 @@ impl ConversationRuntime {
                     .await?;
             }
         }
-        let should_mark_idle = matches!(
-            conversation.conversation.state,
-            SessionState::Creating | SessionState::Starting | SessionState::Restoring
-        );
+        let should_mark_idle = restoring
+            || matches!(
+                conversation.conversation.state,
+                SessionState::Creating | SessionState::Starting | SessionState::Restoring
+            );
         let mut pumps = self.pumps.lock().await;
         if pumps.insert(conversation.conversation.id) {
             let runtime = self.clone();

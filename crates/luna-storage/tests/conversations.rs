@@ -38,3 +38,36 @@ async fn conversations_and_sync_events_round_trip() {
         1
     );
 }
+
+#[tokio::test]
+async fn marks_interrupted_runtime_states_as_crashed() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let database = Database::connect(&directory.path().join("recovery.sqlite"))
+        .await
+        .expect("database");
+    let id = Uuid::new_v4();
+    database
+        .create_conversation(id, "/Users/test", "2026-01-01T00:00:00Z")
+        .await
+        .expect("conversation");
+    database
+        .set_conversation_state(id, SessionState::Working, "2026-01-01T00:01:00Z")
+        .await
+        .expect("working state");
+    assert_eq!(
+        database
+            .recover_interrupted_conversations("2026-01-01T00:02:00Z")
+            .await
+            .expect("recovery"),
+        vec![id]
+    );
+    assert_eq!(
+        database
+            .conversation(id)
+            .await
+            .expect("conversation")
+            .expect("present")
+            .state,
+        SessionState::Crashed
+    );
+}
