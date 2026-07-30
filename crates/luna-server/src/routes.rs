@@ -395,14 +395,19 @@ async fn sync(
     AuthenticatedDevice(_device): AuthenticatedDevice,
     Query(query): Query<SyncQuery>,
 ) -> Result<Json<SyncResponse>, AppError> {
-    let events = state
-        .database
-        .events_after(query.after.max(0), 1_000)
-        .await?;
+    let after = query.after.max(0);
+    if state.database.cursor_requires_reset(after).await? {
+        return Ok(Json(SyncResponse {
+            cursor: state.database.latest_cursor().await?,
+            events: vec![],
+            reset_required: true,
+        }));
+    }
+    let events = state.database.events_after(after, 1_000).await?;
     let cursor = events
         .last()
         .and_then(|event| event.event_id)
-        .unwrap_or(query.after.max(0));
+        .unwrap_or(after);
     Ok(Json(SyncResponse {
         cursor,
         events: events
@@ -441,6 +446,22 @@ async fn stream_events(socket: WebSocket, state: AppState, device_id: Uuid, afte
         },
     };
     if send_socket_event(&mut sender, &welcome).await.is_err() {
+        return;
+    }
+    if state
+        .database
+        .cursor_requires_reset(cursor)
+        .await
+        .unwrap_or(false)
+    {
+        let reset = ServerEventEnvelope {
+            version: 1,
+            event_id: None,
+            conversation_id: None,
+            emitted_at: now().unwrap_or_else(|_| "1970-01-01T00:00:00Z".into()),
+            event: ServerEvent::SyncResetRequired { cursor: latest },
+        };
+        let _ = send_socket_event(&mut sender, &reset).await;
         return;
     }
     if send_catchup(&state, &mut sender, &mut cursor)

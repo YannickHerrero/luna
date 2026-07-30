@@ -211,6 +211,36 @@ impl Database {
         })
     }
 
+    pub async fn recover_streaming_messages(
+        &self,
+        updated_at: &str,
+    ) -> Result<Vec<Message>, StorageError> {
+        let rows = sqlx::query_as::<_, MessageRow>(
+            "SELECT id, conversation_id, client_message_id, role, status, delivery, text, sent_by_device_id, ordinal, created_at, updated_at FROM messages WHERE status = 'streaming'",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        if rows.is_empty() {
+            return Ok(vec![]);
+        }
+        sqlx::query(
+            "UPDATE messages SET status = 'interrupted', updated_at = ? WHERE status = 'streaming'",
+        )
+        .bind(updated_at)
+        .execute(self.pool())
+        .await?;
+        let mut messages = rows
+            .into_iter()
+            .map(map_message)
+            .collect::<Result<Vec<_>, _>>()?;
+        for message in &mut messages {
+            message.status = MessageStatus::Interrupted;
+            message.updated_at = updated_at.into();
+            message.attachments = self.attachments_for_message(message.id).await?;
+        }
+        Ok(messages)
+    }
+
     pub async fn recover_inflight_dispatches(&self, updated_at: &str) -> Result<u64, StorageError> {
         let updated = sqlx::query(
             "UPDATE dispatches SET state = 'failed', error_code = 'server_restarted', updated_at = ? WHERE state = 'running'",

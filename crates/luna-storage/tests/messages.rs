@@ -119,6 +119,22 @@ async fn accepts_user_commands_idempotently() {
 }
 
 #[tokio::test]
+async fn marks_streaming_messages_interrupted_after_restart() {
+    let (_directory, database, _device_id, conversation_id) = setup().await;
+    let message_id = Uuid::new_v4();
+    database
+        .begin_assistant_message(conversation_id, message_id, NOW)
+        .await
+        .expect("assistant message");
+    let recovered = database
+        .recover_streaming_messages("2026-03-20T12:01:00Z")
+        .await
+        .expect("recovery");
+    assert_eq!(recovered.len(), 1);
+    assert_eq!(recovered[0].status, MessageStatus::Interrupted);
+}
+
+#[tokio::test]
 async fn persists_assistant_deltas_and_completion() {
     let (_directory, database, _device_id, conversation_id) = setup().await;
     let message_id = Uuid::new_v4();

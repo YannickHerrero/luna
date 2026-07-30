@@ -25,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await?;
     built.runtime.shutdown().await;
+    built.maintenance.shutdown().await;
     built.database.close().await;
     Ok(())
 }

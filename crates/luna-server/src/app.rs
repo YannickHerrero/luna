@@ -6,8 +6,8 @@ use luna_storage::Database;
 use tower_http::services::ServeDir;
 
 use crate::{
-    auth::AuthService, config::Config, error::AppError, events::EventHub, routes,
-    runtime::ConversationRuntime, state::AppState, transcription::TranscriptionService,
+    auth::AuthService, config::Config, error::AppError, events::EventHub, maintenance::Maintenance,
+    routes, runtime::ConversationRuntime, state::AppState, transcription::TranscriptionService,
 };
 
 pub struct BuiltApp {
@@ -15,6 +15,7 @@ pub struct BuiltApp {
     pub pairing_code: String,
     pub database: Database,
     pub runtime: Arc<ConversationRuntime>,
+    pub maintenance: Maintenance,
 }
 
 pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
@@ -22,6 +23,16 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
     let database = Database::connect(&config.database_path).await?;
     let recovered_at = crate::auth::now()?;
     database.recover_inflight_dispatches(&recovered_at).await?;
+    for message in database.recover_streaming_messages(&recovered_at).await? {
+        database
+            .append_event(
+                Some(message.conversation_id),
+                Some(message.id),
+                &luna_protocol::ServerEvent::MessageUpserted(message),
+                &recovered_at,
+            )
+            .await?;
+    }
     for conversation_id in database
         .recover_interrupted_conversations(&recovered_at)
         .await?
@@ -37,6 +48,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
             )
             .await?;
     }
+    let maintenance = Maintenance::spawn(database.clone(), config.event_retention_days);
     let events = EventHub::new(database.clone());
     let runtime = Arc::new(ConversationRuntime::new(
         SessionRuntimeConfig {
@@ -71,5 +83,6 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         pairing_code,
         database,
         runtime,
+        maintenance,
     })
 }

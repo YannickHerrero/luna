@@ -44,6 +44,26 @@ impl Database {
         })
     }
 
+    pub async fn cursor_requires_reset(&self, cursor: i64) -> Result<bool, StorageError> {
+        if cursor <= 0 {
+            return Ok(false);
+        }
+        let oldest: Option<i64> = sqlx::query_scalar("SELECT MIN(id) FROM sync_events")
+            .fetch_one(self.pool())
+            .await?;
+        Ok(oldest.is_some_and(|oldest| cursor < oldest.saturating_sub(1)))
+    }
+
+    pub async fn prune_events_before(&self, cutoff: &str) -> Result<u64, StorageError> {
+        let deleted = sqlx::query(
+            "DELETE FROM sync_events WHERE created_at < ? AND id < (SELECT COALESCE(MAX(id), 0) FROM sync_events)",
+        )
+        .bind(cutoff)
+        .execute(self.pool())
+        .await?;
+        Ok(deleted.rows_affected())
+    }
+
     pub async fn latest_cursor(&self) -> Result<i64, StorageError> {
         let value: Option<i64> = sqlx::query_scalar("SELECT MAX(id) FROM sync_events")
             .fetch_one(self.pool())

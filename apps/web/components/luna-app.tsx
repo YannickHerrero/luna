@@ -93,6 +93,13 @@ export function LunaApp() {
       socket.onmessage = (message) => {
         const event = JSON.parse(String(message.data)) as LunaEvent
         if (event.type === 'server.welcome' || event.type === 'server.pong') return
+        if (event.type === 'sync.reset_required') {
+          void api<Bootstrap>('/v1/bootstrap')
+            .then(installBootstrap)
+            .catch((requestError: unknown) => setError(messageFromError(requestError)))
+          socket?.close()
+          return
+        }
         setClient((current) => {
           const next = applyServerEvent(current, event)
           cursor.current = next.cursor
@@ -109,7 +116,7 @@ export function LunaApp() {
       if (retry) clearTimeout(retry)
       socket?.close()
     }
-  }, [phase])
+  }, [installBootstrap, phase])
 
   useEffect(() => {
     const conversationId = client.selectedConversationId
