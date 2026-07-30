@@ -2,287 +2,316 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Luna API",
+    "description": "",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
     "version": "1.0.0"
   },
-  "servers": [
-    {
-      "url": "/v1"
-    }
-  ],
   "paths": {},
   "components": {
     "schemas": {
-      "PairingExchangeResponse": {
+      "ActivityPhase": {
+        "type": "string",
+        "enum": ["thinking", "working", "compacting", "retrying"]
+      },
+      "AgentActivityChanged": {
         "type": "object",
-        "required": ["deviceId", "token", "bootstrap"],
+        "required": ["active", "phase"],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/ActivityPhase"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["code", "message", "retryable"],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": ["string", "null"]
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "mimeType",
+          "byteSize",
+          "width",
+          "height",
+          "status",
+          "contentUrl",
+          "thumbnailUrl",
+          "createdAt"
+        ],
+        "properties": {
+          "byteSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "contentUrl": {
+            "type": "string"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttachmentStatus"
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "AttachmentResponse": {
+        "type": "object",
+        "required": ["attachment"],
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/Attachment"
+          }
+        }
+      },
+      "AttachmentStatus": {
+        "type": "string",
+        "enum": ["uploading", "ready", "attached", "failed", "deleted"]
+      },
+      "Bootstrap": {
+        "type": "object",
+        "required": ["protocolVersion", "cursor", "device", "conversations"],
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Conversation"
+            }
+          },
+          "cursor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "device": {
+            "$ref": "#/components/schemas/Device"
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ClientCommand": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientHello"
+              },
+              {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["client.hello"]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageSendCommand"
+              },
+              {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["message.send"]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionInterruptCommand"
+              },
+              {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.interrupt"]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientPing"
+              },
+              {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["client.ping"]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "ClientHello": {
+        "type": "object",
+        "required": ["requestId", "deviceId", "lastCursor"],
         "properties": {
           "deviceId": {
             "type": "string",
             "format": "uuid"
           },
-          "token": {
-            "type": "string",
-            "minLength": 32
+          "lastCursor": {
+            "type": "integer",
+            "format": "int64"
           },
-          "bootstrap": {
-            "type": "object",
-            "required": ["protocolVersion", "cursor", "device", "conversations"],
-            "properties": {
-              "protocolVersion": {
-                "type": "number",
-                "const": 1
-              },
-              "cursor": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "device": {
-                "type": "object",
-                "required": [
-                  "id",
-                  "name",
-                  "platform",
-                  "notificationsEnabled",
-                  "createdAt",
-                  "lastSeenAt"
-                ],
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "platform": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "const": "ios"
-                      },
-                      {
-                        "type": "string",
-                        "const": "ipados"
-                      },
-                      {
-                        "type": "string",
-                        "const": "web"
-                      }
-                    ]
-                  },
-                  "notificationsEnabled": {
-                    "type": "boolean"
-                  },
-                  "createdAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "lastSeenAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
-                },
-                "additionalProperties": false
-              },
-              "conversations": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "title",
-                    "titleMode",
-                    "state",
-                    "preview",
-                    "activeWorkingDirectory",
-                    "repositories",
-                    "unreadCount",
-                    "createdAt",
-                    "updatedAt",
-                    "version"
-                  ],
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 120
-                    },
-                    "titleMode": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "const": "automatic"
-                        },
-                        {
-                          "type": "string",
-                          "const": "manual"
-                        }
-                      ]
-                    },
-                    "state": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "const": "creating"
-                        },
-                        {
-                          "type": "string",
-                          "const": "starting"
-                        },
-                        {
-                          "type": "string",
-                          "const": "idle"
-                        },
-                        {
-                          "type": "string",
-                          "const": "working"
-                        },
-                        {
-                          "type": "string",
-                          "const": "compacting"
-                        },
-                        {
-                          "type": "string",
-                          "const": "retrying"
-                        },
-                        {
-                          "type": "string",
-                          "const": "crashed"
-                        },
-                        {
-                          "type": "string",
-                          "const": "restoring"
-                        },
-                        {
-                          "type": "string",
-                          "const": "interrupted"
-                        },
-                        {
-                          "type": "string",
-                          "const": "stopped"
-                        },
-                        {
-                          "type": "string",
-                          "const": "error"
-                        }
-                      ]
-                    },
-                    "preview": {
-                      "type": "string",
-                      "maxLength": 240
-                    },
-                    "activeWorkingDirectory": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "repositories": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "displayName",
-                          "rootPath",
-                          "active",
-                          "icon",
-                          "firstSeenAt",
-                          "lastSeenAt"
-                        ],
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "displayName": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 160
-                          },
-                          "rootPath": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "branch": {
-                            "type": "string",
-                            "maxLength": 255
-                          },
-                          "active": {
-                            "type": "boolean"
-                          },
-                          "icon": {
-                            "type": "object",
-                            "required": ["repositoryId", "fallbackText", "fallbackColor"],
-                            "properties": {
-                              "repositoryId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "contentUrl": {
-                                "type": "string"
-                              },
-                              "fallbackText": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 3
-                              },
-                              "fallbackColor": {
-                                "type": "string",
-                                "pattern": "^#[0-9a-fA-F]{6}$"
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "firstSeenAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "lastSeenAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "additionalProperties": false
-                      }
-                    },
-                    "notificationTargetDeviceId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "unreadCount": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "archivedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "version": {
-                      "type": "integer",
-                      "minimum": 1
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            },
-            "additionalProperties": false
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
           }
-        },
-        "additionalProperties": false
+        }
+      },
+      "ClientPing": {
+        "type": "object",
+        "required": ["requestId"],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CommandAccepted": {
+        "type": "object",
+        "required": ["requestId"],
+        "properties": {
+          "message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Message"
+              }
+            ]
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CommandRejected": {
+        "type": "object",
+        "required": ["requestId", "error"],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
       },
       "Conversation": {
         "type": "object",
@@ -300,178 +329,422 @@
           "version"
         ],
         "properties": {
+          "activeWorkingDirectory": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/String"
+              }
+            ]
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "titleMode": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "automatic"
-              },
-              {
-                "type": "string",
-                "const": "manual"
-              }
-            ]
-          },
-          "state": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "creating"
-              },
-              {
-                "type": "string",
-                "const": "starting"
-              },
-              {
-                "type": "string",
-                "const": "idle"
-              },
-              {
-                "type": "string",
-                "const": "working"
-              },
-              {
-                "type": "string",
-                "const": "compacting"
-              },
-              {
-                "type": "string",
-                "const": "retrying"
-              },
-              {
-                "type": "string",
-                "const": "crashed"
-              },
-              {
-                "type": "string",
-                "const": "restoring"
-              },
-              {
-                "type": "string",
-                "const": "interrupted"
-              },
-              {
-                "type": "string",
-                "const": "stopped"
-              },
-              {
-                "type": "string",
-                "const": "error"
-              }
-            ]
+          "notificationTargetDeviceId": {
+            "type": ["string", "null"],
+            "format": "uuid"
           },
           "preview": {
-            "type": "string",
-            "maxLength": 240
-          },
-          "activeWorkingDirectory": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "repositories": {
             "type": "array",
             "items": {
-              "type": "object",
-              "required": [
-                "id",
-                "displayName",
-                "rootPath",
-                "active",
-                "icon",
-                "firstSeenAt",
-                "lastSeenAt"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "displayName": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 160
-                },
-                "rootPath": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "branch": {
-                  "type": "string",
-                  "maxLength": 255
-                },
-                "active": {
-                  "type": "boolean"
-                },
-                "icon": {
-                  "type": "object",
-                  "required": ["repositoryId", "fallbackText", "fallbackColor"],
-                  "properties": {
-                    "repositoryId": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "contentUrl": {
-                      "type": "string"
-                    },
-                    "fallbackText": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 3
-                    },
-                    "fallbackColor": {
-                      "type": "string",
-                      "pattern": "^#[0-9a-fA-F]{6}$"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "firstSeenAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "lastSeenAt": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/components/schemas/Repository"
             }
           },
-          "notificationTargetDeviceId": {
-            "type": "string",
-            "format": "uuid"
+          "state": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "titleMode": {
+            "$ref": "#/components/schemas/TitleMode"
           },
           "unreadCount": {
             "type": "integer",
-            "minimum": 0
-          },
-          "archivedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+            "format": "int64"
           },
           "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+            "$ref": "#/components/schemas/String"
           },
           "version": {
             "type": "integer",
-            "minimum": 1
+            "format": "int64"
           }
-        },
-        "additionalProperties": false
+        }
+      },
+      "ConversationList": {
+        "type": "object",
+        "required": ["conversations"],
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Conversation"
+            }
+          }
+        }
+      },
+      "ConversationMessages": {
+        "type": "object",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "nextBeforeOrdinal": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          }
+        }
+      },
+      "ConversationTitleUpdated": {
+        "type": "object",
+        "required": ["title", "automatic"],
+        "properties": {
+          "automatic": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateConversationRequest": {
+        "type": "object"
+      },
+      "Device": {
+        "type": "object",
+        "required": ["id", "name", "platform", "notificationsEnabled", "createdAt", "lastSeenAt"],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lastSeenAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notificationsEnabled": {
+            "type": "boolean"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        }
+      },
+      "DevicePlatform": {
+        "type": "string",
+        "enum": ["ios", "ipados", "web"]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "authentication_required",
+          "forbidden",
+          "invalid_request",
+          "not_found",
+          "conflict",
+          "agent_unavailable",
+          "agent_rejected",
+          "attachment_invalid",
+          "transcription_failed",
+          "rate_limited",
+          "internal_error"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversationId",
+          "role",
+          "status",
+          "text",
+          "attachments",
+          "ordinal",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            }
+          },
+          "clientMessageId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "delivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MessageDelivery"
+              }
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ordinal": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MessageRole"
+          },
+          "sentByDeviceId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MessageStatus"
+          },
+          "text": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
+      "MessageCompleted": {
+        "type": "object",
+        "required": ["messageId"],
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MessageDelivery": {
+        "type": "string",
+        "enum": ["initial", "steer"]
+      },
+      "MessageDelta": {
+        "type": "object",
+        "required": ["messageId", "chunkIndex", "delta"],
+        "properties": {
+          "chunkIndex": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "delta": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MessageRole": {
+        "type": "string",
+        "enum": ["user", "assistant"]
+      },
+      "MessageSendCommand": {
+        "type": "object",
+        "required": ["requestId", "conversationId", "clientMessageId", "text", "attachmentIds"],
+        "properties": {
+          "attachmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "clientMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageStatus": {
+        "type": "string",
+        "enum": ["pending", "accepted", "queued", "streaming", "completed", "interrupted", "failed"]
+      },
+      "NotificationTargetChanged": {
+        "type": "object",
+        "required": ["deviceId"],
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PairingExchangeRequest": {
+        "type": "object",
+        "required": ["code", "deviceName", "platform"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        }
+      },
+      "PairingExchangeResponse": {
+        "type": "object",
+        "required": ["deviceId", "token", "bootstrap"],
+        "properties": {
+          "bootstrap": {
+            "$ref": "#/components/schemas/Bootstrap"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "RepositoriesUpdated": {
+        "type": "object",
+        "required": ["repositories"],
+        "properties": {
+          "repositories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Repository"
+            }
+          }
+        }
+      },
+      "Repository": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "rootPath",
+          "active",
+          "icon",
+          "firstSeenAt",
+          "lastSeenAt"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "branch": {
+            "type": ["string", "null"]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "firstSeenAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/RepositoryIcon"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lastSeenAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "rootPath": {
+            "type": "string"
+          }
+        }
+      },
+      "RepositoryIcon": {
+        "type": "object",
+        "required": ["repositoryId", "fallbackText", "fallbackColor"],
+        "properties": {
+          "contentUrl": {
+            "type": ["string", "null"]
+          },
+          "fallbackColor": {
+            "type": "string"
+          },
+          "fallbackText": {
+            "type": "string"
+          },
+          "repositoryId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "required": ["clientMessageId", "text", "attachmentIds"],
+        "properties": {
+          "attachmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "clientMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
       },
       "SendMessageResponse": {
         "type": "object",
@@ -481,739 +754,352 @@
             "type": "boolean"
           },
           "message": {
-            "type": "object",
-            "required": [
-              "id",
-              "conversationId",
-              "role",
-              "status",
-              "text",
-              "attachments",
-              "ordinal",
-              "createdAt",
-              "updatedAt"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "conversationId": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "clientMessageId": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "role": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": "user"
-                  },
-                  {
-                    "type": "string",
-                    "const": "assistant"
-                  }
-                ]
-              },
-              "status": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": "pending"
-                  },
-                  {
-                    "type": "string",
-                    "const": "accepted"
-                  },
-                  {
-                    "type": "string",
-                    "const": "queued"
-                  },
-                  {
-                    "type": "string",
-                    "const": "streaming"
-                  },
-                  {
-                    "type": "string",
-                    "const": "completed"
-                  },
-                  {
-                    "type": "string",
-                    "const": "interrupted"
-                  },
-                  {
-                    "type": "string",
-                    "const": "failed"
-                  }
-                ]
-              },
-              "delivery": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": "initial"
-                  },
-                  {
-                    "type": "string",
-                    "const": "steer"
-                  }
-                ]
-              },
-              "text": {
-                "type": "string",
-                "maxLength": 1000000
-              },
-              "attachments": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "fileName",
-                    "mimeType",
-                    "byteSize",
-                    "width",
-                    "height",
-                    "status",
-                    "contentUrl",
-                    "thumbnailUrl",
-                    "createdAt"
-                  ],
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "fileName": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 255
-                    },
-                    "mimeType": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 100
-                    },
-                    "byteSize": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "width": {
-                      "type": "integer",
-                      "minimum": 1
-                    },
-                    "height": {
-                      "type": "integer",
-                      "minimum": 1
-                    },
-                    "status": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "const": "uploading"
-                        },
-                        {
-                          "type": "string",
-                          "const": "ready"
-                        },
-                        {
-                          "type": "string",
-                          "const": "attached"
-                        },
-                        {
-                          "type": "string",
-                          "const": "failed"
-                        },
-                        {
-                          "type": "string",
-                          "const": "deleted"
-                        }
-                      ]
-                    },
-                    "contentUrl": {
-                      "type": "string"
-                    },
-                    "thumbnailUrl": {
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "sentByDeviceId": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "ordinal": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "updatedAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/components/schemas/Message"
           }
-        },
-        "additionalProperties": false
+        }
       },
-      "ConversationMessages": {
-        "type": "object",
-        "required": ["messages"],
-        "properties": {
-          "messages": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "id",
-                "conversationId",
-                "role",
-                "status",
-                "text",
-                "attachments",
-                "ordinal",
-                "createdAt",
-                "updatedAt"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "conversationId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "clientMessageId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "role": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "user"
-                    },
-                    {
-                      "type": "string",
-                      "const": "assistant"
-                    }
-                  ]
-                },
-                "status": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "pending"
-                    },
-                    {
-                      "type": "string",
-                      "const": "accepted"
-                    },
-                    {
-                      "type": "string",
-                      "const": "queued"
-                    },
-                    {
-                      "type": "string",
-                      "const": "streaming"
-                    },
-                    {
-                      "type": "string",
-                      "const": "completed"
-                    },
-                    {
-                      "type": "string",
-                      "const": "interrupted"
-                    },
-                    {
-                      "type": "string",
-                      "const": "failed"
-                    }
-                  ]
-                },
-                "delivery": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "initial"
-                    },
-                    {
-                      "type": "string",
-                      "const": "steer"
-                    }
-                  ]
-                },
-                "text": {
-                  "type": "string",
-                  "maxLength": 1000000
-                },
-                "attachments": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "required": [
-                      "id",
-                      "fileName",
-                      "mimeType",
-                      "byteSize",
-                      "width",
-                      "height",
-                      "status",
-                      "contentUrl",
-                      "thumbnailUrl",
-                      "createdAt"
-                    ],
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "fileName": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 255
-                      },
-                      "mimeType": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 100
-                      },
-                      "byteSize": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "width": {
-                        "type": "integer",
-                        "minimum": 1
-                      },
-                      "height": {
-                        "type": "integer",
-                        "minimum": 1
-                      },
-                      "status": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "const": "uploading"
-                          },
-                          {
-                            "type": "string",
-                            "const": "ready"
-                          },
-                          {
-                            "type": "string",
-                            "const": "attached"
-                          },
-                          {
-                            "type": "string",
-                            "const": "failed"
-                          },
-                          {
-                            "type": "string",
-                            "const": "deleted"
-                          }
-                        ]
-                      },
-                      "contentUrl": {
-                        "type": "string"
-                      },
-                      "thumbnailUrl": {
-                        "type": "string"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      }
-                    },
-                    "additionalProperties": false
+      "ServerEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["cursor", "resumed"],
+                "properties": {
+                  "cursor": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "resumed": {
+                    "type": "boolean"
                   }
-                },
-                "sentByDeviceId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "ordinal": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "updatedAt": {
-                  "type": "string",
-                  "format": "date-time"
                 }
               },
-              "additionalProperties": false
+              "type": {
+                "type": "string",
+                "enum": ["server.welcome"]
+              }
             }
           },
-          "nextBeforeOrdinal": {
-            "type": "integer",
-            "minimum": 1
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/CommandAccepted"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["command.accepted"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/CommandRejected"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["command.rejected"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/Conversation"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["conversation.upserted"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/ConversationTitleUpdated"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["conversation.title_updated"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/Message"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["message.upserted"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/MessageDelta"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["message.delta"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/MessageCompleted"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["message.completed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["state"],
+                "properties": {
+                  "state": {
+                    "$ref": "#/components/schemas/SessionState"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["session.state_changed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/AgentActivityChanged"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["agent.activity_changed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/SteeringQueueChanged"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["steering.queue_changed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/WorkspaceUpdated"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["workspace.updated"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/RepositoriesUpdated"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["repositories.updated"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/Attachment"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["attachment.updated"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/NotificationTargetChanged"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["notification_target.changed"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["cursor"],
+                "properties": {
+                  "cursor": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["sync.reset_required"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/ApiError"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["error"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["request_id"],
+                "properties": {
+                  "request_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["server.pong"]
+              }
+            }
           }
-        },
-        "additionalProperties": false
+        ]
       },
-      "UploadAttachmentResponse": {
+      "ServerEventEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerEvent"
+          },
+          {
+            "type": "object",
+            "required": ["version", "emittedAt"],
+            "properties": {
+              "conversationId": {
+                "type": ["string", "null"],
+                "format": "uuid"
+              },
+              "emittedAt": {
+                "type": "string"
+              },
+              "eventId": {
+                "type": ["integer", "null"],
+                "format": "int64"
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "SessionInterruptCommand": {
         "type": "object",
-        "required": [
-          "id",
-          "fileName",
-          "mimeType",
-          "byteSize",
-          "width",
-          "height",
-          "status",
-          "contentUrl",
-          "thumbnailUrl",
-          "createdAt"
-        ],
+        "required": ["requestId", "conversationId"],
         "properties": {
-          "id": {
+          "conversationId": {
             "type": "string",
             "format": "uuid"
           },
-          "fileName": {
+          "requestId": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "mimeType": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "byteSize": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "width": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "height": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "status": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "uploading"
-              },
-              {
-                "type": "string",
-                "const": "ready"
-              },
-              {
-                "type": "string",
-                "const": "attached"
-              },
-              {
-                "type": "string",
-                "const": "failed"
-              },
-              {
-                "type": "string",
-                "const": "deleted"
-              }
-            ]
-          },
-          "contentUrl": {
-            "type": "string"
-          },
-          "thumbnailUrl": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+            "format": "uuid"
           }
-        },
-        "additionalProperties": false
+        }
       },
-      "TranscriptionResponse": {
-        "type": "object",
-        "required": ["text"],
-        "properties": {
-          "text": {
-            "type": "string",
-            "maxLength": 100000
-          }
-        },
-        "additionalProperties": false
+      "SessionState": {
+        "type": "string",
+        "enum": [
+          "creating",
+          "starting",
+          "idle",
+          "working",
+          "compacting",
+          "retrying",
+          "crashed",
+          "restoring",
+          "interrupted",
+          "stopped",
+          "error"
+        ]
       },
-      "Bootstrap": {
+      "SteeringQueueChanged": {
         "type": "object",
-        "required": ["protocolVersion", "cursor", "device", "conversations"],
+        "required": ["pending", "delivery"],
         "properties": {
-          "protocolVersion": {
-            "type": "number",
-            "const": 1
+          "delivery": {
+            "$ref": "#/components/schemas/MessageDelivery"
           },
-          "cursor": {
+          "pending": {
             "type": "integer",
-            "minimum": 0
-          },
-          "device": {
-            "type": "object",
-            "required": [
-              "id",
-              "name",
-              "platform",
-              "notificationsEnabled",
-              "createdAt",
-              "lastSeenAt"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 80
-              },
-              "platform": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "const": "ios"
-                  },
-                  {
-                    "type": "string",
-                    "const": "ipados"
-                  },
-                  {
-                    "type": "string",
-                    "const": "web"
-                  }
-                ]
-              },
-              "notificationsEnabled": {
-                "type": "boolean"
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "lastSeenAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            },
-            "additionalProperties": false
-          },
-          "conversations": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "id",
-                "title",
-                "titleMode",
-                "state",
-                "preview",
-                "activeWorkingDirectory",
-                "repositories",
-                "unreadCount",
-                "createdAt",
-                "updatedAt",
-                "version"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "title": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 120
-                },
-                "titleMode": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "automatic"
-                    },
-                    {
-                      "type": "string",
-                      "const": "manual"
-                    }
-                  ]
-                },
-                "state": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "const": "creating"
-                    },
-                    {
-                      "type": "string",
-                      "const": "starting"
-                    },
-                    {
-                      "type": "string",
-                      "const": "idle"
-                    },
-                    {
-                      "type": "string",
-                      "const": "working"
-                    },
-                    {
-                      "type": "string",
-                      "const": "compacting"
-                    },
-                    {
-                      "type": "string",
-                      "const": "retrying"
-                    },
-                    {
-                      "type": "string",
-                      "const": "crashed"
-                    },
-                    {
-                      "type": "string",
-                      "const": "restoring"
-                    },
-                    {
-                      "type": "string",
-                      "const": "interrupted"
-                    },
-                    {
-                      "type": "string",
-                      "const": "stopped"
-                    },
-                    {
-                      "type": "string",
-                      "const": "error"
-                    }
-                  ]
-                },
-                "preview": {
-                  "type": "string",
-                  "maxLength": 240
-                },
-                "activeWorkingDirectory": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "repositories": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "required": [
-                      "id",
-                      "displayName",
-                      "rootPath",
-                      "active",
-                      "icon",
-                      "firstSeenAt",
-                      "lastSeenAt"
-                    ],
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 160
-                      },
-                      "rootPath": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "branch": {
-                        "type": "string",
-                        "maxLength": 255
-                      },
-                      "active": {
-                        "type": "boolean"
-                      },
-                      "icon": {
-                        "type": "object",
-                        "required": ["repositoryId", "fallbackText", "fallbackColor"],
-                        "properties": {
-                          "repositoryId": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "contentUrl": {
-                            "type": "string"
-                          },
-                          "fallbackText": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 3
-                          },
-                          "fallbackColor": {
-                            "type": "string",
-                            "pattern": "^#[0-9a-fA-F]{6}$"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "firstSeenAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "lastSeenAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                },
-                "notificationTargetDeviceId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "unreadCount": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "archivedAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "createdAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "updatedAt": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "version": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              },
-              "additionalProperties": false
-            }
+            "format": "int64"
           }
-        },
-        "additionalProperties": false
+        }
+      },
+      "String": {
+        "type": "string"
       },
       "SyncResponse": {
         "type": "object",
@@ -1221,7 +1107,7 @@
         "properties": {
           "cursor": {
             "type": "integer",
-            "minimum": 0
+            "format": "int64"
           },
           "events": {
             "type": "array",
@@ -1230,74 +1116,41 @@
           "resetRequired": {
             "type": "boolean"
           }
-        },
-        "additionalProperties": false
+        }
       },
-      "ApiError": {
+      "TitleMode": {
+        "type": "string",
+        "enum": ["automatic", "manual"]
+      },
+      "TranscriptionResponse": {
         "type": "object",
-        "required": ["code", "message", "retryable"],
+        "required": ["text"],
         "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string",
-                "const": "authentication_required"
-              },
-              {
-                "type": "string",
-                "const": "forbidden"
-              },
-              {
-                "type": "string",
-                "const": "invalid_request"
-              },
-              {
-                "type": "string",
-                "const": "not_found"
-              },
-              {
-                "type": "string",
-                "const": "conflict"
-              },
-              {
-                "type": "string",
-                "const": "agent_unavailable"
-              },
-              {
-                "type": "string",
-                "const": "agent_rejected"
-              },
-              {
-                "type": "string",
-                "const": "attachment_invalid"
-              },
-              {
-                "type": "string",
-                "const": "transcription_failed"
-              },
-              {
-                "type": "string",
-                "const": "rate_limited"
-              },
-              {
-                "type": "string",
-                "const": "internal_error"
-              }
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "retryable": {
-            "type": "boolean"
-          },
-          "requestId": {
+          "text": {
             "type": "string"
           }
-        },
-        "additionalProperties": false
+        }
+      },
+      "UpdateConversationRequest": {
+        "type": "object",
+        "properties": {
+          "avatarAttachmentId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "title": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "WorkspaceUpdated": {
+        "type": "object",
+        "required": ["workingDirectory"],
+        "properties": {
+          "workingDirectory": {
+            "type": "string"
+          }
+        }
       }
     }
   }
