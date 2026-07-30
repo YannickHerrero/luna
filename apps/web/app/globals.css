@@ -338,6 +338,18 @@ button {
   scroll-behavior: smooth;
 }
 
+.load-earlier {
+  display: block;
+  margin: 0 auto 22px;
+  padding: 8px 13px;
+  border: 1px solid var(--luna-border);
+  border-radius: 999px;
+  color: var(--luna-muted);
+  background: var(--luna-raised);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .message-row {
   display: flex;
   margin: 9px 0;
@@ -408,6 +420,36 @@ button {
 .markdown pre code {
   padding: 0;
   background: transparent;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal {
+  color: var(--luna-mauve);
+}
+
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag {
+  color: var(--luna-green);
+}
+
+.hljs-title,
+.hljs-function,
+.hljs-section {
+  color: var(--luna-blue);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--luna-peach);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--luna-muted);
+  font-style: italic;
 }
 
 .markdown blockquote {

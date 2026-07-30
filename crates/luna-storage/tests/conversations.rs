@@ -17,11 +17,21 @@ async fn conversations_and_sync_events_round_trip() {
     assert_eq!(conversation.state, SessionState::Creating);
 
     let automatic = database
-        .set_initial_automatic_title(id, "Authentication", "2026-01-01T00:00:30Z")
+        .set_automatic_title(id, "Authentication", "2026-01-01T00:00:30Z")
         .await
         .expect("automatic title")
         .expect("updated conversation");
     assert_eq!(automatic.title, "Authentication");
+    let evolved = database
+        .set_automatic_title(
+            id,
+            "Authentication + Password Reset",
+            "2026-01-01T00:00:45Z",
+        )
+        .await
+        .expect("evolved title")
+        .expect("updated conversation");
+    assert_eq!(evolved.title, "Authentication + Password Reset");
 
     let renamed = database
         .rename_conversation(id, "Rust server", "2026-01-01T00:01:00Z")
@@ -31,7 +41,7 @@ async fn conversations_and_sync_events_round_trip() {
     assert_eq!(renamed.title_mode, TitleMode::Manual);
     assert!(
         database
-            .set_initial_automatic_title(id, "Overwritten", "2026-01-01T00:02:00Z")
+            .set_automatic_title(id, "Overwritten", "2026-01-01T00:02:00Z")
             .await
             .expect("protected title")
             .is_none()

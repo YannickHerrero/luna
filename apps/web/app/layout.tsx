@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Persistent Pi conversations from every device.',
   applicationName: 'Luna',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
 }
 
 export const viewport: Viewport = {

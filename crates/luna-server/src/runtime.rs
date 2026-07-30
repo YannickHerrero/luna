@@ -337,7 +337,7 @@ impl ConversationRuntime {
                         )
                         .await?;
                     self.set_state(conversation_id, SessionState::Idle).await?;
-                    self.generate_initial_title(conversation_id).await?;
+                    self.generate_title(conversation_id).await?;
                 }
                 NormalizedPiEvent::ToolStarted | NormalizedPiEvent::ToolEnded { .. } => {
                     self.events
@@ -523,22 +523,20 @@ impl ConversationRuntime {
         }))
     }
 
-    async fn generate_initial_title(&self, conversation_id: Uuid) -> Result<(), AppError> {
+    async fn generate_title(&self, conversation_id: Uuid) -> Result<(), AppError> {
         let messages = self.database.messages(conversation_id, None, 100).await?;
-        let Some(text) = messages
+        let candidates = messages
             .iter()
-            .find(|message| message.role == luna_protocol::MessageRole::User)
-            .map(|message| message.text.as_str())
-        else {
-            return Ok(());
-        };
-        let Some(title) = title_from_text(text) else {
+            .filter(|message| message.role == luna_protocol::MessageRole::User)
+            .filter_map(|message| title_from_text(&message.text))
+            .collect::<Vec<_>>();
+        let Some(title) = evolving_title(&candidates) else {
             return Ok(());
         };
         let timestamp = now()?;
         let Some(conversation) = self
             .database
-            .set_initial_automatic_title(conversation_id, &title, &timestamp)
+            .set_automatic_title(conversation_id, &title, &timestamp)
             .await?
         else {
             return Ok(());
@@ -710,6 +708,48 @@ fn add_icon_candidate(
     }
 }
 
+fn evolving_title(candidates: &[String]) -> Option<String> {
+    let first = candidates.first()?.clone();
+    let Some(latest) = candidates.last().filter(|latest| *latest != &first) else {
+        return Some(first);
+    };
+    let first_words = significant_words(&first);
+    let latest_words = significant_words(latest);
+    let overlap = first_words.intersection(&latest_words).count();
+    let smallest = first_words.len().min(latest_words.len()).max(1);
+    if overlap * 2 >= smallest {
+        return Some(latest.clone());
+    }
+    let first = truncate_title(&first, 34);
+    let latest = truncate_title(latest, 34);
+    Some(format!("{first} + {latest}"))
+}
+
+fn significant_words(value: &str) -> HashSet<String> {
+    const STOP_WORDS: &[&str] = &[
+        "a", "an", "and", "for", "in", "of", "on", "the", "to", "with",
+    ];
+    value
+        .split(|character: char| !character.is_alphanumeric())
+        .map(str::to_ascii_lowercase)
+        .filter(|word| word.len() > 2 && !STOP_WORDS.contains(&word.as_str()))
+        .collect()
+}
+
+fn truncate_title(value: &str, limit: usize) -> String {
+    let mut output = String::new();
+    for word in value.split_whitespace() {
+        if !output.is_empty() && output.chars().count() + word.chars().count() + 1 > limit {
+            break;
+        }
+        if !output.is_empty() {
+            output.push(' ');
+        }
+        output.push_str(word);
+    }
+    output
+}
+
 fn title_from_text(text: &str) -> Option<String> {
     let compact = text
         .replace(['#', '*', '`', '_'], "")
@@ -724,6 +764,9 @@ fn title_from_text(text: &str) -> Option<String> {
         "would you ",
         "help me ",
         "i need you to ",
+        "also ",
+        "next ",
+        "then ",
     ] {
         if candidate.to_ascii_lowercase().starts_with(prefix) {
             candidate = candidate.get(prefix.len()..).unwrap_or(candidate).trim();
@@ -789,7 +832,7 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use super::title_from_text;
+    use super::{evolving_title, title_from_text};
 
     #[test]
     fn derives_a_short_title_from_the_first_request() {
@@ -802,6 +845,21 @@ mod tests {
                 "Investigate the very long and unexpectedly complicated synchronization behavior across every connected client"
             ),
             Some("Investigate the very long and unexpectedly complicated".into())
+        );
+    }
+
+    #[test]
+    fn evolves_titles_when_a_new_topic_appears() {
+        assert_eq!(
+            evolving_title(&["Authentication".into(), "Password reset flow".into(),]),
+            Some("Authentication + Password reset flow".into())
+        );
+        assert_eq!(
+            evolving_title(&[
+                "Authentication API".into(),
+                "Fix authentication API errors".into(),
+            ]),
+            Some("Fix authentication API errors".into())
         );
     }
 }

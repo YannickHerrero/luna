@@ -8,6 +8,6 @@
     "plugins": [{ "name": "next" }],
     "noEmit": true
   },
-  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx", "scripts/**/*.mjs"],
   "exclude": ["node_modules"]
 }

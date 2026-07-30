@@ -18,6 +18,7 @@ const initial: LunaClientState = {
   conversations: [conversation],
   messages: [message],
   selectedConversationId: conversation.id,
+  nextBeforeOrdinal: undefined,
   cursor: 2,
 }
 

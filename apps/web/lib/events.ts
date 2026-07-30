@@ -11,6 +11,7 @@ export type LunaClientState = {
   conversations: Conversation[]
   messages: Message[]
   selectedConversationId: string | undefined
+  nextBeforeOrdinal: number | undefined
   cursor: number
 }
 

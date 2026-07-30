@@ -233,18 +233,19 @@ impl Database {
         Ok(())
     }
 
-    pub async fn set_initial_automatic_title(
+    pub async fn set_automatic_title(
         &self,
         id: Uuid,
         title: &str,
         updated_at: &str,
     ) -> Result<Option<Conversation>, StorageError> {
         let updated = sqlx::query(
-            "UPDATE conversations SET title = ?, updated_at = ?, version = version + 1 WHERE id = ? AND title_mode = 'automatic' AND title = 'New Conversation'",
+            "UPDATE conversations SET title = ?, updated_at = ?, version = version + 1 WHERE id = ? AND title_mode = 'automatic' AND title != ?",
         )
         .bind(title)
         .bind(updated_at)
         .bind(id.to_string())
+        .bind(title)
         .execute(self.pool())
         .await?;
         if updated.rows_affected() == 0 {

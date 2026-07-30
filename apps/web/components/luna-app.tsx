@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Archive,
   ArrowLeft,
   Camera,
   CircleStop,
@@ -26,6 +27,7 @@ import type {
 } from '@luna/protocol'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 import { applyServerEvent, type LunaClientState, type LunaEvent } from '../lib/events.js'
 
@@ -36,6 +38,7 @@ const initialState: LunaClientState = {
   conversations: [],
   messages: [],
   selectedConversationId: undefined,
+  nextBeforeOrdinal: undefined,
   cursor: 0,
 }
 
@@ -53,6 +56,7 @@ export function LunaApp() {
       conversations: bootstrap.conversations,
       messages: [],
       selectedConversationId: bootstrap.conversations[0]?.id,
+      nextBeforeOrdinal: undefined,
       cursor: bootstrap.cursor,
     })
     setPhase('ready')
@@ -124,7 +128,13 @@ export function LunaApp() {
     let active = true
     void api<ConversationMessages>(`/v1/conversations/${conversationId}/messages`)
       .then((response) => {
-        if (active) setClient((current) => ({ ...current, messages: response.messages }))
+        if (active) {
+          setClient((current) => ({
+            ...current,
+            messages: response.messages,
+            nextBeforeOrdinal: response.nextBeforeOrdinal,
+          }))
+        }
       })
       .catch((requestError: unknown) => setError(messageFromError(requestError)))
     return () => {
@@ -137,6 +147,7 @@ export function LunaApp() {
       ...current,
       messages: [],
       selectedConversationId: conversationId,
+      nextBeforeOrdinal: undefined,
     }))
   }
 
@@ -151,10 +162,41 @@ export function LunaApp() {
         conversations: [conversation, ...current.conversations],
         selectedConversationId: conversation.id,
         messages: [],
+        nextBeforeOrdinal: undefined,
       }))
     } catch (requestError) {
       setError(messageFromError(requestError))
     }
+  }
+
+  const loadEarlierMessages = async () => {
+    const conversationId = client.selectedConversationId
+    const before = client.nextBeforeOrdinal
+    if (!conversationId || before === undefined) return
+    try {
+      const response = await api<ConversationMessages>(
+        `/v1/conversations/${conversationId}/messages?beforeOrdinal=${String(before)}`,
+      )
+      setClient((current) => ({
+        ...current,
+        messages: mergeMessages(response.messages, current.messages),
+        nextBeforeOrdinal: response.nextBeforeOrdinal,
+      }))
+    } catch (requestError) {
+      setError(messageFromError(requestError))
+    }
+  }
+
+  const removeArchivedConversation = (conversationId: string) => {
+    setClient((current) => ({
+      ...current,
+      conversations: current.conversations.filter(
+        (conversation) => conversation.id !== conversationId,
+      ),
+      messages: [],
+      selectedConversationId: undefined,
+      nextBeforeOrdinal: undefined,
+    }))
   }
 
   const selectTheme = (next: Theme) => {
@@ -231,6 +273,8 @@ export function LunaApp() {
           <ConversationView
             conversation={selected}
             messages={client.messages}
+            canLoadEarlier={client.nextBeforeOrdinal !== undefined}
+            onLoadEarlier={() => void loadEarlierMessages()}
             onBack={() => setSelectedConversation(undefined)}
             onMessage={(message) =>
               setClient((current) => ({
@@ -238,6 +282,7 @@ export function LunaApp() {
                 messages: upsertMessage(current.messages, message),
               }))
             }
+            onArchived={() => removeArchivedConversation(selected.id)}
             onRename={(conversation) =>
               setClient((current) => ({
                 ...current,
@@ -369,15 +414,21 @@ function ConversationCell({
 function ConversationView({
   conversation,
   messages,
+  canLoadEarlier,
+  onLoadEarlier,
   onBack,
   onMessage,
+  onArchived,
   onRename,
   onError,
 }: {
   conversation: Conversation
   messages: Message[]
+  canLoadEarlier: boolean
+  onLoadEarlier: () => void
   onBack: () => void
   onMessage: (message: Message) => void
+  onArchived: () => void
   onRename: (conversation: Conversation) => void
   onError: (message: string | undefined) => void
 }) {
@@ -404,6 +455,16 @@ function ConversationView({
     }
   }
 
+  const archive = async () => {
+    if (!window.confirm(`Archive “${conversation.title}”?`)) return
+    try {
+      await api<void>(`/v1/conversations/${conversation.id}/archive`, { method: 'POST' })
+      onArchived()
+    } catch (requestError) {
+      onError(messageFromError(requestError))
+    }
+  }
+
   return (
     <div className="conversation-view">
       <header className="conversation-header">
@@ -420,8 +481,21 @@ function ConversationView({
         <span className={`status-pill ${busy ? 'active' : ''}`}>
           <span /> {stateLabel(conversation.state)}
         </span>
+        <button
+          className="icon-button"
+          aria-label="Archive conversation"
+          title="Archive conversation"
+          onClick={() => void archive()}
+        >
+          <Archive size={17} />
+        </button>
       </header>
       <div className="message-scroll">
+        {canLoadEarlier && (
+          <button className="load-earlier" onClick={onLoadEarlier}>
+            Load earlier messages
+          </button>
+        )}
         {messages.length === 0 ? (
           <div className="conversation-empty">
             <div className="moon-mark">☾</div>
@@ -456,7 +530,9 @@ function MessageBubble({ message }: { message: Message }) {
         )}
         {message.role === 'assistant' ? (
           <div className="markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+              {message.text}
+            </ReactMarkdown>
             {message.status === 'streaming' && <span className="stream-caret" />}
           </div>
         ) : (
@@ -566,9 +642,15 @@ function Composer({
       }
       next.onstop = () => {
         for (const track of stream.getTracks()) track.stop()
-        const blob = new Blob(chunks.current, { type: next.mimeType || 'audio/webm' })
+        const mimeType = next.mimeType || 'audio/webm'
+        const extension = mimeType.includes('mp4')
+          ? 'm4a'
+          : mimeType.includes('ogg')
+            ? 'ogg'
+            : 'webm'
+        const blob = new Blob(chunks.current, { type: mimeType })
         const body = new FormData()
-        body.append('file', blob, 'recording.webm')
+        body.append('file', blob, `recording.${extension}`)
         void api<TranscriptionResponse>('/v1/transcriptions', { method: 'POST', body })
           .then((response) =>
             setText((current) => `${current}${current ? ' ' : ''}${response.text}`),
@@ -757,6 +839,12 @@ function stateLabel(state: Conversation['state']): string {
     stopped: 'Stopped',
     error: 'Needs attention',
   }[state]
+}
+
+function mergeMessages(earlier: Message[], current: Message[]): Message[] {
+  const messages = new Map<string, Message>()
+  for (const message of [...earlier, ...current]) messages.set(message.id, message)
+  return [...messages.values()].sort((left, right) => left.ordinal - right.ordinal)
 }
 
 function upsertMessage(messages: Message[], message: Message): Message[] {
