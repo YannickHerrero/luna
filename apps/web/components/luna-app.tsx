@@ -613,6 +613,14 @@ function Composer({
   const chunks = useRef<Blob[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
+  const textarea = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => resizeTextarea(textarea.current), [text])
+  useEffect(() => {
+    const handleResize = () => resizeTextarea(textarea.current)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -748,11 +756,15 @@ function Composer({
           <Camera size={18} />
         </button>
         <textarea
+          ref={textarea}
           value={text}
           rows={1}
           aria-label={busy ? 'Steer Pi' : 'Message Luna'}
           placeholder={busy ? 'Steer Pi…' : 'Message Luna…'}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => {
+            setText(event.target.value)
+            resizeTextarea(event.currentTarget)
+          }}
           onPaste={(event) => addFiles(Array.from(event.clipboardData.files))}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -808,6 +820,15 @@ function Composer({
       </p>
     </div>
   )
+}
+
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return
+  textarea.style.height = '0px'
+  const maximumHeight = Number.parseFloat(window.getComputedStyle(textarea).maxHeight)
+  const contentHeight = textarea.scrollHeight
+  textarea.style.height = `${String(Math.min(contentHeight, maximumHeight))}px`
+  textarea.style.overflowY = contentHeight > maximumHeight ? 'auto' : 'hidden'
 }
 
 function TypingIndicator() {

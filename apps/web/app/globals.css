@@ -584,11 +584,14 @@ textarea:focus-visible {
 }
 
 .composer-wrap {
+  min-width: 0;
   padding: 8px clamp(14px, 5vw, 64px) calc(12px + env(safe-area-inset-bottom));
 }
 
 .composer {
   display: flex;
+  min-width: 0;
+  width: 100%;
   align-items: flex-end;
   min-height: 54px;
   padding: 8px;
@@ -601,10 +604,12 @@ textarea:focus-visible {
 
 .composer textarea {
   min-width: 0;
+  height: 36px;
   min-height: 36px;
-  max-height: 150px;
+  max-height: 176px;
   flex: 1;
   resize: none;
+  overflow-y: hidden;
   padding: 8px 9px;
   border: 0;
   outline: 0;
@@ -899,7 +904,15 @@ textarea:focus-visible {
   }
 
   .composer-wrap {
-    padding-inline: 8px;
+    padding-right: calc(16px + env(safe-area-inset-right));
+    padding-left: calc(16px + env(safe-area-inset-left));
+  }
+
+  .composer textarea {
+    min-height: 38px;
+    max-height: 192px;
+    font-size: 16px;
+    line-height: 22px;
   }
 
   .camera-action {

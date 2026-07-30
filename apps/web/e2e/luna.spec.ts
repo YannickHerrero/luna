@@ -118,6 +118,43 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
 
   await page.locator('button[aria-label="New conversation"]').click()
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  const composer = page.locator('.composer')
+  const prompt = page.getByLabel('Message Luna')
+  const composerBounds = await composer.boundingBox()
+  expect(composerBounds).not.toBeNull()
+  expect(composerBounds?.x).toBeGreaterThanOrEqual(16)
+  expect(375 - (composerBounds?.x ?? 0) - (composerBounds?.width ?? 0)).toBeGreaterThanOrEqual(16)
+
+  const singleLineHeight = await prompt.evaluate((element) => element.clientHeight)
+  await prompt.fill(
+    Array.from({ length: 10 }, (_, index) => `Prompt line ${String(index + 1)}`).join('\n'),
+  )
+  await expect
+    .poll(() => prompt.evaluate((element) => element.clientHeight))
+    .toBeGreaterThan(singleLineHeight)
+  const expandedPrompt = await prompt.evaluate((element) => {
+    const style = window.getComputedStyle(element)
+    return {
+      overflowY: style.overflowY,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      visibleLines:
+        (element.clientHeight -
+          Number.parseFloat(style.paddingTop) -
+          Number.parseFloat(style.paddingBottom)) /
+        Number.parseFloat(style.lineHeight),
+    }
+  })
+  expect(expandedPrompt.visibleLines).toBeGreaterThanOrEqual(8)
+  expect(expandedPrompt.visibleLines).toBeLessThan(8.1)
+  expect(expandedPrompt.scrollHeight).toBeGreaterThan(expandedPrompt.clientHeight)
+  expect(expandedPrompt.overflowY).toBe('auto')
+  await prompt.fill('')
+  await expect.poll(() => prompt.evaluate((element) => element.clientHeight)).toBe(singleLineHeight)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await page.locator('input[type="file"][multiple]').setInputFiles({
     name: 'pixel.png',
     mimeType: 'image/png',
