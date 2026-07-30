@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "check": "node scripts/check-version.mjs"
+    "check": "node scripts/check-version.mjs",
+    "test": "vitest run --root ../.. integrations/pi",
+    "typecheck": "tsc -p ../../integrations/pi/tsconfig.json"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.80.7",
