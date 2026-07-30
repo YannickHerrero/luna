@@ -46,6 +46,7 @@ process.stdin.on('data', chunk => {
       if (!request.images || request.images.length !== 1 || !request.images[0].data) process.exit(2)
       console.log(JSON.stringify({id:request.id,type:'response',command:'prompt',success:true}))
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\n')
+      bridge.write(JSON.stringify({type:'path_observed',path:__dirname + '/repository/file.txt',toolName:'read'}) + '\n')
       console.log(JSON.stringify({type:'agent_start'}))
       console.log(JSON.stringify({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:'Fake response'}}))
       console.log(JSON.stringify({type:'agent_settled'}))
@@ -56,6 +57,8 @@ process.stdin.on('end', () => process.exit(0))
 "#,
     )
     .expect("fake Pi");
+    fs::create_dir_all(directory.join("repository/.git")).expect("fake repository");
+    fs::write(directory.join("repository/file.txt"), "repository file").expect("repository file");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -263,6 +266,26 @@ async fn pairs_a_device_and_creates_a_conversation() {
         completed_messages.messages[1].status,
         luna_protocol::MessageStatus::Completed
     );
+    let mut observed_repositories = Vec::new();
+    for _ in 0..40 {
+        let request = Request::builder()
+            .uri(format!("/v1/conversations/{}", conversation.id))
+            .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+            .body(Body::empty())
+            .expect("request");
+        let response = built
+            .router
+            .clone()
+            .oneshot(request)
+            .await
+            .expect("conversation response");
+        observed_repositories = response_json::<Conversation>(response).await.repositories;
+        if !observed_repositories.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(observed_repositories[0].display_name, "repository");
 
     let bootstrap_request = Request::builder()
         .uri("/v1/bootstrap")

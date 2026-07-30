@@ -13,10 +13,10 @@ use luna_pi::{
     SessionSupervisor,
 };
 use luna_protocol::{
-    ActivityPhase, AgentActivityChanged, MessageDelivery, ServerEvent, SessionState,
-    SteeringQueueChanged, WorkspaceUpdated,
+    ActivityPhase, AgentActivityChanged, MessageDelivery, RepositoriesUpdated, ServerEvent,
+    SessionState, SteeringQueueChanged, WorkspaceUpdated,
 };
-use luna_storage::{ConversationRuntimeRecord, Database};
+use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
 use tokio::sync::Mutex;
 use tracing::warn;
 use uuid::Uuid;
@@ -374,31 +374,86 @@ impl ConversationRuntime {
     }
 
     async fn handle_bridge_event(&self, conversation_id: Uuid, event: BridgeEvent) {
-        if event.event_type != "workspace" {
-            return;
-        }
-        let Some(cwd) = event.cwd else { return };
         let result: Result<(), AppError> = async {
-            let timestamp = now()?;
-            self.database
-                .set_working_directory(conversation_id, &cwd.to_string_lossy(), &timestamp)
-                .await?;
-            self.events
-                .append(
-                    Some(conversation_id),
-                    Some(conversation_id),
-                    &ServerEvent::WorkspaceUpdated(WorkspaceUpdated {
-                        working_directory: cwd.to_string_lossy().into_owned(),
-                    }),
-                    &timestamp,
-                )
-                .await?;
+            match event.event_type.as_str() {
+                "workspace" => {
+                    let Some(cwd) = event.cwd else { return Ok(()) };
+                    let timestamp = now()?;
+                    self.database
+                        .set_working_directory(conversation_id, &cwd.to_string_lossy(), &timestamp)
+                        .await?;
+                    self.events
+                        .append(
+                            Some(conversation_id),
+                            Some(conversation_id),
+                            &ServerEvent::WorkspaceUpdated(WorkspaceUpdated {
+                                working_directory: cwd.to_string_lossy().into_owned(),
+                            }),
+                            &timestamp,
+                        )
+                        .await?;
+                    self.observe_repository(conversation_id, &cwd, true).await?;
+                }
+                "path_observed" => {
+                    if let Some(path) = event.path {
+                        self.observe_repository(conversation_id, &path, false)
+                            .await?;
+                    }
+                }
+                _ => {}
+            }
             Ok(())
         }
         .await;
         if let Err(error) = result {
-            warn!(%conversation_id, "Unable to persist Pi workspace: {error}");
+            warn!(%conversation_id, "Unable to persist Pi workspace observation: {error}");
         }
+    }
+
+    async fn observe_repository(
+        &self,
+        conversation_id: Uuid,
+        path: &std::path::Path,
+        active: bool,
+    ) -> Result<(), AppError> {
+        let Some(root) = find_repository_root(path).await else {
+            return Ok(());
+        };
+        let git_directory = git_output(&root, &["rev-parse", "--absolute-git-dir"])
+            .await
+            .unwrap_or_else(|| root.join(".git").to_string_lossy().into_owned());
+        let branch = git_output(&root, &["symbolic-ref", "--short", "-q", "HEAD"]).await;
+        let display_name = root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Repository")
+            .to_owned();
+        let timestamp = now()?;
+        let observation = self
+            .database
+            .observe_repository(RepositoryObservation {
+                conversation_id,
+                canonical_root: &root.to_string_lossy(),
+                git_directory: &git_directory,
+                display_name: &display_name,
+                branch: branch.as_deref(),
+                active,
+                observed_at: &timestamp,
+            })
+            .await?;
+        if observation.changed {
+            self.events
+                .append(
+                    Some(conversation_id),
+                    Some(conversation_id),
+                    &ServerEvent::RepositoriesUpdated(RepositoriesUpdated {
+                        repositories: observation.repositories,
+                    }),
+                    &timestamp,
+                )
+                .await?;
+        }
+        Ok(())
     }
 
     async fn set_state(&self, conversation_id: Uuid, state: SessionState) -> Result<(), AppError> {
@@ -416,4 +471,38 @@ impl ConversationRuntime {
             .await?;
         Ok(())
     }
+}
+
+async fn find_repository_root(path: &std::path::Path) -> Option<PathBuf> {
+    let mut current = path.to_owned();
+    while tokio::fs::metadata(&current).await.is_err() {
+        current = current.parent()?.to_owned();
+    }
+    if tokio::fs::metadata(&current).await.ok()?.is_file() {
+        current = current.parent()?.to_owned();
+    }
+    loop {
+        if tokio::fs::symlink_metadata(current.join(".git"))
+            .await
+            .is_ok()
+        {
+            return tokio::fs::canonicalize(&current).await.ok();
+        }
+        current = current.parent()?.to_owned();
+    }
+}
+
+async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String> {
+    let output = tokio::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(arguments)
+        .output()
+        .await
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = String::from_utf8(output.stdout).ok()?.trim().to_owned();
+    (!value.is_empty()).then_some(value)
 }

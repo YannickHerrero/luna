@@ -7,6 +7,7 @@ mod database;
 mod error;
 mod events;
 mod messages;
+mod repositories;
 
 pub use attachments::{NewAttachment, StoredAttachment};
 pub use auth::{NewDevice, NewPairingCode};
@@ -14,5 +15,6 @@ pub use conversations::ConversationRuntimeRecord;
 pub use database::Database;
 pub use error::StorageError;
 pub use messages::{AcceptedDispatch, NewUserMessage};
+pub use repositories::{RepositoryObservation, RepositoryObservationResult};
 
 pub const SQLITE_APPLICATION_ID: i32 = 0x4C55_4E41;
