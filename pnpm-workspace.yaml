@@ -4,6 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+  - sharp
 overrides:
   '@earendil-works/pi-agent-core': 0.80.7
   '@earendil-works/pi-ai': 0.80.7
@@ -13,3 +14,4 @@ allowBuilds:
   '@google/genai': true
   esbuild: true
   protobufjs: true
+  sharp: true

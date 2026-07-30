@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "exports": {
+    "./tokens.css": "./generated/tokens.css"
+  },
   "scripts": {
     "generate": "tsx scripts/generate.ts",
     "test": "vitest run tests --exclude dist/**",

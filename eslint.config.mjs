@@ -6,12 +6,14 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/out/**',
       '**/.next/**',
       '**/coverage/**',
       '**/node_modules/**',
       '**/Generated/**',
       'DO_NOT_COMMIT/**',
       'eslint.config.mjs',
+      'apps/web/public/sw.js',
     ],
   },
   eslint.configs.recommended,
@@ -20,7 +22,7 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['apps/*/*.config.ts', 'apps/*/tests/*.ts'],
+          allowDefaultProject: ['apps/*/tests/*.ts'],
         },
         tsconfigRootDir: import.meta.dirname,
       },

@@ -26,6 +26,7 @@ export const PairingExchangeResponseSchema = Type.Object(
   },
   { additionalProperties: false },
 )
+export type PairingExchangeResponse = Static<typeof PairingExchangeResponseSchema>
 
 export const CreateConversationRequestSchema = Type.Object({}, { additionalProperties: false })
 export const CreateConversationResponseSchema = ConversationSchema
@@ -55,6 +56,7 @@ export const SendMessageResponseSchema = Type.Object(
   },
   { additionalProperties: false },
 )
+export type SendMessageResponse = Static<typeof SendMessageResponseSchema>
 
 export const ConversationMessagesSchema = Type.Object(
   {
@@ -63,12 +65,18 @@ export const ConversationMessagesSchema = Type.Object(
   },
   { additionalProperties: false },
 )
+export type ConversationMessages = Static<typeof ConversationMessagesSchema>
 
-export const UploadAttachmentResponseSchema = AttachmentSchema
+export const AttachmentResponseSchema = Type.Object(
+  { attachment: AttachmentSchema },
+  { additionalProperties: false },
+)
+export type AttachmentResponse = Static<typeof AttachmentResponseSchema>
 export const TranscriptionResponseSchema = Type.Object(
   { text: Type.String({ maxLength: 100_000 }) },
   { additionalProperties: false },
 )
+export type TranscriptionResponse = Static<typeof TranscriptionResponseSchema>
 
 export const SyncResponseSchema = Type.Object(
   {
@@ -84,7 +92,7 @@ export const ApiResponseSchemas = {
   Conversation: ConversationSchema,
   SendMessageResponse: SendMessageResponseSchema,
   ConversationMessages: ConversationMessagesSchema,
-  UploadAttachmentResponse: UploadAttachmentResponseSchema,
+  AttachmentResponse: AttachmentResponseSchema,
   TranscriptionResponse: TranscriptionResponseSchema,
   Bootstrap: BootstrapSchema,
   SyncResponse: SyncResponseSchema,
