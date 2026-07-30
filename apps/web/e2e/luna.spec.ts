@@ -50,6 +50,21 @@ process.stdin.on('data', chunk => {
       const steering = request.streamingBehavior === 'steer'
       reply({id:request.id,type:'response',command:request.type,success:true})
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\\n')
+      const planTimestamp = '2026-03-20T12:00:00Z'
+      bridge.write(JSON.stringify({
+        type:'task_list_updated',
+        taskList:{
+          id:'018f0000-0000-7000-8000-000000000101',
+          title:'Luna browser acceptance',
+          revision:steering ? 3 : 2,
+          tasks:[
+            {id:'018f0000-0000-7000-8000-000000000102',sequence:1,text:'Build the browser smoke test',status:'completed',note:'Image workflow passed',createdAt:planTimestamp,updatedAt:planTimestamp},
+            {id:'018f0000-0000-7000-8000-000000000103',sequence:2,text:'Verify steering and interruption',status:steering ? 'completed' : 'in_progress',createdAt:planTimestamp,updatedAt:planTimestamp}
+          ],
+          createdAt:planTimestamp,
+          updatedAt:planTimestamp
+        }
+      }) + '\\n')
       if (!steering) reply({type:'agent_start'})
       const activities = steering
         ? ['Refining browser acceptance after steering']
@@ -251,8 +266,21 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  const taskProgress = page.locator('.task-progress')
+  await expect(taskProgress.locator('.task-progress-copy strong')).toHaveText(
+    'Luna browser acceptance',
+  )
+  await expect(taskProgress.locator('.task-progress-count')).toHaveText('1/2')
+  await expect(taskProgress.locator('.task-progress-copy > span')).toHaveText(
+    'Verify steering and interruption',
+  )
   await expectTranscriptAtBottom(page)
   await expectConversationInViewport(page)
+  await taskProgress.locator('summary').click()
+  await expect(taskProgress.locator('li.completed')).toContainText('Build the browser smoke test')
+  await expect(taskProgress.locator('li.in_progress')).toContainText(
+    'Verify steering and interruption',
+  )
   const firstUserMessage = page.locator('.message-row.user').first()
   await firstUserMessage.click()
   const messageTimestamp = firstUserMessage.locator('.message-timestamp')
@@ -302,6 +330,8 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
+  await expect(taskProgress.locator('.task-progress-count')).toHaveText('2/2')
+  await expect(taskProgress.locator('.task-progress-copy > span')).toHaveText('Plan complete')
   await expect(page.locator('.activity-details summary')).toContainText(
     'Refining browser acceptance after steering',
   )

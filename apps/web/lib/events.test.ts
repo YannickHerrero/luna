@@ -137,6 +137,43 @@ describe('Luna event reducer', () => {
     expect(reset.conversations[0]?.activities).toEqual([])
   })
 
+  it('updates and clears structured task-list progress', () => {
+    const timestamp = '2026-03-20T12:00:00Z'
+    const updated = applyServerEvent(initial, {
+      eventId: 8,
+      conversationId: conversation.id,
+      type: 'agent.task_list_changed',
+      payload: {
+        taskList: {
+          id: '00000000-0000-0000-0000-000000000020',
+          title: 'Ship Luna progress',
+          revision: 2,
+          tasks: [
+            {
+              id: '00000000-0000-0000-0000-000000000021',
+              sequence: 1,
+              text: 'Render plan progress',
+              status: 'in_progress',
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      },
+    })
+    expect(updated.conversations[0]?.taskList?.tasks[0]?.status).toBe('in_progress')
+
+    const cleared = applyServerEvent(updated, {
+      eventId: 9,
+      conversationId: conversation.id,
+      type: 'agent.task_list_changed',
+      payload: {},
+    })
+    expect(cleared.conversations[0]?.taskList).toBeUndefined()
+  })
+
   it('updates normalized conversation state without terminal output', () => {
     const state = applyServerEvent(initial, {
       eventId: 5,

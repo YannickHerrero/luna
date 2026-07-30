@@ -4,19 +4,25 @@ import {
   Archive,
   ArrowLeft,
   Camera,
+  Check,
   ChevronDown,
+  Circle,
   CircleStop,
+  ListChecks,
   Mic,
+  Minus,
   Moon,
   Paperclip,
   Plus,
   Search,
   Send,
   Sun,
+  TriangleAlert,
   X,
 } from 'lucide-react'
 import type {
   AgentActivity,
+  AgentTaskList,
   Attachment,
   AttachmentResponse,
   Bootstrap,
@@ -548,7 +554,7 @@ function ConversationView({
       behavior: positionedInitialMessages.current && !prefersReducedMotion ? 'smooth' : 'auto',
     })
     positionedInitialMessages.current = true
-  }, [conversation.activities, messages])
+  }, [conversation.activities, conversation.taskList, messages])
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onBack()
@@ -624,6 +630,9 @@ function ConversationView({
           </div>
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
+        )}
+        {conversation.taskList && (
+          <TaskListProgress key={conversation.taskList.id} taskList={conversation.taskList} />
         )}
         {busy && <TypingIndicator activities={conversation.activities} />}
       </div>
@@ -973,6 +982,67 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   const contentHeight = textarea.scrollHeight
   textarea.style.height = `${String(Math.min(contentHeight, maximumHeight))}px`
   textarea.style.overflowY = contentHeight > maximumHeight ? 'auto' : 'hidden'
+}
+
+function TaskListProgress({ taskList }: { taskList: AgentTaskList }) {
+  const completed = taskList.tasks.filter((task) => task.status === 'completed').length
+  const skipped = taskList.tasks.filter((task) => task.status === 'skipped').length
+  const resolved = completed + skipped
+  const current =
+    taskList.tasks.find((task) => task.status === 'in_progress') ??
+    taskList.tasks.find((task) => task.status === 'blocked') ??
+    taskList.tasks.find((task) => task.status === 'pending')
+  const finished = resolved === taskList.tasks.length
+
+  return (
+    <details className={`task-progress ${finished ? 'complete' : ''}`}>
+      <summary>
+        <span className="task-progress-mark" aria-hidden="true">
+          <ListChecks size={17} />
+        </span>
+        <span className="task-progress-copy">
+          <strong>{taskList.title ?? 'Plan progress'}</strong>
+          <span>
+            {finished
+              ? skipped
+                ? 'Plan finished'
+                : 'Plan complete'
+              : (current?.text ?? 'Reviewing remaining work')}
+          </span>
+        </span>
+        <span className="task-progress-count">
+          {resolved}/{taskList.tasks.length}
+        </span>
+        <ChevronDown className="task-progress-chevron" size={15} aria-hidden="true" />
+      </summary>
+      <progress
+        value={resolved}
+        max={taskList.tasks.length}
+        aria-label={`${String(completed)} of ${String(taskList.tasks.length)} tasks completed${skipped ? `, ${String(skipped)} skipped` : ''}`}
+      />
+      <ol>
+        {taskList.tasks.map((task) => (
+          <li key={task.id} className={task.status}>
+            <span className="task-status-mark" aria-hidden="true">
+              {task.status === 'completed' ? (
+                <Check size={14} />
+              ) : task.status === 'blocked' ? (
+                <TriangleAlert size={14} />
+              ) : task.status === 'skipped' ? (
+                <Minus size={14} />
+              ) : (
+                <Circle size={12} />
+              )}
+            </span>
+            <span>
+              <strong>{task.text}</strong>
+              {task.note && <small>{task.note}</small>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </details>
+  )
 }
 
 function TypingIndicator({ activities }: { activities: AgentActivity[] }) {

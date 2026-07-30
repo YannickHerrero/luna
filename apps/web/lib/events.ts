@@ -1,4 +1,4 @@
-import type { AgentActivity, Conversation, Message } from '@luna/protocol'
+import type { AgentActivity, AgentTaskList, Conversation, Message } from '@luna/protocol'
 import { applyLatestMessage, upsertConversation } from './conversations.js'
 
 export type LunaEvent = {
@@ -23,6 +23,7 @@ type StateChanged = { state: Conversation['state'] }
 type WorkspaceUpdated = { workingDirectory: string }
 type RepositoriesUpdated = { repositories: Conversation['repositories'] }
 type TitleUpdated = { title: string }
+type TaskListChanged = { taskList?: AgentTaskList }
 
 export function applyServerEvent(state: LunaClientState, event: LunaEvent): LunaClientState {
   const cursor = Math.max(state.cursor, event.eventId ?? state.cursor)
@@ -92,6 +93,8 @@ export function applyServerEvent(state: LunaClientState, event: LunaEvent): Luna
       )
       return updateConversationActivities(state, event, activities, cursor)
     }
+    case 'agent.task_list_changed':
+      return updateConversationTaskList(state, event, event.payload as TaskListChanged, cursor)
     case 'session.state_changed':
       return updateConversation(state, event, event.payload as StateChanged, cursor)
     case 'workspace.updated':
@@ -121,6 +124,25 @@ function updateConversation(
     return { ...conversation, title: payload.title }
   })
   return { ...state, cursor, conversations }
+}
+
+function updateConversationTaskList(
+  state: LunaClientState,
+  event: LunaEvent,
+  payload: TaskListChanged,
+  cursor: number,
+): LunaClientState {
+  return {
+    ...state,
+    cursor,
+    conversations: state.conversations.map((conversation) => {
+      if (conversation.id !== event.conversationId) return conversation
+      if (payload.taskList) return { ...conversation, taskList: payload.taskList }
+      const next = { ...conversation }
+      delete next.taskList
+      return next
+    }),
+  }
 }
 
 function updateConversationActivities(
