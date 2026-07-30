@@ -101,8 +101,33 @@ test.afterAll(async () => {
 })
 
 test('pairs, streams, restores, themes, and archives a conversation', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Pair with Luna' })).toBeVisible()
+
+  const viewport = await page.locator('meta[name="viewport"]').getAttribute('content')
+  expect(viewport).toContain('maximum-scale=1')
+  expect(viewport).toContain('user-scalable=no')
+  const rootPresentation = await page.evaluate(() => {
+    const style = window.getComputedStyle(document.documentElement)
+    return {
+      textSizeAdjust:
+        style.getPropertyValue('text-size-adjust') ||
+        style.getPropertyValue('-webkit-text-size-adjust'),
+      touchAction: style.touchAction,
+    }
+  })
+  expect(rootPresentation.textSizeAdjust).toBe('100%')
+  expect(rootPresentation.touchAction).toContain('pan-x')
+  expect(rootPresentation.touchAction).toContain('pan-y')
+  for (const label of ['Pairing code', 'Device name']) {
+    expect(
+      await page
+        .getByLabel(label)
+        .evaluate((element) => Number.parseFloat(window.getComputedStyle(element).fontSize)),
+    ).toBeGreaterThanOrEqual(16)
+  }
+
   const startupCode = pairingCode
   await page.getByRole('button', { name: 'Ask for a pairing code' }).click()
   await expect(page.getByRole('status')).toContainText('written to Luna’s Citadel logs')
@@ -116,10 +141,16 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByLabel('Pairing code').fill(pairingCode)
   await page.getByRole('button', { name: 'Pair device' }).click()
 
+  const search = page.getByLabel('Search conversations')
+  await expect(search).toBeVisible()
+  expect(
+    await search.evaluate((element) =>
+      Number.parseFloat(window.getComputedStyle(element).fontSize),
+    ),
+  ).toBeGreaterThanOrEqual(16)
   await page.locator('button[aria-label="New conversation"]').click()
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
 
-  await page.setViewportSize({ width: 375, height: 812 })
   const composer = page.locator('.composer')
   const prompt = page.getByLabel('Message Luna')
   const composerBounds = await composer.boundingBox()
@@ -153,7 +184,6 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   expect(expandedPrompt.overflowY).toBe('auto')
   await prompt.fill('')
   await expect.poll(() => prompt.evaluate((element) => element.clientHeight)).toBe(singleLineHeight)
-  await page.setViewportSize({ width: 1440, height: 900 })
 
   await page.locator('input[type="file"][multiple]').setInputFiles({
     name: 'pixel.png',
@@ -168,6 +198,20 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  const mobileLayout = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    messageBounds: Array.from(document.querySelectorAll('.message-bubble')).map((element) => {
+      const bounds = element.getBoundingClientRect()
+      return { left: bounds.left, right: bounds.right }
+    }),
+  }))
+  expect(mobileLayout.scrollWidth).toBeLessThanOrEqual(mobileLayout.clientWidth)
+  for (const bounds of mobileLayout.messageBounds) {
+    expect(bounds.left).toBeGreaterThanOrEqual(0)
+    expect(bounds.right).toBeLessThanOrEqual(mobileLayout.clientWidth)
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
