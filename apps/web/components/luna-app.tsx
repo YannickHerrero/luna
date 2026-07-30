@@ -28,7 +28,7 @@ import type {
   SendMessageResponse,
   TranscriptionResponse,
 } from '@luna/protocol'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
@@ -535,15 +535,19 @@ function ConversationView({
   onError: (message: string | undefined) => void
 }) {
   const messageScroll = useRef<HTMLDivElement>(null)
+  const positionedInitialMessages = useRef(false)
   const busy = ['working', 'compacting', 'retrying', 'restoring', 'starting'].includes(
     conversation.state,
   )
-  useEffect(() => {
+  useLayoutEffect(() => {
     const transcript = messageScroll.current
-    transcript?.scrollTo({
+    if (!transcript || messages.length === 0) return
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    transcript.scrollTo({
       top: transcript.scrollHeight,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      behavior: positionedInitialMessages.current && !prefersReducedMotion ? 'smooth' : 'auto',
     })
+    positionedInitialMessages.current = true
   }, [conversation.activities, messages])
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {

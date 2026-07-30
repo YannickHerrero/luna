@@ -237,7 +237,17 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
     ),
   })
   await expect(page.getByAltText('Pending attachment')).toBeVisible()
-  await page.getByPlaceholder('Message Luna…').fill('Build a Luna smoke test')
+  await page
+    .getByPlaceholder('Message Luna…')
+    .fill(
+      [
+        'Build a Luna smoke test',
+        ...Array.from(
+          { length: 40 },
+          (_, index) => `Conversation history line ${String(index + 1)}`,
+        ),
+      ].join('\n'),
+    )
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
@@ -282,8 +292,10 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
   await expectConversationInViewport(page)
   await page.getByRole('button', { name: 'Back' }).click()
+  await watchNextConversationOpening(page)
   await sortedConversations.first().click()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  await expectConversationToOpenAtBottom(page)
   await expectTranscriptAtBottom(page)
   await expectConversationInViewport(page)
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -364,6 +376,35 @@ function latestPairingCode(): string {
   const code = matches.at(-1)?.[1]
   if (!code) throw new Error('No pairing code in Luna output')
   return code
+}
+
+async function watchNextConversationOpening(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window, '__lunaConversationOpening')
+    const observer = new MutationObserver(() => {
+      const transcript = document.querySelector('.message-scroll')
+      if (
+        !(transcript instanceof HTMLElement) ||
+        !transcript.querySelector('article.message-row')
+      ) {
+        return
+      }
+      observer.disconnect()
+      Reflect.set(window, '__lunaConversationOpening', {
+        atBottom:
+          Math.ceil(transcript.scrollTop + transcript.clientHeight) >= transcript.scrollHeight,
+        overflowing: transcript.scrollHeight > transcript.clientHeight,
+        scrollBehavior: window.getComputedStyle(transcript).scrollBehavior,
+      })
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+  })
+}
+
+async function expectConversationToOpenAtBottom(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, '__lunaConversationOpening') as unknown))
+    .toEqual({ atBottom: true, overflowing: true, scrollBehavior: 'auto' })
 }
 
 async function expectConversationInViewport(page: Page): Promise<void> {
