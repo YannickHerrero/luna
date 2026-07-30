@@ -313,8 +313,8 @@ async fn accept_message(
             accepted_at: &now()?,
         })
         .await?;
-    if let Some(event) = accepted.event {
-        state.events.publish(event);
+    for event in &accepted.events {
+        state.events.publish(event.clone());
     }
     if accepted.dispatch_required {
         let runtime = state.runtime.clone();

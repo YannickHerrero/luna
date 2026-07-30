@@ -25,7 +25,7 @@ pub struct AcceptedDispatch {
     pub message: Message,
     pub created: bool,
     pub dispatch_required: bool,
-    pub event: Option<ServerEventEnvelope>,
+    pub events: Vec<ServerEventEnvelope>,
 }
 
 #[derive(FromRow)]
@@ -81,7 +81,7 @@ impl Database {
                 message,
                 created: false,
                 dispatch_required: matches!(state.as_str(), "accepted" | "failed"),
-                event: None,
+                events: vec![],
             });
         }
         let active: bool = sqlx::query_scalar(
@@ -175,11 +175,29 @@ impl Database {
             created_at: accepted_at.into(),
             updated_at: accepted_at.into(),
         };
-        let event = insert_event(
+        sqlx::query(
+            "UPDATE conversations SET notification_target_device_id = ?, updated_at = ?, version = version + 1 WHERE id = ?",
+        )
+        .bind(device_id.to_string())
+        .bind(accepted_at)
+        .bind(conversation_id.to_string())
+        .execute(&mut *transaction)
+        .await?;
+        let message_event = insert_event(
             &mut transaction,
             conversation_id,
             message_id,
             &ServerEvent::MessageUpserted(message.clone()),
+            accepted_at,
+        )
+        .await?;
+        let target_event = insert_event(
+            &mut transaction,
+            conversation_id,
+            conversation_id,
+            &ServerEvent::NotificationTargetChanged(luna_protocol::NotificationTargetChanged {
+                device_id,
+            }),
             accepted_at,
         )
         .await?;
@@ -189,7 +207,7 @@ impl Database {
             message,
             created: true,
             dispatch_required: true,
-            event: Some(event),
+            events: vec![message_event, target_event],
         })
     }
 

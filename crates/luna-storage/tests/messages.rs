@@ -93,8 +93,17 @@ async fn accepts_user_commands_idempotently() {
     assert_eq!(first.message.id, replay.message.id);
     assert_eq!(first.message.attachments[0].id, attachment_id);
     assert_eq!(replay.message.attachments[0].id, attachment_id);
-    assert!(first.event.is_some());
-    assert!(replay.event.is_none());
+    assert_eq!(first.events.len(), 2);
+    assert!(replay.events.is_empty());
+    assert_eq!(
+        database
+            .conversation(conversation_id)
+            .await
+            .expect("conversation")
+            .expect("present")
+            .notification_target_device_id,
+        Some(device_id)
+    );
 }
 
 #[tokio::test]
