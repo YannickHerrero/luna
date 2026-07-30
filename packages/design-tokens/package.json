@@ -7,7 +7,7 @@
     "./tokens.css": "./generated/tokens.css"
   },
   "scripts": {
-    "generate": "tsx scripts/generate.ts",
+    "generate": "tsx scripts/generate.ts && prettier --write generated",
     "test": "vitest run tests --exclude dist/**",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
