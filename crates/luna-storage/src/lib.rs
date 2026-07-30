@@ -1,8 +1,12 @@
 #![forbid(unsafe_code)]
 
+mod auth;
+mod conversations;
 mod database;
 mod error;
+mod events;
 
+pub use auth::{NewDevice, NewPairingCode};
 pub use database::Database;
 pub use error::StorageError;
 

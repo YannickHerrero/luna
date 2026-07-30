@@ -10,4 +10,10 @@ pub enum StorageError {
     InvalidIdentifier(#[from] uuid::Error),
     #[error("stored JSON is invalid: {0}")]
     InvalidJson(#[from] serde_json::Error),
+    #[error("record was not found")]
+    NotFound,
+    #[error("record conflicts with existing state")]
+    Conflict,
+    #[error("stored enum value is invalid: {0}")]
+    InvalidEnum(String),
 }
