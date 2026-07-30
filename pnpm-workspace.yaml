@@ -7,6 +7,11 @@ onlyBuiltDependencies:
   - better-sqlite3
   - esbuild
   - sharp
+overrides:
+  '@earendil-works/pi-agent-core': 0.80.7
+  '@earendil-works/pi-ai': 0.80.7
+  '@earendil-works/pi-tui': 0.80.7
+
 allowBuilds:
   '@google/genai': true
   better-sqlite3: true
