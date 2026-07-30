@@ -155,7 +155,15 @@ impl ConversationRuntime {
             .conversation_runtime(conversation_id)
             .await?
             .ok_or(AppError::NotFound)?;
+        let reconcile_marker = conversation.pi_session_path.is_some()
+            && self.supervisor.active(conversation_id).await.is_none();
         let session = self.session(conversation).await?;
+        if reconcile_marker && session.has_dispatch_marker(dispatch_id).await? {
+            self.database
+                .set_dispatch_state(dispatch_id, "dispatched", None, &now()?)
+                .await?;
+            return Ok(());
+        }
         let rpc_delivery = match delivery {
             MessageDelivery::Initial => RpcDelivery::Normal,
             MessageDelivery::Steer => RpcDelivery::Steer,

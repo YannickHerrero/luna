@@ -211,6 +211,16 @@ impl Database {
         })
     }
 
+    pub async fn recover_inflight_dispatches(&self, updated_at: &str) -> Result<u64, StorageError> {
+        let updated = sqlx::query(
+            "UPDATE dispatches SET state = 'failed', error_code = 'server_restarted', updated_at = ? WHERE state = 'running'",
+        )
+        .bind(updated_at)
+        .execute(self.pool())
+        .await?;
+        Ok(updated.rows_affected())
+    }
+
     pub async fn set_dispatch_state(
         &self,
         dispatch_id: Uuid,

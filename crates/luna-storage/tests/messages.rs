@@ -75,6 +75,17 @@ async fn accepts_user_commands_idempotently() {
         })
         .await
         .expect("first dispatch");
+    database
+        .set_dispatch_state(first.dispatch_id, "running", None, NOW)
+        .await
+        .expect("running dispatch");
+    assert_eq!(
+        database
+            .recover_inflight_dispatches("2026-03-20T12:01:00Z")
+            .await
+            .expect("dispatch recovery"),
+        1
+    );
     let replay = database
         .accept_user_message(NewUserMessage {
             conversation_id,
@@ -89,6 +100,7 @@ async fn accepts_user_commands_idempotently() {
         .expect("replayed dispatch");
     assert!(first.created);
     assert!(!replay.created);
+    assert!(replay.dispatch_required);
     assert_eq!(first.dispatch_id, replay.dispatch_id);
     assert_eq!(first.message.id, replay.message.id);
     assert_eq!(first.message.attachments[0].id, attachment_id);

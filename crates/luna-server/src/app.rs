@@ -21,6 +21,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
     let web_directory = config.web_directory.clone();
     let database = Database::connect(&config.database_path).await?;
     let recovered_at = crate::auth::now()?;
+    database.recover_inflight_dispatches(&recovered_at).await?;
     for conversation_id in database
         .recover_interrupted_conversations(&recovered_at)
         .await?

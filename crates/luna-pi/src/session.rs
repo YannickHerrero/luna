@@ -48,6 +48,28 @@ impl ManagedSession {
         }
     }
 
+    pub async fn has_dispatch_marker(&self, dispatch_id: Uuid) -> Result<bool, SessionError> {
+        let response = self.process.get_entries(None).await?;
+        let dispatch_id = dispatch_id.to_string();
+        let entries = response
+            .data
+            .as_ref()
+            .and_then(|data| data.get("entries"))
+            .and_then(serde_json::Value::as_array);
+        Ok(entries.is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                entry.get("type").and_then(serde_json::Value::as_str) == Some("custom")
+                    && entry.get("customType").and_then(serde_json::Value::as_str)
+                        == Some("luna-dispatch")
+                    && entry
+                        .get("data")
+                        .and_then(|data| data.get("dispatchId"))
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| value == dispatch_id)
+            })
+        }))
+    }
+
     pub async fn abort(&self) -> Result<RpcResponse, SessionError> {
         Ok(self.process.abort().await?)
     }
