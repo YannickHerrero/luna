@@ -13,8 +13,8 @@ use luna_pi::{
     SessionSupervisor,
 };
 use luna_protocol::{
-    ActivityPhase, AgentActivityChanged, MessageDelivery, RepositoriesUpdated, ServerEvent,
-    SessionState, SteeringQueueChanged, WorkspaceUpdated,
+    ActivityPhase, AgentActivityChanged, ConversationTitleUpdated, MessageDelivery,
+    RepositoriesUpdated, ServerEvent, SessionState, SteeringQueueChanged, WorkspaceUpdated,
 };
 use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
 use tokio::sync::Mutex;
@@ -325,6 +325,7 @@ impl ConversationRuntime {
                         )
                         .await?;
                     self.set_state(conversation_id, SessionState::Idle).await?;
+                    self.generate_initial_title(conversation_id).await?;
                 }
                 NormalizedPiEvent::ToolStarted | NormalizedPiEvent::ToolEnded { .. } => {
                     self.events
@@ -456,6 +457,48 @@ impl ConversationRuntime {
         Ok(())
     }
 
+    async fn generate_initial_title(&self, conversation_id: Uuid) -> Result<(), AppError> {
+        let messages = self.database.messages(conversation_id, None, 100).await?;
+        let Some(text) = messages
+            .iter()
+            .find(|message| message.role == luna_protocol::MessageRole::User)
+            .map(|message| message.text.as_str())
+        else {
+            return Ok(());
+        };
+        let Some(title) = title_from_text(text) else {
+            return Ok(());
+        };
+        let timestamp = now()?;
+        let Some(conversation) = self
+            .database
+            .set_initial_automatic_title(conversation_id, &title, &timestamp)
+            .await?
+        else {
+            return Ok(());
+        };
+        self.events
+            .append(
+                Some(conversation_id),
+                Some(conversation_id),
+                &ServerEvent::ConversationTitleUpdated(ConversationTitleUpdated {
+                    title,
+                    automatic: true,
+                }),
+                &timestamp,
+            )
+            .await?;
+        self.events
+            .append(
+                Some(conversation_id),
+                Some(conversation_id),
+                &ServerEvent::ConversationUpserted(conversation),
+                &timestamp,
+            )
+            .await?;
+        Ok(())
+    }
+
     async fn set_state(&self, conversation_id: Uuid, state: SessionState) -> Result<(), AppError> {
         let timestamp = now()?;
         self.database
@@ -471,6 +514,49 @@ impl ConversationRuntime {
             .await?;
         Ok(())
     }
+}
+
+fn title_from_text(text: &str) -> Option<String> {
+    let compact = text
+        .replace(['#', '*', '`', '_'], "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut candidate = compact.trim();
+    for prefix in [
+        "please ",
+        "can you ",
+        "could you ",
+        "would you ",
+        "help me ",
+        "i need you to ",
+    ] {
+        if candidate.to_ascii_lowercase().starts_with(prefix) {
+            candidate = candidate.get(prefix.len()..).unwrap_or(candidate).trim();
+            break;
+        }
+    }
+    candidate = candidate
+        .split(['\n', '.', '!', '?'])
+        .next()
+        .unwrap_or(candidate)
+        .trim();
+    if candidate.is_empty() {
+        return None;
+    }
+    let mut title = String::new();
+    for word in candidate.split_whitespace() {
+        if !title.is_empty() && title.len() + word.len() + 1 > 56 {
+            break;
+        }
+        if !title.is_empty() {
+            title.push(' ');
+        }
+        title.push_str(word);
+    }
+    let mut characters = title.chars();
+    let first = characters.next()?;
+    Some(first.to_uppercase().collect::<String>() + characters.as_str())
 }
 
 async fn find_repository_root(path: &std::path::Path) -> Option<PathBuf> {
@@ -505,4 +591,23 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
     }
     let value = String::from_utf8(output.stdout).ok()?.trim().to_owned();
     (!value.is_empty()).then_some(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::title_from_text;
+
+    #[test]
+    fn derives_a_short_title_from_the_first_request() {
+        assert_eq!(
+            title_from_text("Please implement authentication and password reset. Keep it private."),
+            Some("Implement authentication and password reset".into())
+        );
+        assert_eq!(
+            title_from_text(
+                "Investigate the very long and unexpectedly complicated synchronization behavior across every connected client"
+            ),
+            Some("Investigate the very long and unexpectedly complicated".into())
+        );
+    }
 }

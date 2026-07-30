@@ -16,12 +16,26 @@ async fn conversations_and_sync_events_round_trip() {
     assert_eq!(conversation.title_mode, TitleMode::Automatic);
     assert_eq!(conversation.state, SessionState::Creating);
 
+    let automatic = database
+        .set_initial_automatic_title(id, "Authentication", "2026-01-01T00:00:30Z")
+        .await
+        .expect("automatic title")
+        .expect("updated conversation");
+    assert_eq!(automatic.title, "Authentication");
+
     let renamed = database
         .rename_conversation(id, "Rust server", "2026-01-01T00:01:00Z")
         .await
         .expect("rename");
     assert_eq!(renamed.title, "Rust server");
     assert_eq!(renamed.title_mode, TitleMode::Manual);
+    assert!(
+        database
+            .set_initial_automatic_title(id, "Overwritten", "2026-01-01T00:02:00Z")
+            .await
+            .expect("protected title")
+            .is_none()
+    );
 
     let envelope = database
         .append_event(
