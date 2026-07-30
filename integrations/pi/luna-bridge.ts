@@ -5,10 +5,15 @@ import { join, resolve } from 'node:path'
 import { isToolCallEventType, type ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { instrumentBash, rewriteToolPath } from './workspace.js'
 
-type BridgeCommand = {
-  type: 'dispatch'
-  dispatchId: string
-}
+type BridgeCommand =
+  | {
+      type: 'dispatch'
+      dispatchId: string
+    }
+  | {
+      type: 'cancel_dispatch'
+      dispatchId: string
+    }
 
 type WorkspaceEntry = {
   cwd: string
@@ -33,7 +38,12 @@ export default function lunaBridge(pi: ExtensionAPI) {
   }
 
   const handleCommand = (command: BridgeCommand) => {
-    if (command.type !== 'dispatch' || !command.dispatchId) return
+    if (!command.dispatchId) return
+    if (command.type === 'cancel_dispatch') {
+      const index = pendingDispatches.indexOf(command.dispatchId)
+      if (index >= 0) pendingDispatches.splice(index, 1)
+      return
+    }
     pendingDispatches.push(command.dispatchId)
     emit({ type: 'dispatch_ready', dispatchId: command.dispatchId })
   }

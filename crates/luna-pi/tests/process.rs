@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::Path, time::Duration};
 
-use luna_pi::{NormalizedPiEvent, PiProcess, PiProcessConfig};
+use luna_pi::{NormalizedPiEvent, PiProcess, PiProcessConfig, RpcDelivery};
 
 fn write_fake_pi(path: &Path) {
     fs::write(
@@ -52,7 +52,10 @@ async fn controls_a_structured_rpc_process() {
     .await
     .expect("Pi process");
     let mut events = process.subscribe();
-    process.prompt("Hello", &[], false).await.expect("prompt");
+    process
+        .prompt("Hello", &[], RpcDelivery::Normal)
+        .await
+        .expect("prompt");
     let first = events.recv().await.expect("text event");
     assert_eq!(
         first.normalized,

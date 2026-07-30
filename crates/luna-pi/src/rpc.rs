@@ -45,6 +45,13 @@ pub struct RpcResponse {
     pub data: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RpcDelivery {
+    Normal,
+    Steer,
+    FollowUp,
+}
+
 type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiError>>>>>;
 
 pub struct PiProcess {
@@ -90,6 +97,7 @@ impl PiProcess {
             command.as_std_mut().process_group(0);
         }
         let mut child = command.spawn().map_err(PiError::Spawn)?;
+        let child_pid = child.id();
         let stdin = child.stdin.take().ok_or(PiError::NotRunning)?;
         let stdout = child.stdout.take().ok_or(PiError::NotRunning)?;
         let stderr = child.stderr.take().ok_or(PiError::NotRunning)?;
@@ -121,6 +129,14 @@ impl PiProcess {
                         Ok(Ok(status)) => { status_sender.send_replace(ProcessStatus::Exited { code: status.code() }); }
                         Ok(Err(error)) => { status_sender.send_replace(ProcessStatus::Failed { message: error.to_string() }); }
                         Err(_) => {
+                            #[cfg(unix)]
+                            if let Some(pid) = child_pid.and_then(|pid| i32::try_from(pid).ok()) {
+                                let _ = nix::sys::signal::killpg(
+                                    nix::unistd::Pid::from_raw(pid),
+                                    nix::sys::signal::Signal::SIGKILL,
+                                );
+                            }
+                            #[cfg(not(unix))]
                             let _ = child.start_kill();
                             let status = child.wait().await.ok();
                             status_sender.send_replace(ProcessStatus::Exited { code: status.and_then(|value| value.code()) });
@@ -168,15 +184,19 @@ impl PiProcess {
         &self,
         message: &str,
         images: &[RpcImage],
-        steer: bool,
+        delivery: RpcDelivery,
     ) -> Result<RpcResponse, PiError> {
         let mut request = json!({
             "type": "prompt",
             "message": message,
             "images": images,
         });
-        if steer {
-            request["streamingBehavior"] = Value::String("steer".into());
+        match delivery {
+            RpcDelivery::Normal => {}
+            RpcDelivery::Steer => request["streamingBehavior"] = Value::String("steer".into()),
+            RpcDelivery::FollowUp => {
+                request["streamingBehavior"] = Value::String("followUp".into());
+            }
         }
         self.request(request).await
     }
