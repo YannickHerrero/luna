@@ -70,6 +70,7 @@ test.beforeAll(async () => {
       LUNA_BIND_HOST: '127.0.0.1',
       LUNA_PORT: '19873',
       LUNA_DATA_DIR: resolve(directory, 'data'),
+      LUNA_ENV_FILE: resolve(directory, 'test.env'),
       LUNA_BRIDGE_DIR: resolve('/tmp', `luna-e2e-bridge-${String(process.pid)}`),
       LUNA_WEB_DIR: resolve(root, 'apps/web/out'),
       LUNA_PI_EXECUTABLE: executable,
