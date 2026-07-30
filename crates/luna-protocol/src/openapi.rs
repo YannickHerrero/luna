@@ -6,10 +6,10 @@ use crate::{
     AgentActivityChanged, ApiError, Attachment, AttachmentResponse, Bootstrap, ClientCommand,
     CommandAccepted, CommandRejected, Conversation, ConversationList, ConversationMessages,
     ConversationTitleUpdated, CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message,
-    MessageCompleted, MessageDelta, PairingExchangeRequest, PairingExchangeResponse,
-    RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
-    ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
-    TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
+    MessageCompleted, MessageDelta, PairingCodeRequestResponse, PairingExchangeRequest,
+    PairingExchangeResponse, RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest,
+    SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged,
+    SyncResponse, TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -28,11 +28,21 @@ fn health_ready() {}
 
 #[utoipa::path(
     post,
+    path = "/v1/pairing/request",
+    responses(
+        (status = 202, body = PairingCodeRequestResponse),
+        (status = 403, body = ApiError)
+    )
+)]
+fn pairing_request() {}
+
+#[utoipa::path(
+    post,
     path = "/v1/pairing/exchange",
     request_body = PairingExchangeRequest,
     responses(
         (status = 201, body = PairingExchangeResponse),
-        (status = 401, body = ApiError)
+        (status = 400, body = ApiError)
     )
 )]
 fn pairing_exchange() {}
@@ -182,6 +192,7 @@ fn transcriptions_create() {}
     paths(
         health_live,
         health_ready,
+        pairing_request,
         pairing_exchange,
         bootstrap,
         sync,
@@ -219,6 +230,7 @@ fn transcriptions_create() {}
         Message,
         MessageCompleted,
         MessageDelta,
+        PairingCodeRequestResponse,
         PairingExchangeRequest,
         PairingExchangeResponse,
         RepositoriesUpdated,

@@ -475,7 +475,35 @@
               }
             }
           },
-          "401": {
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pairing/request": {
+      "post": {
+        "tags": [],
+        "operationId": "pairing_request",
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairingCodeRequestResponse"
+                }
+              }
+            }
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -1196,6 +1224,15 @@
           "deviceId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "PairingCodeRequestResponse": {
+        "type": "object",
+        "required": ["expiresAt"],
+        "properties": {
+          "expiresAt": {
+            "type": "string"
           }
         }
       },

@@ -7,6 +7,7 @@ fn documents_the_supported_http_surface() {
     for path in [
         "/v1/health/live",
         "/v1/health/ready",
+        "/v1/pairing/request",
         "/v1/pairing/exchange",
         "/v1/bootstrap",
         "/v1/sync",

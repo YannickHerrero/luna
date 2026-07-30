@@ -12,11 +12,12 @@ use futures_util::{SinkExt, StreamExt};
 use luna_protocol::{
     ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, ConversationList,
     ConversationMessages, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
-    PROTOCOL_VERSION, PairingExchangeRequest, PairingExchangeResponse, SendMessageRequest,
-    SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState, SyncResponse,
-    UpdateConversationRequest,
+    PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState,
+    SyncResponse, UpdateConversationRequest,
 };
 use serde::Deserialize;
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
@@ -32,6 +33,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/v1/health/live", get(health_live))
         .route("/v1/health/ready", get(health_ready))
+        .route("/v1/pairing/request", post(request_pairing_code))
         .route("/v1/pairing/exchange", post(pair))
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/sync", get(sync))
@@ -107,6 +109,22 @@ async fn require_regular_file(path: &std::path::Path) -> Result<(), AppError> {
     }
 }
 
+async fn request_pairing_code(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<(StatusCode, Json<PairingCodeRequestResponse>), AppError> {
+    validate_tailnet(&headers, &state)?;
+    validate_origin(&axum::http::Method::POST, &headers, &state)?;
+    let pairing = state.auth.create_pairing_code().await?;
+    warn!(pairing_code = %pairing.value, "Luna pairing code requested");
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(PairingCodeRequestResponse {
+            expires_at: pairing.expires_at,
+        }),
+    ))
+}
+
 async fn pair(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -124,7 +142,7 @@ async fn pair(
         .auth
         .exchange(&request.code, name, request.platform)
         .await?
-        .ok_or(AppError::AuthenticationRequired)?;
+        .ok_or(AppError::PairingCodeInvalid)?;
     let cursor = state.database.latest_cursor().await?;
     let conversations = state.database.conversations(false).await?;
     let body = PairingExchangeResponse {

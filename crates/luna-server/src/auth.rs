@@ -15,28 +15,38 @@ pub struct PairedDevice {
     pub token: String,
 }
 
+pub struct PairingCode {
+    pub value: String,
+    pub expires_at: String,
+}
+
 impl AuthService {
     #[must_use]
     pub fn new(database: Database) -> Self {
         Self { database }
     }
 
-    pub async fn create_pairing_code(&self) -> Result<String, AuthError> {
+    pub async fn create_pairing_code(&self) -> Result<PairingCode, AuthError> {
         let bytes: [u8; 5] = rand::random();
         let code = bytes
             .iter()
             .map(|byte| format!("{byte:02X}"))
             .collect::<String>();
         let created = OffsetDateTime::now_utc();
+        let created_at = created.format(&Rfc3339)?;
+        let expires_at = (created + Duration::minutes(15)).format(&Rfc3339)?;
         self.database
             .create_pairing_code(NewPairingCode {
                 id: Uuid::new_v4(),
                 code_hash: &hash(&code),
-                created_at: &created.format(&Rfc3339)?,
-                expires_at: &(created + Duration::minutes(15)).format(&Rfc3339)?,
+                created_at: &created_at,
+                expires_at: &expires_at,
             })
             .await?;
-        Ok(code)
+        Ok(PairingCode {
+            value: code,
+            expires_at,
+        })
     }
 
     pub async fn exchange(

@@ -196,6 +196,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/pairing/request': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['pairing_request']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/repositories/{id}/icon': {
     parameters: {
       query?: never
@@ -449,6 +465,9 @@ export interface components {
     NotificationTargetChanged: {
       /** Format: uuid */
       deviceId: string
+    }
+    PairingCodeRequestResponse: {
+      expiresAt: string
     }
     PairingExchangeRequest: {
       code: string
@@ -997,7 +1016,34 @@ export interface operations {
           'application/json': components['schemas']['PairingExchangeResponse']
         }
       }
-      401: {
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
+  pairing_request: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PairingCodeRequestResponse']
+        }
+      }
+      403: {
         headers: {
           [name: string]: unknown
         }

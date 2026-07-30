@@ -28,6 +28,12 @@ export const PairingExchangeResponseSchema = Type.Object(
 )
 export type PairingExchangeResponse = Static<typeof PairingExchangeResponseSchema>
 
+export const PairingCodeRequestResponseSchema = Type.Object(
+  { expiresAt: Type.String() },
+  { additionalProperties: false },
+)
+export type PairingCodeRequestResponse = Static<typeof PairingCodeRequestResponseSchema>
+
 export const CreateConversationRequestSchema = Type.Object({}, { additionalProperties: false })
 export const CreateConversationResponseSchema = ConversationSchema
 
@@ -89,6 +95,7 @@ export const SyncResponseSchema = Type.Object(
 
 export const ApiResponseSchemas = {
   PairingExchangeResponse: PairingExchangeResponseSchema,
+  PairingCodeRequestResponse: PairingCodeRequestResponseSchema,
   Conversation: ConversationSchema,
   SendMessageResponse: SendMessageResponseSchema,
   ConversationMessages: ConversationMessagesSchema,

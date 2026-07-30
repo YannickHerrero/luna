@@ -21,6 +21,12 @@ pub struct PairingExchangeResponse {
     pub bootstrap: Bootstrap,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PairingCodeRequestResponse {
+    pub expires_at: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CreateConversationRequest {}
 

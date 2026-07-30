@@ -28,6 +28,8 @@ pub enum AppError {
     InvalidRequest(String),
     #[error("authentication required")]
     AuthenticationRequired,
+    #[error("pairing code invalid")]
+    PairingCodeInvalid,
     #[error("forbidden")]
     Forbidden,
     #[error("transcription failed: {0}")]
@@ -57,6 +59,12 @@ impl IntoResponse for AppError {
                 StatusCode::UNAUTHORIZED,
                 ErrorCode::AuthenticationRequired,
                 "Pair this device with Luna before continuing.",
+                false,
+            ),
+            Self::PairingCodeInvalid => (
+                StatusCode::BAD_REQUEST,
+                ErrorCode::InvalidRequest,
+                "That pairing code is invalid, expired, or already used. Use the newest code in Luna's Citadel logs.",
                 false,
             ),
             Self::Forbidden => (

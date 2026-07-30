@@ -63,6 +63,14 @@ impl TryFrom<DeviceRow> for Device {
 
 impl Database {
     pub async fn create_pairing_code(&self, code: NewPairingCode<'_>) -> Result<(), StorageError> {
+        let mut transaction = self.pool().begin().await?;
+        sqlx::query(
+            "UPDATE pairing_codes SET expires_at = ? WHERE redeemed_at IS NULL AND expires_at > ?",
+        )
+        .bind(code.created_at)
+        .bind(code.created_at)
+        .execute(&mut *transaction)
+        .await?;
         sqlx::query(
             "INSERT INTO pairing_codes (id, code_hash, created_at, expires_at) VALUES (?, ?, ?, ?)",
         )
@@ -70,8 +78,9 @@ impl Database {
         .bind(code.code_hash)
         .bind(code.created_at)
         .bind(code.expires_at)
-        .execute(self.pool())
+        .execute(&mut *transaction)
         .await?;
+        transaction.commit().await?;
         Ok(())
     }
 

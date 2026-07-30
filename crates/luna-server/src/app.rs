@@ -95,7 +95,8 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
     );
     let pairing_code = AuthService::new(database.clone())
         .create_pairing_code()
-        .await?;
+        .await?
+        .value;
     let request_id = HeaderName::from_static("x-request-id");
     let static_files = ServeDir::new(web_directory).append_index_html_on_directories(true);
     let router = routes::router(state)

@@ -5,8 +5,8 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use luna_protocol::{
-    AttachmentResponse, Conversation, ConversationMessages, PairingExchangeResponse,
-    SendMessageResponse,
+    ApiError, AttachmentResponse, Conversation, ConversationMessages, ErrorCode,
+    PairingCodeRequestResponse, PairingExchangeResponse, SendMessageResponse,
 };
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
@@ -112,6 +112,53 @@ async fn response_json<T: serde::de::DeserializeOwned>(response: axum::response:
             .expect("response body"),
     )
     .expect("response JSON")
+}
+
+#[tokio::test]
+async fn requests_a_new_pairing_code_without_exposing_it() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let requested = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/request")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("pairing code response");
+    assert_eq!(requested.status(), StatusCode::ACCEPTED);
+    let requested: PairingCodeRequestResponse = response_json(requested).await;
+    assert!(!requested.expires_at.is_empty());
+
+    let stale = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Stale browser",
+                        "platform": "web"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("stale pairing response");
+    assert_eq!(stale.status(), StatusCode::BAD_REQUEST);
+    let error: ApiError = response_json(stale).await;
+    assert_eq!(error.code, ErrorCode::InvalidRequest);
+    assert!(error.message.contains("invalid, expired, or already used"));
+    built.runtime.shutdown().await;
 }
 
 #[tokio::test]
