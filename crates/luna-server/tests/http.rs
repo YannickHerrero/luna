@@ -59,6 +59,8 @@ process.stdin.on('end', () => process.exit(0))
     .expect("fake Pi");
     fs::create_dir_all(directory.join("repository/.git")).expect("fake repository");
     fs::write(directory.join("repository/file.txt"), "repository file").expect("repository file");
+    fs::create_dir_all(directory.join("web")).expect("web directory");
+    fs::write(directory.join("web/index.html"), "<h1>Luna PWA</h1>").expect("web index");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -80,6 +82,7 @@ process.stdin.on('end', () => process.exit(0))
         attachment_directory: directory.join("attachments"),
         bridge_directory: PathBuf::from("/tmp")
             .join(format!("luna-http-test-{}", std::process::id())),
+        web_directory: directory.join("web"),
         pi_executable,
         pi_bridge_path: PathBuf::from("bridge.ts"),
         event_retention_days: 30,
@@ -310,6 +313,7 @@ async fn health_does_not_expose_private_state() {
     let built = app::build(config(directory.path())).await.expect("app");
     let response = built
         .router
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/v1/health/live")
@@ -322,6 +326,23 @@ async fn health_does_not_expose_private_state() {
     assert_eq!(
         response_json::<serde_json::Value>(response).await,
         serde_json::json!({"status":"ok"})
+    );
+    let static_response = built
+        .router
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("static response");
+    assert_eq!(static_response.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(static_response.into_body(), 1_000)
+            .await
+            .expect("static body"),
+        "<h1>Luna PWA</h1>"
     );
 }
 

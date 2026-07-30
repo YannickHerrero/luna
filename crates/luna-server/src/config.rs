@@ -19,6 +19,7 @@ pub struct Config {
     pub pi_session_directory: PathBuf,
     pub attachment_directory: PathBuf,
     pub bridge_directory: PathBuf,
+    pub web_directory: PathBuf,
     pub pi_executable: PathBuf,
     pub pi_bridge_path: PathBuf,
     pub event_retention_days: u32,
@@ -109,6 +110,7 @@ impl Config {
             pi_session_directory: data_directory.join("pi-sessions"),
             attachment_directory: data_directory.join("attachments"),
             bridge_directory,
+            web_directory: env_path("LUNA_WEB_DIR", root.join("apps/web/out")),
             data_directory,
             credentials_directory,
             pi_executable: env_path(

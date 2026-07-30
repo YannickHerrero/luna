@@ -3,6 +3,7 @@ use std::{sync::Arc, time::Duration};
 use axum::Router;
 use luna_pi::SessionRuntimeConfig;
 use luna_storage::Database;
+use tower_http::services::ServeDir;
 
 use crate::{
     auth::AuthService, config::Config, error::AppError, events::EventHub, routes,
@@ -17,6 +18,7 @@ pub struct BuiltApp {
 }
 
 pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
+    let web_directory = config.web_directory.clone();
     let database = Database::connect(&config.database_path).await?;
     let recovered_at = crate::auth::now()?;
     for conversation_id in database
@@ -63,7 +65,8 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         .create_pairing_code()
         .await?;
     Ok(BuiltApp {
-        router: routes::router(state),
+        router: routes::router(state)
+            .fallback_service(ServeDir::new(web_directory).append_index_html_on_directories(true)),
         pairing_code,
         database,
         runtime,
