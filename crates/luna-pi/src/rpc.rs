@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::{PiError, normalization::NormalizedPiEvent, normalize_event};
 
 const MAX_RPC_RECORD_BYTES: usize = 16 * 1024 * 1024;
+const LONG_RUNNING_REQUEST_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Debug, Clone)]
 pub struct PiProcessConfig {
@@ -180,6 +181,42 @@ impl PiProcess {
         .await
     }
 
+    pub async fn get_available_models(&self) -> Result<RpcResponse, PiError> {
+        self.request(json!({ "type": "get_available_models" }))
+            .await
+    }
+
+    pub async fn get_session_stats(&self) -> Result<RpcResponse, PiError> {
+        self.request(json!({ "type": "get_session_stats" })).await
+    }
+
+    pub async fn set_model(&self, provider: &str, model_id: &str) -> Result<RpcResponse, PiError> {
+        self.request(json!({
+            "type": "set_model",
+            "provider": provider,
+            "modelId": model_id,
+        }))
+        .await
+    }
+
+    pub async fn set_thinking_level(&self, level: &str) -> Result<RpcResponse, PiError> {
+        self.request(json!({ "type": "set_thinking_level", "level": level }))
+            .await
+    }
+
+    pub async fn compact(&self) -> Result<RpcResponse, PiError> {
+        self.request_with_timeout(json!({ "type": "compact" }), LONG_RUNNING_REQUEST_TIMEOUT)
+            .await
+    }
+
+    pub async fn bash(&self, command: &str) -> Result<RpcResponse, PiError> {
+        self.request_with_timeout(
+            json!({ "type": "bash", "command": command }),
+            LONG_RUNNING_REQUEST_TIMEOUT,
+        )
+        .await
+    }
+
     pub async fn prompt(
         &self,
         message: &str,
@@ -210,6 +247,14 @@ impl PiProcess {
         self.request(json!({ "type": "abort" })).await
     }
 
+    pub async fn abort_bash(&self) -> Result<RpcResponse, PiError> {
+        self.request(json!({ "type": "abort_bash" })).await
+    }
+
+    pub async fn abort_retry(&self) -> Result<RpcResponse, PiError> {
+        self.request(json!({ "type": "abort_retry" })).await
+    }
+
     pub async fn shutdown(&self) {
         self.stdin.lock().await.take();
         let _ = self.shutdown.send(()).await;
@@ -227,7 +272,15 @@ impl PiProcess {
         .await;
     }
 
-    async fn request(&self, mut value: Value) -> Result<RpcResponse, PiError> {
+    async fn request(&self, value: Value) -> Result<RpcResponse, PiError> {
+        self.request_with_timeout(value, self.request_timeout).await
+    }
+
+    async fn request_with_timeout(
+        &self,
+        mut value: Value,
+        request_timeout: Duration,
+    ) -> Result<RpcResponse, PiError> {
         if *self.status.borrow() != ProcessStatus::Running {
             return Err(PiError::NotRunning);
         }
@@ -243,7 +296,7 @@ impl PiProcess {
             writer.write_all(b"\n").await?;
             writer.flush().await?;
         }
-        match timeout(self.request_timeout, receiver).await {
+        match timeout(request_timeout, receiver).await {
             Ok(Ok(response)) => response,
             Ok(Err(_)) => Err(PiError::ResponseChannelClosed),
             Err(_) => {
