@@ -125,7 +125,7 @@ async fn pair(
             .as_ref()
             .is_some_and(|origin| origin.starts_with("https://"));
         let cookie = format!(
-            "luna_device={}; Path=/; HttpOnly; SameSite=Strict{}",
+            "luna_device={}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict{}",
             paired.token,
             if secure { "; Secure" } else { "" }
         );

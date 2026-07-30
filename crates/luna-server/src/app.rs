@@ -1,9 +1,20 @@
 use std::{sync::Arc, time::Duration};
 
-use axum::Router;
+use axum::{
+    Router,
+    http::{HeaderName, HeaderValue, header},
+};
 use luna_pi::SessionRuntimeConfig;
 use luna_storage::Database;
-use tower_http::services::ServeDir;
+use tower::ServiceBuilder;
+use tower_http::{
+    catch_panic::CatchPanicLayer,
+    compression::CompressionLayer,
+    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
+    services::ServeDir,
+    set_header::SetResponseHeaderLayer,
+    trace::TraceLayer,
+};
 
 use crate::{
     auth::AuthService, config::Config, error::AppError, events::EventHub, maintenance::Maintenance,
@@ -77,9 +88,36 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
     let pairing_code = AuthService::new(database.clone())
         .create_pairing_code()
         .await?;
+    let request_id = HeaderName::from_static("x-request-id");
+    let static_files = ServiceBuilder::new()
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=300"),
+        ))
+        .service(ServeDir::new(web_directory).append_index_html_on_directories(true));
+    let router = routes::router(state)
+        .fallback_service(static_files)
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(
+                "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+            ),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::REFERRER_POLICY,
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(PropagateRequestIdLayer::new(request_id.clone()))
+        .layer(SetRequestIdLayer::new(request_id, MakeRequestUuid))
+        .layer(CompressionLayer::new())
+        .layer(TraceLayer::new_for_http())
+        .layer(CatchPanicLayer::new());
     Ok(BuiltApp {
-        router: routes::router(state)
-            .fallback_service(ServeDir::new(web_directory).append_index_html_on_directories(true)),
+        router,
         pairing_code,
         database,
         runtime,

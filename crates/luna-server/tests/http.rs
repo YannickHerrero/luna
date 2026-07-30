@@ -113,8 +113,8 @@ async fn pairs_a_device_and_creates_a_conversation() {
         .body(Body::from(
             serde_json::json!({
                 "code": built.pairing_code,
-                "deviceName": "Test iPhone",
-                "platform": "ios"
+                "deviceName": "Test browser",
+                "platform": "web"
             })
             .to_string(),
         ))
@@ -126,6 +126,14 @@ async fn pairs_a_device_and_creates_a_conversation() {
         .await
         .expect("pairing response");
     assert_eq!(pairing_response.status(), StatusCode::CREATED);
+    let cookie = pairing_response
+        .headers()
+        .get(header::SET_COOKIE)
+        .expect("device cookie")
+        .to_str()
+        .expect("cookie text");
+    assert!(cookie.contains("Max-Age=31536000"));
+    assert!(cookie.contains("HttpOnly"));
     let paired: PairingExchangeResponse = response_json(pairing_response).await;
 
     let create_request = Request::builder()
@@ -324,6 +332,13 @@ async fn health_does_not_expose_private_state() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.headers().contains_key("x-request-id"));
+    assert!(
+        response
+            .headers()
+            .get(header::CONTENT_SECURITY_POLICY)
+            .is_some()
+    );
     assert_eq!(
         response_json::<serde_json::Value>(response).await,
         serde_json::json!({"status":"ok"})
@@ -355,6 +370,13 @@ async fn health_does_not_expose_private_state() {
         .await
         .expect("static response");
     assert_eq!(static_response.status(), StatusCode::OK);
+    assert_eq!(
+        static_response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .expect("cache control"),
+        "public, max-age=300"
+    );
     assert_eq!(
         to_bytes(static_response.into_body(), 1_000)
             .await
