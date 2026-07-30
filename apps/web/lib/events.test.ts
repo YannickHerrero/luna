@@ -41,6 +41,17 @@ describe('Luna event reducer', () => {
     expect(completed.cursor).toBe(4)
   })
 
+  it('removes archived conversations delivered over the live stream', () => {
+    const state = applyServerEvent(initial, {
+      eventId: 5,
+      conversationId: conversation.id,
+      type: 'conversation.upserted',
+      payload: { ...conversation, archivedAt: '2026-03-20T12:00:00Z' },
+    })
+    expect(state.conversations).toEqual([])
+    expect(state.selectedConversationId).toBeUndefined()
+  })
+
   it('updates normalized conversation state without terminal output', () => {
     const state = applyServerEvent(initial, {
       eventId: 5,

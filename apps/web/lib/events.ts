@@ -28,6 +28,17 @@ export function applyServerEvent(state: LunaClientState, event: LunaEvent): Luna
   switch (event.type) {
     case 'conversation.upserted': {
       const conversation = event.payload as Conversation
+      if (conversation.archivedAt) {
+        const selected = state.selectedConversationId === conversation.id
+        return {
+          ...state,
+          cursor,
+          conversations: state.conversations.filter((item) => item.id !== conversation.id),
+          messages: selected ? [] : state.messages,
+          selectedConversationId: selected ? undefined : state.selectedConversationId,
+          nextBeforeOrdinal: selected ? undefined : state.nextBeforeOrdinal,
+        }
+      }
       return {
         ...state,
         cursor,

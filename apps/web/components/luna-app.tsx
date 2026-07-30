@@ -159,7 +159,7 @@ export function LunaApp() {
       })
       setClient((current) => ({
         ...current,
-        conversations: [conversation, ...current.conversations],
+        conversations: upsertConversation(current.conversations, conversation),
         selectedConversationId: conversation.id,
         messages: [],
         nextBeforeOrdinal: undefined,
@@ -839,6 +839,15 @@ function stateLabel(state: Conversation['state']): string {
     stopped: 'Stopped',
     error: 'Needs attention',
   }[state]
+}
+
+function upsertConversation(
+  conversations: Conversation[],
+  conversation: Conversation,
+): Conversation[] {
+  return conversations.some((item) => item.id === conversation.id)
+    ? conversations.map((item) => (item.id === conversation.id ? conversation : item))
+    : [conversation, ...conversations]
 }
 
 function mergeMessages(earlier: Message[], current: Message[]): Message[] {
