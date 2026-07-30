@@ -8,6 +8,7 @@ const conversation = {
   state: 'working',
   repositories: [],
   activities: [],
+  createdAt: '2026-03-20T12:00:00Z',
 } as unknown as Conversation
 const message = {
   id: '00000000-0000-0000-0000-000000000002',
@@ -15,6 +16,7 @@ const message = {
   text: '',
   status: 'streaming',
   ordinal: 2,
+  createdAt: '2026-03-20T12:02:00Z',
 } as Message
 const initial: LunaClientState = {
   conversations: [conversation],
@@ -41,6 +43,34 @@ describe('Luna event reducer', () => {
     expect(completed.messages[0]?.text).toBe('Hello')
     expect(completed.messages[0]?.status).toBe('completed')
     expect(completed.cursor).toBe(4)
+  })
+
+  it('moves a conversation to the top when a newer message arrives', () => {
+    const otherConversation = {
+      ...conversation,
+      id: '00000000-0000-0000-0000-000000000009',
+      createdAt: '2026-03-20T12:01:00Z',
+    }
+    const state = applyServerEvent(
+      {
+        ...initial,
+        conversations: [otherConversation, conversation],
+        messages: [],
+        selectedConversationId: otherConversation.id,
+      },
+      {
+        eventId: 5,
+        conversationId: conversation.id,
+        type: 'message.upserted',
+        payload: message,
+      },
+    )
+    expect(state.conversations.map((item) => item.id)).toEqual([
+      conversation.id,
+      otherConversation.id,
+    ])
+    expect(state.conversations[0]?.lastMessageAt).toBe(message.createdAt)
+    expect(state.messages).toEqual([])
   })
 
   it('keeps live message upserts in transcript order', () => {

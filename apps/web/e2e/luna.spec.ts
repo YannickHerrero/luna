@@ -178,10 +178,9 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(prompt).toHaveValue('Draft for the first conversation')
   await page.reload()
   await expect(prompt).toHaveValue('Draft for the second conversation')
-  page.once('dialog', (dialog) => void dialog.accept())
-  await page.getByRole('button', { name: 'Archive conversation' }).click()
-  await expect(page.locator('.conversation-cell')).toHaveCount(1)
-  await page.locator('.conversation-cell').click()
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.locator('.conversation-cell')).toHaveCount(2)
+  await page.locator('.conversation-cell').nth(1).click()
   await expect(prompt).toHaveValue('Draft for the first conversation')
   await prompt.fill('')
 
@@ -231,6 +230,18 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  const firstUserMessage = page.locator('.message-row.user').first()
+  await firstUserMessage.click()
+  const messageTimestamp = firstUserMessage.locator('.message-timestamp')
+  await expect(messageTimestamp).toBeVisible()
+  await expect(messageTimestamp).toHaveAttribute('datetime', /T/)
+  await firstUserMessage.click()
+  await expect(messageTimestamp).toHaveCount(0)
+  await firstUserMessage.focus()
+  await page.keyboard.press('Enter')
+  await expect(messageTimestamp).toBeVisible()
+  await page.keyboard.press('Space')
+  await expect(messageTimestamp).toHaveCount(0)
   await expect(page.locator('.activity-details summary')).toContainText(
     'Validating the browser workflow',
   )
@@ -249,6 +260,13 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
     expect(bounds.left).toBeGreaterThanOrEqual(0)
     expect(bounds.right).toBeLessThanOrEqual(mobileLayout.clientWidth)
   }
+  await page.getByRole('button', { name: 'Back' }).click()
+  const sortedConversations = page.locator('.conversation-cell')
+  await expect(sortedConversations).toHaveCount(2)
+  await expect(sortedConversations.first().locator('.state-dot.working')).toBeVisible()
+  await expect(sortedConversations.first().locator('.cell-time')).toHaveAttribute('datetime', /T/)
+  await sortedConversations.first().click()
+  await expect(page.getByText('Working response from Pi')).toBeVisible()
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
@@ -277,7 +295,7 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: /Luna acceptance/ }).click()
   await page.getByRole('button', { name: 'Toggle theme' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'mocha')
-  await page.locator('.conversation-cell').evaluate(async (element) => {
+  await page.locator('.conversation-cell.selected').evaluate(async (element) => {
     await Promise.all(element.getAnimations().map(async (animation) => animation.finished))
   })
   const registrationState = await page.evaluate(async () => {
@@ -292,6 +310,10 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
     ),
   ).toEqual([])
 
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Archive conversation' }).click()
+  await expect(page.locator('.conversation-cell')).toHaveCount(1)
+  await page.locator('.conversation-cell').click()
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Archive conversation' }).click()
   await expect(page.getByText('No conversations yet.')).toBeVisible()

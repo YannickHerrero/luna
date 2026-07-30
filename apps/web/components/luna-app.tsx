@@ -32,7 +32,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
+import { applyLatestMessage, sortConversations, upsertConversation } from '../lib/conversations.js'
 import { applyServerEvent, type LunaClientState, type LunaEvent } from '../lib/events.js'
+import { formatConversationTimestamp, formatMessageTimestamp } from '../lib/time.js'
 
 type Phase = 'loading' | 'pairing' | 'ready'
 type Theme = 'latte' | 'mocha'
@@ -56,11 +58,12 @@ export function LunaApp() {
   const cursor = useRef(0)
 
   const installBootstrap = useCallback((bootstrap: Bootstrap) => {
+    const conversations = sortConversations(bootstrap.conversations)
     cursor.current = bootstrap.cursor
     setClient({
-      conversations: bootstrap.conversations,
+      conversations,
       messages: [],
-      selectedConversationId: bootstrap.conversations[0]?.id,
+      selectedConversationId: conversations[0]?.id,
       nextBeforeOrdinal: undefined,
       cursor: bootstrap.cursor,
     })
@@ -322,11 +325,14 @@ export function LunaApp() {
             onLoadEarlier={() => void loadEarlierMessages()}
             onBack={() => setSelectedConversation(undefined)}
             onMessage={(message) =>
-              setClient((current) =>
-                current.selectedConversationId === message.conversationId
-                  ? { ...current, messages: upsertMessage(current.messages, message) }
-                  : current,
-              )
+              setClient((current) => ({
+                ...current,
+                conversations: applyLatestMessage(current.conversations, message),
+                messages:
+                  current.selectedConversationId === message.conversationId
+                    ? upsertMessage(current.messages, message)
+                    : current.messages,
+              }))
             }
             onDraftChange={(update) => updateDraft(selected.id, update)}
             onDraftSent={() => clearDraft(selected.id)}
@@ -334,9 +340,7 @@ export function LunaApp() {
             onRename={(conversation) =>
               setClient((current) => ({
                 ...current,
-                conversations: current.conversations.map((item) =>
-                  item.id === conversation.id ? conversation : item,
-                ),
+                conversations: upsertConversation(current.conversations, conversation),
               }))
             }
             onError={setError}
@@ -476,6 +480,7 @@ function ConversationCell({
   onSelect: () => void
 }) {
   const repo = conversation.repositories[0]
+  const timestamp = conversation.lastMessageAt ?? conversation.createdAt
   return (
     <button className={`conversation-cell ${selected ? 'selected' : ''}`} onClick={onSelect}>
       <span className="avatar">
@@ -491,6 +496,9 @@ function ConversationCell({
           {conversation.preview || stateLabel(conversation.state)}
         </span>
       </span>
+      <time className="cell-time" dateTime={timestamp} title={formatMessageTimestamp(timestamp)}>
+        {formatConversationTimestamp(timestamp)}
+      </time>
       <span
         className={`state-dot ${conversation.state}`}
         aria-label={stateLabel(conversation.state)}
@@ -628,27 +636,65 @@ function ConversationView({
 }
 
 function MessageBubble({ message }: { message: Message }) {
+  const [showsTimestamp, setShowsTimestamp] = useState(false)
+  const descriptionId = `message-time-description-${message.id}`
+  const toggleTimestamp = () => setShowsTimestamp((current) => !current)
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    const target = event.target
+    if (
+      target instanceof Element &&
+      target.closest('a, button, input, textarea, select, summary')
+    ) {
+      return
+    }
+    if (!window.getSelection()?.isCollapsed) return
+    toggleTimestamp()
+  }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+    event.preventDefault()
+    toggleTimestamp()
+  }
+  const formattedTimestamp = formatMessageTimestamp(message.createdAt)
   return (
-    <article className={`message-row ${message.role}`}>
-      <div className="message-bubble">
-        {message.attachments.length > 0 && (
-          <div className="attachment-grid">
-            {message.attachments.map((attachment) => (
-              // The server requires the paired cookie for every image request.
-              <img key={attachment.id} src={attachment.contentUrl} alt={attachment.fileName} />
-            ))}
-          </div>
+    <article
+      className={`message-row ${message.role}`}
+      tabIndex={0}
+      aria-describedby={descriptionId}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="message-stack">
+        <div className="message-bubble">
+          {message.attachments.length > 0 && (
+            <div className="attachment-grid">
+              {message.attachments.map((attachment) => (
+                // The server requires the paired cookie for every image request.
+                <img key={attachment.id} src={attachment.contentUrl} alt={attachment.fileName} />
+              ))}
+            </div>
+          )}
+          {message.role === 'assistant' ? (
+            <div className="markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                {message.text}
+              </ReactMarkdown>
+              {message.status === 'streaming' && <span className="stream-caret" />}
+            </div>
+          ) : (
+            <p>{message.text}</p>
+          )}
+        </div>
+        {showsTimestamp && (
+          <time className="message-timestamp" dateTime={message.createdAt}>
+            {formattedTimestamp}
+          </time>
         )}
-        {message.role === 'assistant' ? (
-          <div className="markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-              {message.text}
-            </ReactMarkdown>
-            {message.status === 'streaming' && <span className="stream-caret" />}
-          </div>
-        ) : (
-          <p>{message.text}</p>
-        )}
+        <span id={descriptionId} className="visually-hidden">
+          {showsTimestamp
+            ? `Sent ${formattedTimestamp}. Press Enter to hide the timestamp.`
+            : 'Press Enter to show the sent date and time.'}
+        </span>
       </div>
     </article>
   )
@@ -1025,15 +1071,6 @@ function stateLabel(state: Conversation['state']): string {
     stopped: 'Stopped',
     error: 'Needs attention',
   }[state]
-}
-
-function upsertConversation(
-  conversations: Conversation[],
-  conversation: Conversation,
-): Conversation[] {
-  return conversations.some((item) => item.id === conversation.id)
-    ? conversations.map((item) => (item.id === conversation.id ? conversation : item))
-    : [conversation, ...conversations]
 }
 
 function mergeMessages(earlier: Message[], current: Message[]): Message[] {

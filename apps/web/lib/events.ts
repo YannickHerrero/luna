@@ -1,4 +1,5 @@
 import type { AgentActivity, Conversation, Message } from '@luna/protocol'
+import { applyLatestMessage, upsertConversation } from './conversations.js'
 
 export type LunaEvent = {
   eventId?: number
@@ -42,13 +43,21 @@ export function applyServerEvent(state: LunaClientState, event: LunaEvent): Luna
       return {
         ...state,
         cursor,
-        conversations: upsert(state.conversations, conversation),
+        conversations: upsertConversation(state.conversations, conversation),
       }
     }
     case 'message.upserted': {
       const message = event.payload as Message
-      if (message.conversationId !== state.selectedConversationId) return { ...state, cursor }
-      return { ...state, cursor, messages: upsertMessage(state.messages, message) }
+      const conversations = applyLatestMessage(state.conversations, message)
+      if (message.conversationId !== state.selectedConversationId) {
+        return { ...state, cursor, conversations }
+      }
+      return {
+        ...state,
+        cursor,
+        conversations,
+        messages: upsertMessage(state.messages, message),
+      }
     }
     case 'message.delta': {
       const delta = event.payload as Delta
