@@ -1,0 +1,36 @@
+# Private product inputs
+/DO_NOT_COMMIT/
+
+# Dependencies and build output
+node_modules/
+.pnpm-store/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+.luna.local.json
+
+# Runtime data
+.data/
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+
+# Apple tooling
+.DS_Store
+DerivedData/
+.build/
+xcuserdata/
+*.xcuserstate
+
+# Test output
+test-results/
+playwright-report/
