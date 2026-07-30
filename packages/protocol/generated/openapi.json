@@ -656,6 +656,83 @@
           }
         }
       },
+      "AgentTask": {
+        "type": "object",
+        "required": ["id", "sequence", "text", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentTaskStatus"
+          },
+          "text": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
+      "AgentTaskList": {
+        "type": "object",
+        "required": ["id", "revision", "tasks", "createdAt", "updatedAt"],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/String"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentTask"
+            }
+          },
+          "title": {
+            "type": ["string", "null"]
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
+      "AgentTaskListChanged": {
+        "type": "object",
+        "properties": {
+          "taskList": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentTaskList"
+              }
+            ]
+          }
+        }
+      },
+      "AgentTaskStatus": {
+        "type": "string",
+        "enum": ["pending", "in_progress", "completed", "blocked", "skipped"]
+      },
       "ApiError": {
         "type": "object",
         "required": ["code", "message", "retryable"],
@@ -1009,6 +1086,16 @@
           },
           "state": {
             "$ref": "#/components/schemas/SessionState"
+          },
+          "taskList": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentTaskList"
+              }
+            ]
           },
           "title": {
             "type": "string"
@@ -1586,6 +1673,19 @@
               "type": {
                 "type": "string",
                 "enum": ["agent.activity_upserted"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/AgentTaskListChanged"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["agent.task_list_changed"]
               }
             }
           },

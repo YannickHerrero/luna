@@ -280,6 +280,32 @@ export interface components {
       active: boolean
       phase: components['schemas']['ActivityPhase']
     }
+    AgentTask: {
+      createdAt: components['schemas']['String']
+      /** Format: uuid */
+      id: string
+      note?: string | null
+      /** Format: int64 */
+      sequence: number
+      status: components['schemas']['AgentTaskStatus']
+      text: string
+      updatedAt: components['schemas']['String']
+    }
+    AgentTaskList: {
+      createdAt: components['schemas']['String']
+      /** Format: uuid */
+      id: string
+      /** Format: int64 */
+      revision: number
+      tasks: components['schemas']['AgentTask'][]
+      title?: string | null
+      updatedAt: components['schemas']['String']
+    }
+    AgentTaskListChanged: {
+      taskList?: null | components['schemas']['AgentTaskList']
+    }
+    /** @enum {string} */
+    AgentTaskStatus: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'skipped'
     ApiError: {
       code: components['schemas']['ErrorCode']
       message: string
@@ -379,6 +405,7 @@ export interface components {
       preview: string
       repositories: components['schemas']['Repository'][]
       state: components['schemas']['SessionState']
+      taskList?: null | components['schemas']['AgentTaskList']
       title: string
       titleMode: components['schemas']['TitleMode']
       /** Format: int64 */
@@ -589,6 +616,11 @@ export interface components {
           payload: components['schemas']['AgentActivity']
           /** @enum {string} */
           type: 'agent.activity_upserted'
+        }
+      | {
+          payload: components['schemas']['AgentTaskListChanged']
+          /** @enum {string} */
+          type: 'agent.task_list_changed'
         }
       | {
           payload: components['schemas']['SteeringQueueChanged']

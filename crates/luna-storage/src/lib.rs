@@ -9,6 +9,7 @@ mod error;
 mod events;
 mod messages;
 mod repositories;
+mod task_lists;
 
 pub use attachments::{AttachmentFile, NewAttachment, StoredAttachment};
 pub use auth::{NewDevice, NewPairingCode};

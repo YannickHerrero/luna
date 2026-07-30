@@ -4,8 +4,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    AgentActivity, ApiError, Attachment, Conversation, Message, MessageDelivery, Repository,
-    SessionState,
+    AgentActivity, AgentTaskList, ApiError, Attachment, Conversation, Message, MessageDelivery,
+    Repository, SessionState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -118,6 +118,13 @@ pub struct AgentActivitiesReset {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct AgentTaskListChanged {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_list: Option<AgentTaskList>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct SteeringQueueChanged {
     pub pending: i64,
     pub delivery: MessageDelivery,
@@ -175,6 +182,8 @@ pub enum ServerEvent {
     AgentActivitiesReset(AgentActivitiesReset),
     #[serde(rename = "agent.activity_upserted")]
     AgentActivityUpserted(AgentActivity),
+    #[serde(rename = "agent.task_list_changed")]
+    AgentTaskListChanged(AgentTaskListChanged),
     #[serde(rename = "steering.queue_changed")]
     SteeringQueueChanged(SteeringQueueChanged),
     #[serde(rename = "workspace.updated")]

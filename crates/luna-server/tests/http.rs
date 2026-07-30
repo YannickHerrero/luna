@@ -53,6 +53,7 @@ process.stdin.on('data', chunk => {
       console.log(JSON.stringify({id:request.id,type:'response',command:'prompt',success:true}))
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\n')
       bridge.write(JSON.stringify({type:'path_observed',path:__dirname + '/repository/file.txt',toolName:'read'}) + '\n')
+      bridge.write(JSON.stringify({type:'task_list_updated',taskList:{id:'018f0000-0000-7000-8000-000000000001',title:'Ship Luna progress',revision:2,tasks:[{id:'018f0000-0000-7000-8000-000000000002',sequence:1,text:'Persist structured progress',status:'completed',note:'HTTP integration passed',createdAt:'2026-03-20T12:00:00Z',updatedAt:'2026-03-20T12:00:01Z'},{id:'018f0000-0000-7000-8000-000000000003',sequence:2,text:'Render progress in Luna',status:'in_progress',createdAt:'2026-03-20T12:00:00Z',updatedAt:'2026-03-20T12:00:01Z'}],createdAt:'2026-03-20T12:00:00Z',updatedAt:'2026-03-20T12:00:01Z'}}) + '\n')
       console.log(JSON.stringify({type:'agent_start'}))
       console.log(JSON.stringify({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:'Fake response'}}))
       console.log(JSON.stringify({type:'agent_settled'}))
@@ -352,6 +353,7 @@ async fn pairs_a_device_and_creates_a_conversation() {
     );
     let mut observed_repositories = Vec::new();
     let mut observed_title = String::new();
+    let mut observed_task_list = None;
     for _ in 0..80 {
         let request = Request::builder()
             .uri(format!("/v1/conversations/{}", conversation.id))
@@ -367,13 +369,24 @@ async fn pairs_a_device_and_creates_a_conversation() {
         let current = response_json::<Conversation>(response).await;
         observed_repositories = current.repositories;
         observed_title = current.title;
-        if !observed_repositories.is_empty() && observed_title == "Persistent Message Delivery" {
+        observed_task_list = current.task_list;
+        if !observed_repositories.is_empty()
+            && observed_title == "Persistent Message Delivery"
+            && observed_task_list.is_some()
+        {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert_eq!(observed_title, "Persistent Message Delivery");
     assert_eq!(observed_repositories[0].display_name, "repository");
+    let task_list = observed_task_list.expect("task list");
+    assert_eq!(task_list.revision, 2);
+    assert_eq!(task_list.tasks.len(), 2);
+    assert_eq!(
+        task_list.tasks[0].status,
+        luna_protocol::AgentTaskStatus::Completed
+    );
     let icon_url = observed_repositories[0]
         .icon
         .content_url

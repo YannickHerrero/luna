@@ -3,14 +3,15 @@
 use utoipa::OpenApi;
 
 use crate::{
-    AgentActivitiesReset, AgentActivity, AgentActivityChanged, ApiError, Attachment,
-    AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, Conversation,
-    ConversationList, ConversationMessages, ConversationTitleUpdated, CreateConversationRequest,
-    Device, ErrorCode, ErrorResponse, Message, MessageCompleted, MessageDelta,
-    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
-    RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
-    ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
-    TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
+    AgentActivitiesReset, AgentActivity, AgentActivityChanged, AgentTask, AgentTaskList,
+    AgentTaskListChanged, AgentTaskStatus, ApiError, Attachment, AttachmentResponse, Bootstrap,
+    ClientCommand, CommandAccepted, CommandRejected, Conversation, ConversationList,
+    ConversationMessages, ConversationTitleUpdated, CreateConversationRequest, Device, ErrorCode,
+    ErrorResponse, Message, MessageCompleted, MessageDelta, PairingCodeRequestResponse,
+    PairingExchangeRequest, PairingExchangeResponse, RepositoriesUpdated, Repository,
+    RepositoryIcon, SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope,
+    SessionState, SteeringQueueChanged, SyncResponse, TranscriptionResponse,
+    UpdateConversationRequest, WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -215,6 +216,10 @@ fn transcriptions_create() {}
         AgentActivitiesReset,
         AgentActivity,
         AgentActivityChanged,
+        AgentTask,
+        AgentTaskList,
+        AgentTaskListChanged,
+        AgentTaskStatus,
         ApiError,
         Attachment,
         AttachmentResponse,

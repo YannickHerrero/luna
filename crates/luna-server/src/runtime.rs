@@ -14,7 +14,7 @@ use luna_pi::{
     SessionSupervisor,
 };
 use luna_protocol::{
-    ActivityPhase, AgentActivityChanged, ConversationTitleUpdated, MessageDelivery,
+    ActivityPhase, AgentActivityChanged, AgentTaskList, ConversationTitleUpdated, MessageDelivery,
     RepositoriesUpdated, ServerEvent, SessionState, SteeringQueueChanged, WorkspaceUpdated,
 };
 use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
@@ -489,13 +489,31 @@ impl ConversationRuntime {
                             .await?;
                     }
                 }
+                "task_list_updated" => {
+                    let Some(task_list) = event.task_list else {
+                        return Ok(());
+                    };
+                    validate_task_list(&task_list)?;
+                    let event = self
+                        .database
+                        .replace_agent_task_list(conversation_id, &task_list, &now()?)
+                        .await?;
+                    self.events.publish(event);
+                }
+                "task_list_cleared" => {
+                    let event = self
+                        .database
+                        .clear_agent_task_list(conversation_id, &now()?)
+                        .await?;
+                    self.events.publish(event);
+                }
                 _ => {}
             }
             Ok(())
         }
         .await;
         if let Err(error) = result {
-            warn!(%conversation_id, "Unable to persist Pi workspace observation: {error}");
+            warn!(%conversation_id, "Unable to persist Pi bridge event: {error}");
         }
     }
 
@@ -662,6 +680,48 @@ impl ConversationRuntime {
             .await?;
         Ok(())
     }
+}
+
+fn validate_task_list(task_list: &AgentTaskList) -> Result<(), AppError> {
+    if task_list.revision < 1 {
+        return Err(AppError::InvalidRequest(
+            "Task-list revision must be positive".into(),
+        ));
+    }
+    if task_list.tasks.is_empty() || task_list.tasks.len() > 30 {
+        return Err(AppError::InvalidRequest(
+            "Task lists must contain between 1 and 30 tasks".into(),
+        ));
+    }
+    if task_list
+        .title
+        .as_ref()
+        .is_some_and(|title| title.trim().is_empty() || title.chars().count() > 120)
+    {
+        return Err(AppError::InvalidRequest(
+            "Task-list title is invalid".into(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    for (index, task) in task_list.tasks.iter().enumerate() {
+        let expected_sequence = i64::try_from(index + 1).unwrap_or(i64::MAX);
+        if task.sequence != expected_sequence || !ids.insert(task.id) {
+            return Err(AppError::InvalidRequest(
+                "Task identifiers and sequence must be unique and ordered".into(),
+            ));
+        }
+        if task.text.trim().is_empty() || task.text.chars().count() > 240 {
+            return Err(AppError::InvalidRequest("Task text is invalid".into()));
+        }
+        if task
+            .note
+            .as_ref()
+            .is_some_and(|note| note.trim().is_empty() || note.chars().count() > 500)
+        {
+            return Err(AppError::InvalidRequest("Task note is invalid".into()));
+        }
+    }
+    Ok(())
 }
 
 struct ActivityCapture {
@@ -869,7 +929,34 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use super::{ActivityCapture, progress_summary};
+    use luna_protocol::{AgentTask, AgentTaskList, AgentTaskStatus};
+    use uuid::Uuid;
+
+    use super::{ActivityCapture, progress_summary, validate_task_list};
+
+    #[test]
+    fn validates_structured_task_list_boundaries() {
+        let timestamp = "2026-03-20T12:00:00Z".to_owned();
+        let mut task_list = AgentTaskList {
+            id: Uuid::new_v4(),
+            title: Some("Ship progress".into()),
+            revision: 1,
+            tasks: vec![AgentTask {
+                id: Uuid::new_v4(),
+                sequence: 1,
+                text: "Verify progress".into(),
+                status: AgentTaskStatus::InProgress,
+                note: None,
+                created_at: timestamp.clone(),
+                updated_at: timestamp.clone(),
+            }],
+            created_at: timestamp.clone(),
+            updated_at: timestamp,
+        };
+        assert!(validate_task_list(&task_list).is_ok());
+        task_list.tasks[0].sequence = 2;
+        assert!(validate_task_list(&task_list).is_err());
+    }
 
     #[test]
     fn derives_short_progress_summaries_from_thinking_headings() {

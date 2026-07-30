@@ -331,6 +331,7 @@ impl Database {
             })
             .collect::<Result<Vec<_>, StorageError>>()?;
         let activities = self.agent_activities(id).await?;
+        let task_list = self.agent_task_list(id).await?;
         Ok(Conversation {
             id,
             title: row.title,
@@ -344,6 +345,7 @@ impl Database {
             active_working_directory: row.active_working_directory,
             repositories,
             activities,
+            task_list,
             last_message_at: row.last_message_at,
             notification_target_device_id: row
                 .notification_target_device_id

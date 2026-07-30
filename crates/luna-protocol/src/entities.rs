@@ -142,6 +142,41 @@ pub struct Repository {
     pub last_seen_at: Timestamp,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentTaskStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Blocked,
+    Skipped,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTask {
+    pub id: Uuid,
+    pub sequence: i64,
+    pub text: String,
+    pub status: AgentTaskStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTaskList {
+    pub id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub revision: i64,
+    pub tasks: Vec<AgentTask>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentActivity {
@@ -170,6 +205,8 @@ pub struct Conversation {
     pub active_working_directory: String,
     pub repositories: Vec<Repository>,
     pub activities: Vec<AgentActivity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_list: Option<AgentTaskList>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_message_at: Option<Timestamp>,
     #[serde(skip_serializing_if = "Option::is_none")]

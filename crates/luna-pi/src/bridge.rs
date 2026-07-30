@@ -3,6 +3,7 @@ use std::{
     time::Duration,
 };
 
+use luna_protocol::AgentTaskList;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -35,6 +36,8 @@ pub struct BridgeEvent {
     pub cwd: Option<PathBuf>,
     #[serde(default)]
     pub path: Option<PathBuf>,
+    #[serde(default)]
+    pub task_list: Option<AgentTaskList>,
     #[serde(flatten)]
     pub details: serde_json::Map<String, Value>,
 }

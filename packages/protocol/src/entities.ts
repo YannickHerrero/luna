@@ -120,6 +120,42 @@ export const RepositorySchema = Type.Object(
 )
 export type Repository = Static<typeof RepositorySchema>
 
+export const AgentTaskStatusSchema = Type.Union([
+  Type.Literal('pending'),
+  Type.Literal('in_progress'),
+  Type.Literal('completed'),
+  Type.Literal('blocked'),
+  Type.Literal('skipped'),
+])
+export type AgentTaskStatus = Static<typeof AgentTaskStatusSchema>
+
+export const AgentTaskSchema = Type.Object(
+  {
+    id: IdSchema,
+    sequence: Type.Integer({ minimum: 1 }),
+    text: Type.String({ minLength: 1, maxLength: 240 }),
+    status: AgentTaskStatusSchema,
+    note: Type.Optional(Type.String({ minLength: 1, maxLength: 500 })),
+    createdAt: DateTimeSchema,
+    updatedAt: DateTimeSchema,
+  },
+  { additionalProperties: false },
+)
+export type AgentTask = Static<typeof AgentTaskSchema>
+
+export const AgentTaskListSchema = Type.Object(
+  {
+    id: IdSchema,
+    title: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
+    revision: Type.Integer({ minimum: 1 }),
+    tasks: Type.Array(AgentTaskSchema, { minItems: 1, maxItems: 30 }),
+    createdAt: DateTimeSchema,
+    updatedAt: DateTimeSchema,
+  },
+  { additionalProperties: false },
+)
+export type AgentTaskList = Static<typeof AgentTaskListSchema>
+
 export const AgentActivitySchema = Type.Object(
   {
     id: IdSchema,
@@ -142,6 +178,7 @@ export const ConversationSchema = Type.Object(
     activeWorkingDirectory: Type.String({ minLength: 1 }),
     repositories: Type.Array(RepositorySchema),
     activities: Type.Array(AgentActivitySchema),
+    taskList: Type.Optional(AgentTaskListSchema),
     lastMessageAt: Type.Optional(DateTimeSchema),
     notificationTargetDeviceId: Type.Optional(IdSchema),
     unreadCount: Type.Integer({ minimum: 0 }),
