@@ -126,7 +126,12 @@ impl Config {
                 .unwrap_or_else(|_| "gpt-4o-mini-transcribe".into()),
             transcription_api_key: env::var("LUNA_TRANSCRIPTION_API_KEY")
                 .ok()
-                .or_else(|| env::var("OPENAI_API_KEY").ok()),
+                .filter(|value| !value.trim().is_empty())
+                .or_else(|| {
+                    env::var("OPENAI_API_KEY")
+                        .ok()
+                        .filter(|value| !value.trim().is_empty())
+                }),
             transcription_base_url: env::var("LUNA_TRANSCRIPTION_BASE_URL")
                 .unwrap_or_else(|_| "https://api.openai.com/v1".into()),
         })
