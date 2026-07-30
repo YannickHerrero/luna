@@ -106,8 +106,18 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
 
   await page.locator('button[aria-label="New conversation"]').click()
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
+  await page.locator('input[type="file"][multiple]').setInputFiles({
+    name: 'pixel.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  })
+  await expect(page.getByAltText('Pending attachment')).toBeVisible()
   await page.getByPlaceholder('Message Luna…').fill('Build a Luna smoke test')
   await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
