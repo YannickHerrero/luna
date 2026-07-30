@@ -26,6 +26,8 @@ pub enum AppError {
     NotFound,
     #[error("invalid request: {0}")]
     InvalidRequest(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error("authentication required")]
     AuthenticationRequired,
     #[error("pairing code invalid")]
@@ -52,6 +54,12 @@ impl IntoResponse for AppError {
             Self::InvalidRequest(message) => (
                 StatusCode::BAD_REQUEST,
                 ErrorCode::InvalidRequest,
+                message.as_str(),
+                false,
+            ),
+            Self::Conflict(message) => (
+                StatusCode::CONFLICT,
+                ErrorCode::Conflict,
                 message.as_str(),
                 false,
             ),

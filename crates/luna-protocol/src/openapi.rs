@@ -3,14 +3,16 @@
 use utoipa::OpenApi;
 
 use crate::{
-    AgentActivitiesReset, AgentActivity, AgentActivityChanged, ApiError, Attachment,
-    AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, Conversation,
-    ConversationList, ConversationMessages, ConversationTitleUpdated, CreateConversationRequest,
-    Device, ErrorCode, ErrorResponse, Message, MessageCompleted, MessageDelta,
-    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    AgentActivitiesReset, AgentActivity, AgentActivityChanged, AgentModel, AgentModelSelection,
+    ApiError, Attachment, AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted,
+    CommandRejected, CompactConversationResponse, ContextUsage, Conversation,
+    ConversationAgentState, ConversationList, ConversationMessages, ConversationTitleUpdated,
+    CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message, MessageCompleted,
+    MessageDelta, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
     RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
     ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
-    TranscriptionResponse, UpdateConversationRequest, WorkspaceUpdated,
+    ThinkingLevel, TranscriptionResponse, UpdateConversationAgentRequest,
+    UpdateConversationRequest, WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -125,6 +127,41 @@ fn messages_list() {}
 fn messages_send() {}
 
 #[utoipa::path(
+    get,
+    path = "/v1/conversations/{id}/agent",
+    params(("id" = uuid::Uuid, Path)),
+    responses((status = 200, body = ConversationAgentState), (status = 404, body = ApiError)),
+    security(("deviceToken" = []))
+)]
+fn conversation_agent_get() {}
+
+#[utoipa::path(
+    patch,
+    path = "/v1/conversations/{id}/agent",
+    params(("id" = uuid::Uuid, Path)),
+    request_body = UpdateConversationAgentRequest,
+    responses(
+        (status = 200, body = ConversationAgentState),
+        (status = 400, body = ApiError),
+        (status = 409, body = ApiError)
+    ),
+    security(("deviceToken" = []))
+)]
+fn conversation_agent_update() {}
+
+#[utoipa::path(
+    post,
+    path = "/v1/conversations/{id}/compact",
+    params(("id" = uuid::Uuid, Path)),
+    responses(
+        (status = 200, body = CompactConversationResponse),
+        (status = 409, body = ApiError)
+    ),
+    security(("deviceToken" = []))
+)]
+fn conversation_compact() {}
+
+#[utoipa::path(
     post,
     path = "/v1/conversations/{id}/abort",
     params(("id" = uuid::Uuid, Path)),
@@ -203,6 +240,9 @@ fn transcriptions_create() {}
         conversation_update,
         messages_list,
         messages_send,
+        conversation_agent_get,
+        conversation_agent_update,
+        conversation_compact,
         conversation_abort,
         conversation_archive,
         attachments_upload,
@@ -215,6 +255,8 @@ fn transcriptions_create() {}
         AgentActivitiesReset,
         AgentActivity,
         AgentActivityChanged,
+        AgentModel,
+        AgentModelSelection,
         ApiError,
         Attachment,
         AttachmentResponse,
@@ -222,7 +264,10 @@ fn transcriptions_create() {}
         ClientCommand,
         CommandAccepted,
         CommandRejected,
+        CompactConversationResponse,
+        ContextUsage,
         Conversation,
+        ConversationAgentState,
         ConversationList,
         ConversationMessages,
         ConversationTitleUpdated,
@@ -246,7 +291,9 @@ fn transcriptions_create() {}
         SessionState,
         SteeringQueueChanged,
         SyncResponse,
+        ThinkingLevel,
         TranscriptionResponse,
+        UpdateConversationAgentRequest,
         UpdateConversationRequest,
         WorkspaceUpdated
     )),

@@ -8,6 +8,75 @@ import {
   MessageSchema,
 } from './entities.js'
 
+export const ThinkingLevelSchema = Type.Union([
+  Type.Literal('off'),
+  Type.Literal('minimal'),
+  Type.Literal('low'),
+  Type.Literal('medium'),
+  Type.Literal('high'),
+  Type.Literal('xhigh'),
+  Type.Literal('max'),
+])
+export type ThinkingLevel = Static<typeof ThinkingLevelSchema>
+
+export const AgentModelSchema = Type.Object(
+  {
+    provider: Type.String(),
+    id: Type.String(),
+    name: Type.String(),
+    reasoning: Type.Boolean(),
+    contextWindow: Type.Integer({ minimum: 1 }),
+    supportedThinkingLevels: Type.Array(ThinkingLevelSchema),
+  },
+  { additionalProperties: false },
+)
+export type AgentModel = Static<typeof AgentModelSchema>
+
+export const ContextUsageSchema = Type.Object(
+  {
+    tokens: Type.Optional(Type.Integer({ minimum: 0 })),
+    contextWindow: Type.Integer({ minimum: 1 }),
+    percent: Type.Optional(Type.Number({ minimum: 0 })),
+  },
+  { additionalProperties: false },
+)
+export type ContextUsage = Static<typeof ContextUsageSchema>
+
+export const ConversationAgentStateSchema = Type.Object(
+  {
+    model: Type.Optional(AgentModelSchema),
+    thinkingLevel: ThinkingLevelSchema,
+    availableModels: Type.Array(AgentModelSchema),
+    contextUsage: Type.Optional(ContextUsageSchema),
+    autoCompactionEnabled: Type.Boolean(),
+  },
+  { additionalProperties: false },
+)
+export type ConversationAgentState = Static<typeof ConversationAgentStateSchema>
+
+export const AgentModelSelectionSchema = Type.Object(
+  { provider: Type.String(), modelId: Type.String() },
+  { additionalProperties: false },
+)
+
+export const UpdateConversationAgentRequestSchema = Type.Object(
+  {
+    model: Type.Optional(AgentModelSelectionSchema),
+    thinkingLevel: Type.Optional(ThinkingLevelSchema),
+  },
+  { additionalProperties: false, minProperties: 1 },
+)
+export type UpdateConversationAgentRequest = Static<typeof UpdateConversationAgentRequestSchema>
+
+export const CompactConversationResponseSchema = Type.Object(
+  {
+    tokensBefore: Type.Integer({ minimum: 0 }),
+    estimatedTokensAfter: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+)
+export type CompactConversationResponse = Static<typeof CompactConversationResponseSchema>
+
 export const PairingExchangeRequestSchema = Type.Object(
   {
     code: Type.String({ minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }),
@@ -99,6 +168,8 @@ export const ApiResponseSchemas = {
   Conversation: ConversationSchema,
   SendMessageResponse: SendMessageResponseSchema,
   ConversationMessages: ConversationMessagesSchema,
+  ConversationAgentState: ConversationAgentStateSchema,
+  CompactConversationResponse: CompactConversationResponseSchema,
   AttachmentResponse: AttachmentResponseSchema,
   TranscriptionResponse: TranscriptionResponseSchema,
   Bootstrap: BootstrapSchema,

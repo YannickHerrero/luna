@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{
         Arc,
@@ -14,10 +14,13 @@ use luna_pi::{
     SessionSupervisor,
 };
 use luna_protocol::{
-    ActivityPhase, AgentActivityChanged, ConversationTitleUpdated, MessageDelivery,
-    RepositoriesUpdated, ServerEvent, SessionState, SteeringQueueChanged, WorkspaceUpdated,
+    ActivityPhase, AgentActivityChanged, AgentModel, CompactConversationResponse, ContextUsage,
+    ConversationAgentState, ConversationTitleUpdated, MessageDelivery, RepositoriesUpdated,
+    ServerEvent, SessionState, SteeringQueueChanged, ThinkingLevel, UpdateConversationAgentRequest,
+    WorkspaceUpdated,
 };
 use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use tracing::warn;
@@ -213,10 +216,97 @@ impl ConversationRuntime {
             .await?
             .ok_or(AppError::NotFound)?;
         let session = self.session(conversation).await?;
+        session.process.abort_retry().await?;
+        session.process.abort_bash().await?;
         session.abort().await?;
         self.set_state(conversation_id, SessionState::Interrupted)
             .await?;
         Ok(())
+    }
+
+    pub async fn agent_state(
+        self: &Arc<Self>,
+        conversation_id: Uuid,
+    ) -> Result<ConversationAgentState, AppError> {
+        let conversation = self
+            .database
+            .conversation_runtime(conversation_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        let session = self.session(conversation).await?;
+        agent_state_for_session(&session).await
+    }
+
+    pub async fn update_agent(
+        self: &Arc<Self>,
+        conversation_id: Uuid,
+        request: UpdateConversationAgentRequest,
+    ) -> Result<ConversationAgentState, AppError> {
+        let conversation = self
+            .database
+            .conversation_runtime(conversation_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        let session = self.session(conversation).await?;
+        ensure_session_idle(&session).await?;
+        let current = agent_state_for_session(&session).await?;
+        let selected_model = request.model.as_ref().map(|selection| {
+            current
+                .available_models
+                .iter()
+                .find(|model| {
+                    model.provider == selection.provider && model.id == selection.model_id
+                })
+                .cloned()
+                .ok_or_else(|| AppError::InvalidRequest("That model is not available.".into()))
+        });
+        let target_model = match selected_model {
+            Some(model) => Some(model?),
+            None => current.model.clone(),
+        };
+        if let Some(level) = request.thinking_level
+            && !target_model
+                .as_ref()
+                .is_some_and(|model| model.supported_thinking_levels.contains(&level))
+        {
+            return Err(AppError::InvalidRequest(
+                "That thinking level is not supported by the selected model.".into(),
+            ));
+        }
+        if let Some(selection) = request.model
+            && !current.model.as_ref().is_some_and(|model| {
+                model.provider == selection.provider && model.id == selection.model_id
+            })
+        {
+            session
+                .process
+                .set_model(&selection.provider, &selection.model_id)
+                .await?;
+        }
+        if let Some(level) = request.thinking_level
+            && level != current.thinking_level
+        {
+            session.process.set_thinking_level(level.as_str()).await?;
+        }
+        agent_state_for_session(&session).await
+    }
+
+    pub async fn compact_context(
+        self: &Arc<Self>,
+        conversation_id: Uuid,
+    ) -> Result<CompactConversationResponse, AppError> {
+        let conversation = self
+            .database
+            .conversation_runtime(conversation_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+        let session = self.session(conversation).await?;
+        ensure_session_idle(&session).await?;
+        let response = session.process.compact().await?;
+        let data = response
+            .data
+            .ok_or_else(|| AppError::InvalidRequest("Pi returned no compaction result.".into()))?;
+        Ok(serde_json::from_value(data)?)
     }
 
     pub async fn deactivate(&self, conversation_id: Uuid) {
@@ -448,6 +538,16 @@ impl ConversationRuntime {
                     self.set_state(conversation_id, SessionState::Compacting)
                         .await?;
                 }
+                NormalizedPiEvent::CompactionEnded { succeeded, aborted } => {
+                    let state = if succeeded {
+                        SessionState::Idle
+                    } else if aborted {
+                        SessionState::Interrupted
+                    } else {
+                        SessionState::Error
+                    };
+                    self.set_state(conversation_id, state).await?;
+                }
                 NormalizedPiEvent::RetryStarted => {
                     self.set_state(conversation_id, SessionState::Retrying)
                         .await?;
@@ -661,6 +761,123 @@ impl ConversationRuntime {
             )
             .await?;
         Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PiSessionState {
+    model: Option<PiModel>,
+    thinking_level: ThinkingLevel,
+    #[serde(default)]
+    is_streaming: bool,
+    #[serde(default)]
+    is_compacting: bool,
+    #[serde(default)]
+    auto_compaction_enabled: bool,
+}
+
+#[derive(Deserialize)]
+struct PiAvailableModels {
+    models: Vec<PiModel>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PiModel {
+    provider: String,
+    id: String,
+    name: String,
+    #[serde(default)]
+    reasoning: bool,
+    context_window: u64,
+    #[serde(default)]
+    thinking_level_map: HashMap<String, Option<serde_json::Value>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PiSessionStats {
+    context_usage: Option<ContextUsage>,
+}
+
+async fn ensure_session_idle(session: &ManagedSession) -> Result<(), AppError> {
+    let state: PiSessionState = rpc_data(session.process.get_state().await?)?;
+    if state.is_streaming || state.is_compacting {
+        return Err(AppError::Conflict(
+            "Wait for the current Pi operation to finish or stop it first.".into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn agent_state_for_session(
+    session: &ManagedSession,
+) -> Result<ConversationAgentState, AppError> {
+    let (state_response, models_response, stats_response) = tokio::try_join!(
+        session.process.get_state(),
+        session.process.get_available_models(),
+        session.process.get_session_stats(),
+    )?;
+    let state: PiSessionState = rpc_data(state_response)?;
+    let mut available_models = rpc_data::<PiAvailableModels>(models_response)?
+        .models
+        .into_iter()
+        .map(agent_model)
+        .collect::<Vec<_>>();
+    available_models.sort_by(|left, right| {
+        left.provider
+            .cmp(&right.provider)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    let stats: PiSessionStats = rpc_data(stats_response)?;
+    Ok(ConversationAgentState {
+        model: state.model.map(agent_model),
+        thinking_level: state.thinking_level,
+        available_models,
+        context_usage: stats.context_usage,
+        auto_compaction_enabled: state.auto_compaction_enabled,
+    })
+}
+
+fn rpc_data<T: for<'de> Deserialize<'de>>(response: luna_pi::RpcResponse) -> Result<T, AppError> {
+    Ok(serde_json::from_value(response.data.ok_or_else(|| {
+        serde_json::Error::io(std::io::Error::other("missing RPC data"))
+    })?)?)
+}
+
+fn agent_model(model: PiModel) -> AgentModel {
+    let supported_thinking_levels = if model.reasoning {
+        [
+            ThinkingLevel::Off,
+            ThinkingLevel::Minimal,
+            ThinkingLevel::Low,
+            ThinkingLevel::Medium,
+            ThinkingLevel::High,
+        ]
+        .into_iter()
+        .filter(|level| !matches!(model.thinking_level_map.get(level.as_str()), Some(None)))
+        .chain(
+            [ThinkingLevel::Xhigh, ThinkingLevel::Max]
+                .into_iter()
+                .filter(|level| {
+                    model
+                        .thinking_level_map
+                        .get(level.as_str())
+                        .is_some_and(Option::is_some)
+                }),
+        )
+        .collect()
+    } else {
+        vec![ThinkingLevel::Off]
+    };
+    AgentModel {
+        provider: model.provider,
+        id: model.id,
+        name: model.name,
+        reasoning: model.reasoning,
+        context_window: model.context_window,
+        supported_thinking_levels,
     }
 }
 
