@@ -270,11 +270,6 @@ async fn accept_message(
             "A message between 1 and 100,000 characters is required.".into(),
         ));
     }
-    if !attachment_ids.is_empty() {
-        return Err(AppError::InvalidRequest(
-            "Attachments must be uploaded before they can be dispatched.".into(),
-        ));
-    }
     let conversation = state
         .database
         .conversation(conversation_id)
@@ -290,14 +285,15 @@ async fn accept_message(
     };
     let accepted = state
         .database
-        .accept_user_message(
+        .accept_user_message(luna_storage::NewUserMessage {
             conversation_id,
             device_id,
             client_message_id,
             text,
+            attachment_ids: &attachment_ids,
             delivery,
-            &now()?,
-        )
+            accepted_at: &now()?,
+        })
         .await?;
     if let Some(event) = accepted.event {
         state.events.publish(event);

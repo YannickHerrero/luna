@@ -4,7 +4,20 @@ use luna_protocol::{
 use sqlx::{FromRow, Sqlite, Transaction};
 use uuid::Uuid;
 
-use crate::{Database, StorageError};
+use crate::{
+    Database, StorageError,
+    attachments::{AttachmentRow, map_stored_attachment},
+};
+
+pub struct NewUserMessage<'a> {
+    pub conversation_id: Uuid,
+    pub device_id: Uuid,
+    pub client_message_id: Uuid,
+    pub text: &'a str,
+    pub attachment_ids: &'a [Uuid],
+    pub delivery: MessageDelivery,
+    pub accepted_at: &'a str,
+}
 
 #[derive(Debug)]
 pub struct AcceptedDispatch {
@@ -33,13 +46,17 @@ struct MessageRow {
 impl Database {
     pub async fn accept_user_message(
         &self,
-        conversation_id: Uuid,
-        device_id: Uuid,
-        client_message_id: Uuid,
-        text: &str,
-        delivery: MessageDelivery,
-        accepted_at: &str,
+        message: NewUserMessage<'_>,
     ) -> Result<AcceptedDispatch, StorageError> {
+        let NewUserMessage {
+            conversation_id,
+            device_id,
+            client_message_id,
+            text,
+            attachment_ids,
+            delivery,
+            accepted_at,
+        } = message;
         let mut transaction = self.pool().begin().await?;
         if let Some(row) = sqlx::query_as::<_, MessageRow>(
             "SELECT id, conversation_id, client_message_id, role, status, delivery, text, sent_by_device_id, ordinal, created_at, updated_at FROM messages WHERE sent_by_device_id = ? AND client_message_id = ?",
@@ -49,7 +66,9 @@ impl Database {
         .fetch_optional(&mut *transaction)
         .await?
         {
-            let message = map_message(row)?;
+            let mut message = map_message(row)?;
+            message.attachments =
+                attachments_for_message_in_transaction(&mut transaction, message.id).await?;
             let (dispatch_id, state): (String, String) = sqlx::query_as(
                 "SELECT id, state FROM dispatches WHERE message_id = ?",
             )
@@ -74,6 +93,24 @@ impl Database {
         if !active {
             return Err(StorageError::NotFound);
         }
+        let mut attachments = Vec::with_capacity(attachment_ids.len());
+        for attachment_id in attachment_ids {
+            let row = sqlx::query_as::<_, AttachmentRow>(
+                "SELECT id, conversation_id, uploaded_by_device_id, storage_key, thumbnail_storage_key, original_name, mime_type, byte_size, sha256, width, height, status, created_at FROM attachments WHERE id = ? AND deleted_at IS NULL AND status = 'ready'",
+            )
+            .bind(attachment_id.to_string())
+            .fetch_optional(&mut *transaction)
+            .await?
+            .ok_or(StorageError::NotFound)?;
+            let stored = map_stored_attachment(row)?;
+            if stored
+                .conversation_id
+                .is_some_and(|id| id != conversation_id)
+            {
+                return Err(StorageError::Conflict);
+            }
+            attachments.push(stored.attachment);
+        }
         let ordinal: i64 = sqlx::query_scalar(
             "SELECT COALESCE(MAX(ordinal), 0) + 1 FROM messages WHERE conversation_id = ?",
         )
@@ -96,6 +133,23 @@ impl Database {
         .bind(accepted_at)
         .execute(&mut *transaction)
         .await?;
+        for (position, attachment) in attachments.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO message_attachments (message_id, attachment_id, position) VALUES (?, ?, ?)",
+            )
+            .bind(message_id.to_string())
+            .bind(attachment.id.to_string())
+            .bind(i64::try_from(position).unwrap_or(i64::MAX))
+            .execute(&mut *transaction)
+            .await?;
+            sqlx::query(
+                "UPDATE attachments SET conversation_id = COALESCE(conversation_id, ?), status = 'attached' WHERE id = ?",
+            )
+            .bind(conversation_id.to_string())
+            .bind(attachment.id.to_string())
+            .execute(&mut *transaction)
+            .await?;
+        }
         sqlx::query(
             "INSERT INTO dispatches (id, message_id, worker_command_id, state, attempts, created_at, updated_at) VALUES (?, ?, ?, 'accepted', 0, ?, ?)",
         )
@@ -114,7 +168,7 @@ impl Database {
             status: MessageStatus::Accepted,
             delivery: Some(delivery),
             text: text.into(),
-            attachments: vec![],
+            attachments,
             sent_by_device_id: Some(device_id),
             ordinal,
             created_at: accepted_at.into(),
@@ -312,8 +366,26 @@ impl Database {
             .map(map_message)
             .collect::<Result<Vec<_>, _>>()?;
         messages.reverse();
+        for message in &mut messages {
+            message.attachments = self.attachments_for_message(message.id).await?;
+        }
         Ok(messages)
     }
+}
+
+async fn attachments_for_message_in_transaction(
+    transaction: &mut Transaction<'_, Sqlite>,
+    message_id: Uuid,
+) -> Result<Vec<luna_protocol::Attachment>, StorageError> {
+    let rows = sqlx::query_as::<_, AttachmentRow>(
+        "SELECT a.id, a.conversation_id, a.uploaded_by_device_id, a.storage_key, a.thumbnail_storage_key, a.original_name, a.mime_type, a.byte_size, a.sha256, a.width, a.height, a.status, a.created_at FROM message_attachments ma JOIN attachments a ON a.id = ma.attachment_id WHERE ma.message_id = ? AND a.deleted_at IS NULL ORDER BY ma.position ASC",
+    )
+    .bind(message_id.to_string())
+    .fetch_all(&mut **transaction)
+    .await?;
+    rows.into_iter()
+        .map(|row| map_stored_attachment(row).map(|stored| stored.attachment))
+        .collect()
 }
 
 async fn insert_event(

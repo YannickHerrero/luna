@@ -1,5 +1,5 @@
 use luna_protocol::{DevicePlatform, MessageDelivery, MessageRole, MessageStatus};
-use luna_storage::{Database, NewDevice, NewPairingCode};
+use luna_storage::{Database, NewAttachment, NewDevice, NewPairingCode, NewUserMessage};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -45,32 +45,54 @@ async fn setup() -> (TempDir, Database, Uuid, Uuid) {
 async fn accepts_user_commands_idempotently() {
     let (_directory, database, device_id, conversation_id) = setup().await;
     let client_message_id = Uuid::new_v4();
+    let attachment_id = Uuid::new_v4();
+    database
+        .create_attachment(NewAttachment {
+            id: attachment_id,
+            conversation_id: None,
+            uploaded_by_device_id: device_id,
+            storage_key: "originals/image.png",
+            thumbnail_storage_key: "thumbnails/image.jpg",
+            original_name: "image.png",
+            mime_type: "image/png",
+            byte_size: 42,
+            sha256: "abc123",
+            width: 10,
+            height: 10,
+            created_at: NOW,
+        })
+        .await
+        .expect("attachment");
     let first = database
-        .accept_user_message(
+        .accept_user_message(NewUserMessage {
             conversation_id,
             device_id,
             client_message_id,
-            "Hello",
-            MessageDelivery::Initial,
-            NOW,
-        )
+            text: "Hello",
+            attachment_ids: &[attachment_id],
+            delivery: MessageDelivery::Initial,
+            accepted_at: NOW,
+        })
         .await
         .expect("first dispatch");
     let replay = database
-        .accept_user_message(
+        .accept_user_message(NewUserMessage {
             conversation_id,
             device_id,
             client_message_id,
-            "Hello",
-            MessageDelivery::Initial,
-            NOW,
-        )
+            text: "Hello",
+            attachment_ids: &[attachment_id],
+            delivery: MessageDelivery::Initial,
+            accepted_at: NOW,
+        })
         .await
         .expect("replayed dispatch");
     assert!(first.created);
     assert!(!replay.created);
     assert_eq!(first.dispatch_id, replay.dispatch_id);
     assert_eq!(first.message.id, replay.message.id);
+    assert_eq!(first.message.attachments[0].id, attachment_id);
+    assert_eq!(replay.message.attachments[0].id, attachment_id);
     assert!(first.event.is_some());
     assert!(replay.event.is_none());
 }
