@@ -142,6 +142,7 @@ export const ConversationSchema = Type.Object(
     activeWorkingDirectory: Type.String({ minLength: 1 }),
     repositories: Type.Array(RepositorySchema),
     activities: Type.Array(AgentActivitySchema),
+    lastMessageAt: Type.Optional(DateTimeSchema),
     notificationTargetDeviceId: Type.Optional(IdSchema),
     unreadCount: Type.Integer({ minimum: 0 }),
     archivedAt: Type.Optional(DateTimeSchema),

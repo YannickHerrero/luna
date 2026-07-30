@@ -373,6 +373,7 @@ export interface components {
       createdAt: components['schemas']['String']
       /** Format: uuid */
       id: string
+      lastMessageAt?: null | components['schemas']['String']
       /** Format: uuid */
       notificationTargetDeviceId?: string | null
       preview: string

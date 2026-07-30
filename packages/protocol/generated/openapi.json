@@ -984,6 +984,16 @@
             "type": "string",
             "format": "uuid"
           },
+          "lastMessageAt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/String"
+              }
+            ]
+          },
           "notificationTargetDeviceId": {
             "type": ["string", "null"],
             "format": "uuid"

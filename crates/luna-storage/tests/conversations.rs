@@ -15,6 +15,7 @@ async fn conversations_and_sync_events_round_trip() {
         .expect("conversation");
     assert_eq!(conversation.title_mode, TitleMode::Automatic);
     assert_eq!(conversation.state, SessionState::Creating);
+    assert_eq!(conversation.last_message_at, None);
 
     let automatic = database
         .set_automatic_title(id, "Authentication", "2026-01-01T00:00:30Z")
@@ -62,6 +63,69 @@ async fn conversations_and_sync_events_round_trip() {
         database.events_after(0, 100).await.expect("replay").len(),
         1
     );
+}
+
+#[tokio::test]
+async fn orders_conversations_by_their_latest_message() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let database = Database::connect(&directory.path().join("ordering.sqlite"))
+        .await
+        .expect("database");
+    let older_conversation = Uuid::new_v4();
+    let newer_empty_conversation = Uuid::new_v4();
+    database
+        .create_conversation(older_conversation, "/Users/test", "2026-01-01T00:00:00Z")
+        .await
+        .expect("older conversation");
+    database
+        .create_conversation(
+            newer_empty_conversation,
+            "/Users/test",
+            "2026-01-02T00:00:00Z",
+        )
+        .await
+        .expect("newer conversation");
+    assert_eq!(
+        database
+            .conversations(false)
+            .await
+            .expect("initial ordering")
+            .iter()
+            .map(|conversation| conversation.id)
+            .collect::<Vec<_>>(),
+        vec![newer_empty_conversation, older_conversation]
+    );
+
+    sqlx::query(
+        "INSERT INTO messages (id, conversation_id, role, status, text, ordinal, created_at, updated_at) VALUES (?, ?, 'user', 'completed', 'Latest work', 1, ?, ?)",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(older_conversation.to_string())
+    .bind("2026-01-03T00:00:00Z")
+    .bind("2026-01-03T00:00:00Z")
+    .execute(database.pool())
+    .await
+    .expect("message");
+    database
+        .set_conversation_state(
+            newer_empty_conversation,
+            SessionState::Idle,
+            "2026-01-04T00:00:00Z",
+        )
+        .await
+        .expect("state update");
+
+    let conversations = database
+        .conversations(false)
+        .await
+        .expect("message ordering");
+    assert_eq!(conversations[0].id, older_conversation);
+    assert_eq!(
+        conversations[0].last_message_at.as_deref(),
+        Some("2026-01-03T00:00:00Z")
+    );
+    assert_eq!(conversations[1].id, newer_empty_conversation);
+    assert_eq!(conversations[1].last_message_at, None);
 }
 
 #[tokio::test]

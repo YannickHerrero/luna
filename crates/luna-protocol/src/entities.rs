@@ -171,6 +171,8 @@ pub struct Conversation {
     pub repositories: Vec<Repository>,
     pub activities: Vec<AgentActivity>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_message_at: Option<Timestamp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_target_device_id: Option<Uuid>,
     pub unread_count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]

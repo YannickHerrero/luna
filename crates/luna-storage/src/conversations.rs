@@ -12,6 +12,7 @@ struct ConversationRow {
     state: String,
     preview: String,
     active_working_directory: String,
+    last_message_at: Option<String>,
     notification_target_device_id: Option<String>,
     unread_count: i64,
     archived_at: Option<String>,
@@ -102,9 +103,9 @@ impl Database {
         include_archived: bool,
     ) -> Result<Vec<Conversation>, StorageError> {
         let query = if include_archived {
-            "SELECT id, title, title_mode, state, preview, active_working_directory, notification_target_device_id, unread_count, archived_at, created_at, updated_at, version FROM conversations ORDER BY updated_at DESC"
+            "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
         } else {
-            "SELECT id, title, title_mode, state, preview, active_working_directory, notification_target_device_id, unread_count, archived_at, created_at, updated_at, version FROM conversations WHERE archived_at IS NULL ORDER BY updated_at DESC"
+            "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c WHERE c.archived_at IS NULL ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
         };
         let rows = sqlx::query_as::<_, ConversationRow>(query)
             .fetch_all(self.pool())
@@ -118,7 +119,7 @@ impl Database {
 
     pub async fn conversation(&self, id: Uuid) -> Result<Option<Conversation>, StorageError> {
         let row = sqlx::query_as::<_, ConversationRow>(
-            "SELECT id, title, title_mode, state, preview, active_working_directory, notification_target_device_id, unread_count, archived_at, created_at, updated_at, version FROM conversations WHERE id = ?",
+            "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c WHERE c.id = ?",
         )
         .bind(id.to_string())
         .fetch_optional(self.pool())
@@ -343,6 +344,7 @@ impl Database {
             active_working_directory: row.active_working_directory,
             repositories,
             activities,
+            last_message_at: row.last_message_at,
             notification_target_device_id: row
                 .notification_target_device_id
                 .map(|value| Uuid::parse_str(&value))
