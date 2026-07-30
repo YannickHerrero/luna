@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Persistent Pi conversations from every device.',
   applicationName: 'Luna',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
 }
 
 export const viewport: Viewport = {
@@ -15,6 +15,10 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: light)', color: '#eff1f5' },
     { media: '(prefers-color-scheme: dark)', color: '#11111b' },
   ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
 }
 
