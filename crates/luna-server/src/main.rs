@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use std::net::SocketAddr;
+use std::{io::IsTerminal, net::SocketAddr};
 
 use luna_server::{app, config::Config};
 use tokio::signal;
@@ -10,6 +10,7 @@ use tracing_subscriber::EnvFilter;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
+        .with_ansi(std::io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none())
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| "luna_server=info".into()),
         )

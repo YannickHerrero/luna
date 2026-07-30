@@ -1,6 +1,7 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use luna_protocol::{Device, DevicePlatform};
 use luna_storage::{Database, NewDevice, NewPairingCode, StorageError};
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 use uuid::Uuid;
@@ -27,11 +28,7 @@ impl AuthService {
     }
 
     pub async fn create_pairing_code(&self) -> Result<PairingCode, AuthError> {
-        let bytes: [u8; 5] = rand::random();
-        let code = bytes
-            .iter()
-            .map(|byte| format!("{byte:02X}"))
-            .collect::<String>();
+        let code = format!("{:06}", rand::rng().random_range(0..1_000_000));
         let created = OffsetDateTime::now_utc();
         let created_at = created.format(&Rfc3339)?;
         let expires_at = (created + Duration::minutes(15)).format(&Rfc3339)?;

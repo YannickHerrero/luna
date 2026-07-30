@@ -133,14 +133,18 @@ async fn pair(
     validate_tailnet(&headers, &state)?;
     validate_origin(&axum::http::Method::POST, &headers, &state)?;
     let name = request.device_name.trim();
-    if name.is_empty() || name.len() > 80 || request.code.len() < 6 {
+    if name.is_empty() || name.len() > 80 {
         return Err(AppError::InvalidRequest(
             "The pairing request is invalid.".into(),
         ));
     }
+    let code = request.code.trim();
+    if code.len() != 6 || !code.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(AppError::PairingCodeInvalid);
+    }
     let paired = state
         .auth
-        .exchange(&request.code, name, request.platform)
+        .exchange(code, name, request.platform)
         .await?
         .ok_or(AppError::PairingCodeInvalid)?;
     let cursor = state.database.latest_cursor().await?;

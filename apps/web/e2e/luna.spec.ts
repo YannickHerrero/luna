@@ -184,7 +184,7 @@ async function waitForPairingCode(process: ChildProcessWithoutNullStreams): Prom
     const ansiEscape = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
     const inspect = (chunk: Buffer) => {
       serverOutput += chunk.toString('utf8').replaceAll(ansiEscape, '')
-      const match = /pairing_code=([A-F0-9]+)/.exec(serverOutput)
+      const match = /pairing_code=([0-9]{6})\b/.exec(serverOutput)
       if (match?.[1]) {
         clearTimeout(timeout)
         resolveCode(match[1])
@@ -197,7 +197,7 @@ async function waitForPairingCode(process: ChildProcessWithoutNullStreams): Prom
 }
 
 function latestPairingCode(): string {
-  const matches = [...serverOutput.matchAll(/pairing_code=([A-F0-9]+)/g)]
+  const matches = [...serverOutput.matchAll(/pairing_code=([0-9]{6})\b/g)]
   const code = matches.at(-1)?.[1]
   if (!code) throw new Error('No pairing code in Luna output')
   return code

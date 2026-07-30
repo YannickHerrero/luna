@@ -1241,7 +1241,10 @@
         "required": ["code", "deviceName", "platform"],
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^[0-9]{6}$"
           },
           "deviceName": {
             "type": "string"

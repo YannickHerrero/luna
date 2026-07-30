@@ -105,6 +105,11 @@ process.stdin.on('end', () => process.exit(0))
     }
 }
 
+fn assert_pairing_code_format(code: &str) {
+    assert_eq!(code.len(), 6);
+    assert!(code.bytes().all(|byte| byte.is_ascii_digit()));
+}
+
 async fn response_json<T: serde::de::DeserializeOwned>(response: axum::response::Response) -> T {
     serde_json::from_slice(
         &to_bytes(response.into_body(), 1_000_000)
@@ -165,6 +170,7 @@ async fn requests_a_new_pairing_code_without_exposing_it() {
 async fn pairs_a_device_and_creates_a_conversation() {
     let directory = tempfile::tempdir().expect("temp directory");
     let built = app::build(config(directory.path())).await.expect("app");
+    assert_pairing_code_format(&built.pairing_code);
     let pairing_request = Request::builder()
         .method("POST")
         .uri("/v1/pairing/exchange")

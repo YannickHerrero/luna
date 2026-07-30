@@ -8,6 +8,8 @@ use crate::{ApiError, Attachment, Bootstrap, Conversation, DevicePlatform, Messa
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingExchangeRequest {
+    #[schemars(length(min = 6, max = 6), regex(pattern = r"^[0-9]{6}$"))]
+    #[schema(min_length = 6, max_length = 6, pattern = r"^[0-9]{6}$")]
     pub code: String,
     pub device_name: String,
     pub platform: DevicePlatform,

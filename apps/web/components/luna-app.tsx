@@ -389,12 +389,16 @@ function PairingScreen({
             Pairing code
             <input
               autoFocus
-              autoCapitalize="characters"
               autoComplete="one-time-code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
               value={code}
-              onChange={(event) => setCode(event.target.value.replaceAll(/[^a-zA-Z0-9]/g, ''))}
-              placeholder="A1B2C3D4E5"
+              onChange={(event) =>
+                setCode(event.target.value.replaceAll(/[^0-9]/g, '').slice(0, 6))
+              }
+              placeholder="123456"
               minLength={6}
+              maxLength={6}
               required
             />
           </label>

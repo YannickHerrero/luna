@@ -81,7 +81,7 @@ pnpm build:web
 LUNA_ENV_FILE=/tmp/luna-development.env cargo run -p luna-server
 ```
 
-On the pairing screen, choose **Ask for a pairing code**. Luna writes a fresh single-use, 15-minute code to its Citadel stdout log and invalidates older unused codes. Enter that newest code with a device name; the web client exchanges it for a credential stored in an HttpOnly, SameSite cookie.
+On the pairing screen, choose **Ask for a pairing code**. Luna writes a fresh six-digit, single-use, 15-minute code to its Citadel stdout log and invalidates older unused codes. Enter that newest code with a device name; the web client exchanges it for a credential stored in an HttpOnly, SameSite cookie.
 
 Run deterministic browser acceptance coverage with locally installed Chrome:
 

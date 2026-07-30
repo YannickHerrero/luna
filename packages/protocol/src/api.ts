@@ -10,7 +10,7 @@ import {
 
 export const PairingExchangeRequestSchema = Type.Object(
   {
-    code: Type.String({ minLength: 6, maxLength: 128 }),
+    code: Type.String({ minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }),
     deviceName: Type.String({ minLength: 1, maxLength: 80 }),
     platform: DevicePlatformSchema,
   },
