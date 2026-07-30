@@ -131,7 +131,7 @@ impl Config {
             event_retention_days: retention,
             attachment_retention_days: attachment_retention,
             transcription_model: env::var("LUNA_TRANSCRIPTION_MODEL")
-                .unwrap_or_else(|_| "gpt-4o-mini-transcribe".into()),
+                .unwrap_or_else(|_| "gpt-transcribe".into()),
             transcription_api_key: env::var("LUNA_TRANSCRIPTION_API_KEY")
                 .ok()
                 .filter(|value| !value.trim().is_empty())

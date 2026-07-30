@@ -106,7 +106,7 @@ process.stdin.on('end', () => process.exit(0))
         title_model: "openai-codex/gpt-5.6-luna".into(),
         event_retention_days: 30,
         attachment_retention_days: 30,
-        transcription_model: "gpt-4o-mini-transcribe".into(),
+        transcription_model: "gpt-transcribe".into(),
         transcription_api_key: None,
         transcription_base_url: "https://api.openai.com/v1".into(),
     }
@@ -633,13 +633,42 @@ async fn proxies_voice_transcription_without_persisting_audio() {
         .await
         .expect("upstream listener");
     let upstream_address = upstream_listener.local_addr().expect("upstream address");
+    let (request_sender, mut request_receiver) = tokio::sync::mpsc::channel(1);
     let upstream = tokio::spawn(async move {
         axum::serve(
             upstream_listener,
             axum::Router::new().route(
                 "/audio/transcriptions",
-                axum::routing::post(|| async {
-                    axum::Json(serde_json::json!({ "text": "Transcribed locally" }))
+                axum::routing::post(move |mut multipart: axum::extract::Multipart| {
+                    let request_sender = request_sender.clone();
+                    async move {
+                        let mut model = None;
+                        let mut file = None;
+                        while let Some(field) = multipart
+                            .next_field()
+                            .await
+                            .expect("upstream multipart field")
+                        {
+                            let field_name = field.name().map(str::to_owned);
+                            match field_name.as_deref() {
+                                Some("model") => {
+                                    model = Some(field.text().await.expect("upstream model"));
+                                }
+                                Some("file") => {
+                                    let file_name = field.file_name().map(str::to_owned);
+                                    let mime_type = field.content_type().map(str::to_owned);
+                                    let bytes = field.bytes().await.expect("upstream audio");
+                                    file = Some((file_name, mime_type, bytes));
+                                }
+                                _ => {}
+                            }
+                        }
+                        request_sender
+                            .send((model, file))
+                            .await
+                            .expect("capture upstream request");
+                        axum::Json(serde_json::json!({ "text": "Transcribed locally" }))
+                    }
                 }),
             ),
         )
@@ -699,6 +728,15 @@ async fn proxies_voice_transcription_without_persisting_audio() {
     assert_eq!(response.status(), StatusCode::OK);
     let transcription: luna_protocol::TranscriptionResponse = response_json(response).await;
     assert_eq!(transcription.text, "Transcribed locally");
+    let (model, file) = tokio::time::timeout(Duration::from_secs(1), request_receiver.recv())
+        .await
+        .expect("upstream request timeout")
+        .expect("upstream request");
+    assert_eq!(model.as_deref(), Some("gpt-transcribe"));
+    let (file_name, mime_type, bytes) = file.expect("upstream audio file");
+    assert_eq!(file_name.as_deref(), Some("recording.webm"));
+    assert_eq!(mime_type.as_deref(), Some("audio/webm"));
+    assert_eq!(bytes.as_ref(), b"temporary audio bytes");
     assert!(!directory.path().join("attachments").exists());
     upstream.abort();
 }
