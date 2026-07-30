@@ -1,0 +1,6 @@
+{
+  "bindHost": "127.0.0.1",
+  "port": 9870,
+  "publicOrigin": "https://your-mac.example.ts.net:8447",
+  "dataDirectory": "~/Library/Application Support/Luna Server"
+}

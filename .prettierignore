@@ -1,0 +1,6 @@
+DO_NOT_COMMIT/
+dist/
+.next/
+DerivedData/
+apps/ios/Generated/
+pnpm-lock.yaml
