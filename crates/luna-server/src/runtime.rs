@@ -176,6 +176,16 @@ impl ConversationRuntime {
         let reconcile_marker = conversation.pi_session_path.is_some()
             && self.supervisor.active(conversation_id).await.is_none();
         let session = self.session(conversation).await?;
+        if delivery == MessageDelivery::Bash {
+            let command = text
+                .strip_prefix('!')
+                .map(str::trim_start)
+                .filter(|command| !command.is_empty())
+                .ok_or_else(|| AppError::InvalidRequest("The shell command is empty.".into()))?;
+            return self
+                .dispatch_bash(conversation_id, dispatch_id, &session, command)
+                .await;
+        }
         if reconcile_marker && session.has_dispatch_marker(dispatch_id).await? {
             self.database
                 .set_dispatch_state(dispatch_id, "dispatched", None, &now()?)
@@ -185,6 +195,7 @@ impl ConversationRuntime {
         let rpc_delivery = match delivery {
             MessageDelivery::Initial => RpcDelivery::Normal,
             MessageDelivery::Steer => RpcDelivery::Steer,
+            MessageDelivery::Bash => unreachable!("bash dispatches return before prompting"),
         };
         let mut images = Vec::with_capacity(attachment_ids.len());
         for attachment_id in attachment_ids {
@@ -206,6 +217,50 @@ impl ConversationRuntime {
         self.database
             .set_dispatch_state(dispatch_id, "dispatched", None, &now()?)
             .await?;
+        Ok(())
+    }
+
+    async fn dispatch_bash(
+        self: &Arc<Self>,
+        conversation_id: Uuid,
+        dispatch_id: Uuid,
+        session: &ManagedSession,
+        command: &str,
+    ) -> Result<(), AppError> {
+        self.set_state(conversation_id, SessionState::Working)
+            .await?;
+        let result: PiBashResult = rpc_data(session.process.bash(command).await?)?;
+        let text = format_bash_result(&result);
+        let timestamp = now()?;
+        let message_id = Uuid::now_v7();
+        let (_, started) = self
+            .database
+            .begin_assistant_message(conversation_id, message_id, &timestamp)
+            .await?;
+        self.events.publish(started);
+        let delta = self
+            .database
+            .append_message_delta(conversation_id, message_id, 0, 0, &text, &timestamp)
+            .await?;
+        self.events.publish(delta);
+        let completed = self
+            .database
+            .complete_message(conversation_id, message_id, &timestamp)
+            .await?;
+        self.events.publish(completed);
+        self.database
+            .set_dispatch_state(dispatch_id, "dispatched", None, &timestamp)
+            .await?;
+        self.set_state(
+            conversation_id,
+            if result.cancelled {
+                SessionState::Interrupted
+            } else {
+                SessionState::Idle
+            },
+        )
+        .await?;
+        self.schedule_title_generation(conversation_id).await;
         Ok(())
     }
 
@@ -495,15 +550,7 @@ impl ConversationRuntime {
                         )
                         .await?;
                     self.set_state(conversation_id, SessionState::Idle).await?;
-                    if self.title_jobs.lock().await.insert(conversation_id) {
-                        let runtime = Arc::clone(self);
-                        tokio::spawn(async move {
-                            if let Err(error) = runtime.generate_title(conversation_id).await {
-                                warn!(%conversation_id, "Unable to generate conversation title: {error}");
-                            }
-                            runtime.title_jobs.lock().await.remove(&conversation_id);
-                        });
-                    }
+                    self.schedule_title_generation(conversation_id).await;
                 }
                 NormalizedPiEvent::ToolStarted | NormalizedPiEvent::ToolEnded { .. } => {
                     self.events
@@ -559,6 +606,18 @@ impl ConversationRuntime {
         .await;
         if let Err(error) = result {
             warn!(%conversation_id, "Unable to persist Pi event: {error}");
+        }
+    }
+
+    async fn schedule_title_generation(self: &Arc<Self>, conversation_id: Uuid) {
+        if self.title_jobs.lock().await.insert(conversation_id) {
+            let runtime = Arc::clone(self);
+            tokio::spawn(async move {
+                if let Err(error) = runtime.generate_title(conversation_id).await {
+                    warn!(%conversation_id, "Unable to generate conversation title: {error}");
+                }
+                runtime.title_jobs.lock().await.remove(&conversation_id);
+            });
         }
     }
 
@@ -766,6 +825,18 @@ impl ConversationRuntime {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct PiBashResult {
+    #[serde(default)]
+    output: String,
+    exit_code: Option<i32>,
+    #[serde(default)]
+    cancelled: bool,
+    #[serde(default)]
+    truncated: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PiSessionState {
     model: Option<PiModel>,
     thinking_level: ThinkingLevel,
@@ -844,6 +915,51 @@ fn rpc_data<T: for<'de> Deserialize<'de>>(response: luna_pi::RpcResponse) -> Res
     Ok(serde_json::from_value(response.data.ok_or_else(|| {
         serde_json::Error::io(std::io::Error::other("missing RPC data"))
     })?)?)
+}
+
+fn format_bash_result(result: &PiBashResult) -> String {
+    const MAX_OUTPUT_CHARS: usize = 900_000;
+    let mut characters = result.output.chars();
+    let output = characters
+        .by_ref()
+        .take(MAX_OUTPUT_CHARS)
+        .collect::<String>();
+    let locally_truncated = characters.next().is_some();
+    let mut text = if output.is_empty() {
+        "_Command produced no output._".to_owned()
+    } else {
+        let fence = "`".repeat(longest_backtick_run(&output).saturating_add(1).max(3));
+        let mut formatted = format!("{fence}text\n{output}");
+        if !output.ends_with('\n') {
+            formatted.push('\n');
+        }
+        formatted.push_str(&fence);
+        formatted
+    };
+    let status = if result.cancelled {
+        "Cancelled".to_owned()
+    } else {
+        format!("Exit code: `{}`", result.exit_code.unwrap_or(-1))
+    };
+    text.push_str("\n\n");
+    text.push_str(&status);
+    if result.truncated || locally_truncated {
+        text.push_str(" · Output truncated");
+    }
+    text
+}
+
+fn longest_backtick_run(value: &str) -> usize {
+    value
+        .chars()
+        .fold((0_usize, 0_usize), |(longest, current), character| {
+            if character == '`' {
+                (longest.max(current + 1), current + 1)
+            } else {
+                (longest, 0)
+            }
+        })
+        .0
 }
 
 fn agent_model(model: PiModel) -> AgentModel {
@@ -1086,7 +1202,28 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use super::{ActivityCapture, progress_summary};
+    use super::{ActivityCapture, PiBashResult, format_bash_result, progress_summary};
+
+    #[test]
+    fn formats_shell_results_as_bounded_markdown() {
+        assert_eq!(
+            format_bash_result(&PiBashResult {
+                output: "file.txt\n".into(),
+                exit_code: Some(0),
+                cancelled: false,
+                truncated: false,
+            }),
+            "```text\nfile.txt\n```\n\nExit code: `0`"
+        );
+        let nested_fence = format_bash_result(&PiBashResult {
+            output: "```nested```".into(),
+            exit_code: Some(1),
+            cancelled: false,
+            truncated: true,
+        });
+        assert!(nested_fence.starts_with("````text\n"));
+        assert!(nested_fence.ends_with("Exit code: `1` · Output truncated"));
+    }
 
     #[test]
     fn derives_short_progress_summaries_from_thinking_headings() {

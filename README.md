@@ -24,14 +24,14 @@
 - Keeps one supervised Pi RPC session per active conversation.
 - Streams normalized assistant messages, tool activity, state, workspace, and repository updates.
 - Restores durable Pi context after server or process restarts.
-- Supports steering, interruption, Markdown, syntax highlighting, image attachments, and voice transcription.
+- Supports steering, interruption, explicit `!` shell commands, Markdown, syntax highlighting, image attachments, and voice transcription.
 - Generates concise contextual conversation titles with an isolated Pi model request.
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
 - Installs as a responsive, offline-capable PWA with Catppuccin Latte and Mocha themes.
 - Serves everything from one loopback-bound Rust process.
 
-Raw terminal output never reaches clients. SQLite is authoritative for client state, while Pi's session JSONL remains authoritative for agent context.
+Pi process stdout never reaches clients. Output from an authenticated user's explicit `!` shell command is the sole exception: Luna bounds and persists it as a conversation message. SQLite is authoritative for client state, while Pi's session JSONL remains authoritative for agent context.
 
 ## Architecture
 

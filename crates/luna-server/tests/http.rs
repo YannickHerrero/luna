@@ -66,6 +66,8 @@ process.stdin.on('data', chunk => {
     } else if (request.type === 'set_thinking_level') {
       thinkingLevel = request.level
       console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true}))
+    } else if (request.type === 'bash') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:request.type,success:true,data:{output:'file.txt\n',exitCode:0,cancelled:false,truncated:false}}))
     } else if (request.type === 'compact') {
       console.log(JSON.stringify({type:'compaction_start',reason:'manual'}))
       const result = {summary:'Compacted',firstKeptEntryId:'entry',tokensBefore:120000,estimatedTokensAfter:24000,details:{}}
@@ -649,6 +651,104 @@ async fn websocket_replays_and_streams_persistent_events() {
 
     socket.close(None).await.expect("close");
     server.abort();
+    built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn executes_bang_messages_through_the_pi_session() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Shell commands",
+                        "platform": "web"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+    let create_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conversations")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("create response");
+    let conversation: Conversation = response_json(create_response).await;
+    let messages_endpoint = format!("/v1/conversations/{}/messages", conversation.id);
+    let send_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(&messages_endpoint)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(
+                    serde_json::json!({
+                        "clientMessageId": uuid::Uuid::new_v4(),
+                        "text": "!ls",
+                        "attachmentIds": []
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("send response");
+    assert_eq!(send_response.status(), StatusCode::ACCEPTED);
+    let sent: SendMessageResponse = response_json(send_response).await;
+    assert_eq!(
+        sent.message.delivery,
+        Some(luna_protocol::MessageDelivery::Bash)
+    );
+
+    let mut messages = None;
+    for _ in 0..40 {
+        let response = built
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&messages_endpoint)
+                    .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("messages response");
+        let current: ConversationMessages = response_json(response).await;
+        if current.messages.len() == 2 {
+            messages = Some(current);
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let messages = messages.expect("shell output message").messages;
+    assert_eq!(messages[0].text, "!ls");
+    assert_eq!(messages[1].role, luna_protocol::MessageRole::Assistant);
+    assert!(messages[1].text.contains("file.txt"));
+    assert!(messages[1].text.contains("Exit code: `0`"));
     built.runtime.shutdown().await;
 }
 

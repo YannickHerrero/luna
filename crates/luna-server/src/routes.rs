@@ -356,7 +356,35 @@ async fn accept_message(
         .conversation(conversation_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    let delivery = if matches!(
+    let delivery = if text.starts_with("!!") {
+        return Err(AppError::InvalidRequest(
+            "Double-bang shell commands are not supported.".into(),
+        ));
+    } else if let Some(command) = text.strip_prefix('!') {
+        if command.trim().is_empty() {
+            return Err(AppError::InvalidRequest(
+                "Enter a command after the exclamation mark.".into(),
+            ));
+        }
+        if !attachment_ids.is_empty() {
+            return Err(AppError::InvalidRequest(
+                "Shell commands cannot include attachments.".into(),
+            ));
+        }
+        if matches!(
+            conversation.state,
+            SessionState::Starting
+                | SessionState::Working
+                | SessionState::Compacting
+                | SessionState::Retrying
+                | SessionState::Restoring
+        ) {
+            return Err(AppError::Conflict(
+                "Stop the current Pi operation before running a shell command.".into(),
+            ));
+        }
+        MessageDelivery::Bash
+    } else if matches!(
         conversation.state,
         SessionState::Working | SessionState::Compacting | SessionState::Retrying
     ) {

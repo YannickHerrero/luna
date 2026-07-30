@@ -1477,7 +1477,7 @@
       },
       "MessageDelivery": {
         "type": "string",
-        "enum": ["initial", "steer"]
+        "enum": ["initial", "steer", "bash"]
       },
       "MessageDelta": {
         "type": "object",

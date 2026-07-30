@@ -119,6 +119,42 @@ async fn accepts_user_commands_idempotently() {
 }
 
 #[tokio::test]
+async fn does_not_replay_failed_shell_commands() {
+    let (_directory, database, device_id, conversation_id) = setup().await;
+    let client_message_id = Uuid::new_v4();
+    let first = database
+        .accept_user_message(NewUserMessage {
+            conversation_id,
+            device_id,
+            client_message_id,
+            text: "!touch side-effect",
+            attachment_ids: &[],
+            delivery: MessageDelivery::Bash,
+            accepted_at: NOW,
+        })
+        .await
+        .expect("shell dispatch");
+    database
+        .set_dispatch_state(first.dispatch_id, "failed", Some("server_restarted"), NOW)
+        .await
+        .expect("failed dispatch");
+    let replay = database
+        .accept_user_message(NewUserMessage {
+            conversation_id,
+            device_id,
+            client_message_id,
+            text: "!touch side-effect",
+            attachment_ids: &[],
+            delivery: MessageDelivery::Bash,
+            accepted_at: NOW,
+        })
+        .await
+        .expect("replayed shell dispatch");
+    assert_eq!(replay.message.delivery, Some(MessageDelivery::Bash));
+    assert!(!replay.dispatch_required);
+}
+
+#[tokio::test]
 async fn marks_streaming_messages_interrupted_after_restart() {
     let (_directory, database, _device_id, conversation_id) = setup().await;
     let message_id = Uuid::new_v4();

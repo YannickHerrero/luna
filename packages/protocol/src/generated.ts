@@ -517,7 +517,7 @@ export interface components {
       messageId: string
     }
     /** @enum {string} */
-    MessageDelivery: 'initial' | 'steer'
+    MessageDelivery: 'initial' | 'steer' | 'bash'
     MessageDelta: {
       /** Format: int64 */
       chunkIndex: number
