@@ -14,6 +14,7 @@ export interface LunaConfig {
   attachmentDirectory: string
   openAiTranscriptionModel: string
   eventRetentionDays: number
+  allowedTailnetLogins: string[]
 }
 
 interface LocalConfig {
@@ -91,6 +92,10 @@ export function loadConfig(): LunaConfig {
     attachmentDirectory: resolve(dataDirectory, 'attachments'),
     openAiTranscriptionModel: process.env.LUNA_TRANSCRIPTION_MODEL ?? 'gpt-4o-mini-transcribe',
     eventRetentionDays: parsePositiveInteger(process.env.LUNA_EVENT_RETENTION_DAYS, 30),
+    allowedTailnetLogins: (process.env.LUNA_ALLOWED_TAILNET_LOGINS ?? '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
   }
 }
 
