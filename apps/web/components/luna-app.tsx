@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowLeft,
   Camera,
+  ChevronDown,
   CircleStop,
   Mic,
   Moon,
@@ -15,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import type {
+  AgentActivity,
   Attachment,
   AttachmentResponse,
   Bootstrap,
@@ -532,7 +534,7 @@ function ConversationView({
     end.current?.scrollIntoView({
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     })
-  }, [messages])
+  }, [conversation.activities, messages])
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onBack()
@@ -609,7 +611,7 @@ function ConversationView({
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
-        {busy && !messages.some((message) => message.status === 'streaming') && <TypingIndicator />}
+        {busy && <TypingIndicator activities={conversation.activities} />}
         <div ref={end} />
       </div>
       <Composer
@@ -922,13 +924,32 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   textarea.style.overflowY = contentHeight > maximumHeight ? 'auto' : 'hidden'
 }
 
-function TypingIndicator() {
+function TypingIndicator({ activities }: { activities: AgentActivity[] }) {
+  const latest = activities.at(-1)
   return (
     <div className="message-row assistant">
-      <div className="typing" aria-label="Pi is working">
-        <span />
-        <span />
-        <span />
+      <div className="progress-indicator" aria-label="Pi is working">
+        <span className="typing-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        {latest &&
+          (activities.length > 1 ? (
+            <details className="activity-details">
+              <summary>
+                <span>{latest.summary}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </summary>
+              <ol>
+                {activities.map((activity) => (
+                  <li key={activity.id}>{activity.summary}</li>
+                ))}
+              </ol>
+            </details>
+          ) : (
+            <span className="activity-latest">{latest.summary}</span>
+          ))}
       </div>
     </div>
   )

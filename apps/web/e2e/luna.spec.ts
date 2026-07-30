@@ -46,6 +46,14 @@ process.stdin.on('data', chunk => {
       reply({id:request.id,type:'response',command:request.type,success:true})
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\\n')
       if (!steering) reply({type:'agent_start'})
+      const activities = steering
+        ? ['Refining browser acceptance after steering']
+        : ['Planning Luna smoke-test coverage', 'Validating the browser workflow']
+      for (const activity of activities) {
+        reply({type:'message_update',assistantMessageEvent:{type:'thinking_start',contentIndex:0}})
+        reply({type:'message_update',assistantMessageEvent:{type:'thinking_delta',contentIndex:0,delta:'**' + activity + '**'}})
+        reply({type:'message_update',assistantMessageEvent:{type:'thinking_end',contentIndex:0}})
+      }
       reply({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:steering ? ' after steering' : 'Working response from Pi'}})
     } else if (request.type === 'abort') {
       reply({id:request.id,type:'response',command:'abort',success:true})
@@ -186,9 +194,17 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByAltText('pixel.png')).toBeVisible()
   await expect(page.getByText('Working response from Pi')).toBeVisible()
+  await expect(page.locator('.activity-details summary')).toContainText(
+    'Validating the browser workflow',
+  )
+  await page.locator('.activity-details summary').click()
+  await expect(page.locator('.activity-details')).toContainText('Planning Luna smoke-test coverage')
   await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
+  await expect(page.locator('.activity-details summary')).toContainText(
+    'Refining browser acceptance after steering',
+  )
   const transcript = page.locator('.message-row')
   await expect(transcript.nth(0)).toContainText('Build a Luna smoke test')
   await expect(transcript.nth(1)).toContainText('Working response from Pi after steering')

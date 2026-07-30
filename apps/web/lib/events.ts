@@ -1,4 +1,4 @@
-import type { Conversation, Message } from '@luna/protocol'
+import type { AgentActivity, Conversation, Message } from '@luna/protocol'
 
 export type LunaEvent = {
   eventId?: number
@@ -72,6 +72,17 @@ export function applyServerEvent(state: LunaClientState, event: LunaEvent): Luna
         ),
       }
     }
+    case 'agent.activities_reset':
+      return updateConversationActivities(state, event, [], cursor)
+    case 'agent.activity_upserted': {
+      const activity = event.payload as AgentActivity
+      const conversation = state.conversations.find((item) => item.id === event.conversationId)
+      if (!conversation) return { ...state, cursor }
+      const activities = upsert(conversation.activities ?? [], activity).sort(
+        (left, right) => left.sequence - right.sequence,
+      )
+      return updateConversationActivities(state, event, activities, cursor)
+    }
     case 'session.state_changed':
       return updateConversation(state, event, event.payload as StateChanged, cursor)
     case 'workspace.updated':
@@ -101,6 +112,21 @@ function updateConversation(
     return { ...conversation, title: payload.title }
   })
   return { ...state, cursor, conversations }
+}
+
+function updateConversationActivities(
+  state: LunaClientState,
+  event: LunaEvent,
+  activities: AgentActivity[],
+  cursor: number,
+): LunaClientState {
+  return {
+    ...state,
+    cursor,
+    conversations: state.conversations.map((conversation) =>
+      conversation.id === event.conversationId ? { ...conversation, activities } : conversation,
+    ),
+  }
 }
 
 function upsertMessage(messages: Message[], message: Message): Message[] {
