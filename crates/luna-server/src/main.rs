@@ -24,6 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _ = signal::ctrl_c().await;
         })
         .await?;
+    built.runtime.shutdown().await;
     built.database.close().await;
     Ok(())
 }

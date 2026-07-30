@@ -1,14 +1,68 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf, time::Duration};
 
 use axum::{
     body::{Body, to_bytes},
     http::{Request, StatusCode, header},
 };
-use luna_protocol::{Conversation, PairingExchangeResponse};
+use luna_protocol::{
+    Conversation, ConversationMessages, PairingExchangeResponse, SendMessageResponse,
+};
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
 
 fn config(directory: &std::path::Path) -> Config {
+    let pi_executable = directory.join("fake-pi");
+    fs::write(
+        &pi_executable,
+        r#"#!/usr/bin/env node
+const net = require('node:net')
+const bridge = net.createConnection(process.env.LUNA_BRIDGE_SOCKET)
+let dispatchId
+bridge.on('connect', () => bridge.write(JSON.stringify({type:'ready', pid:process.pid, cwd:process.cwd()}) + '\n'))
+let bridgeBuffer = ''
+bridge.on('data', chunk => {
+  bridgeBuffer += chunk.toString('utf8')
+  while (bridgeBuffer.includes('\n')) {
+    const index = bridgeBuffer.indexOf('\n')
+    const command = JSON.parse(bridgeBuffer.slice(0, index))
+    bridgeBuffer = bridgeBuffer.slice(index + 1)
+    if (command.type === 'dispatch') {
+      dispatchId = command.dispatchId
+      bridge.write(JSON.stringify({type:'dispatch_ready', dispatchId}) + '\n')
+    }
+  }
+})
+let input = ''
+process.stdin.on('data', chunk => {
+  input += chunk.toString('utf8')
+  while (input.includes('\n')) {
+    const index = input.indexOf('\n')
+    const request = JSON.parse(input.slice(0, index))
+    input = input.slice(index + 1)
+    if (request.type === 'get_state') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'fake-session',sessionFile:'/tmp/fake-luna-session.jsonl',isStreaming:false}}))
+    } else if (request.type === 'prompt') {
+      console.log(JSON.stringify({id:request.id,type:'response',command:'prompt',success:true}))
+      bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\n')
+      console.log(JSON.stringify({type:'agent_start'}))
+      console.log(JSON.stringify({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:'Fake response'}}))
+      console.log(JSON.stringify({type:'agent_settled'}))
+    }
+  }
+})
+process.stdin.on('end', () => process.exit(0))
+"#,
+    )
+    .expect("fake Pi");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&pi_executable)
+            .expect("metadata")
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&pi_executable, permissions).expect("permissions");
+    }
     Config {
         bind_host: "127.0.0.1".into(),
         port: 9870,
@@ -19,7 +73,9 @@ fn config(directory: &std::path::Path) -> Config {
         database_path: directory.join("luna.sqlite"),
         pi_session_directory: directory.join("pi-sessions"),
         attachment_directory: directory.join("attachments"),
-        pi_executable: PathBuf::from("pi"),
+        bridge_directory: PathBuf::from("/tmp")
+            .join(format!("luna-http-test-{}", std::process::id())),
+        pi_executable,
         pi_bridge_path: PathBuf::from("bridge.ts"),
         event_retention_days: 30,
         transcription_model: "gpt-4o-mini-transcribe".into(),
@@ -78,6 +134,74 @@ async fn pairs_a_device_and_creates_a_conversation() {
     let conversation: Conversation = response_json(create_response).await;
     assert_eq!(conversation.title, "New Conversation");
 
+    let client_message_id = uuid::Uuid::new_v4();
+    let send_request = Request::builder()
+        .method("POST")
+        .uri(format!("/v1/conversations/{}/messages", conversation.id))
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+        .body(Body::from(
+            serde_json::json!({
+                "clientMessageId": client_message_id,
+                "text": "Persist this message",
+                "attachmentIds": []
+            })
+            .to_string(),
+        ))
+        .expect("request");
+    let send_response = built
+        .router
+        .clone()
+        .oneshot(send_request)
+        .await
+        .expect("send response");
+    assert_eq!(send_response.status(), StatusCode::ACCEPTED);
+    let sent: SendMessageResponse = response_json(send_response).await;
+    assert!(sent.accepted);
+    assert_eq!(sent.message.client_message_id, Some(client_message_id));
+
+    let messages_request = Request::builder()
+        .uri(format!("/v1/conversations/{}/messages", conversation.id))
+        .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+        .body(Body::empty())
+        .expect("request");
+    let messages_response = built
+        .router
+        .clone()
+        .oneshot(messages_request)
+        .await
+        .expect("messages response");
+    let messages: ConversationMessages = response_json(messages_response).await;
+    assert_eq!(messages.messages[0].text, "Persist this message");
+
+    let mut completed_messages = messages;
+    for _ in 0..40 {
+        if completed_messages.messages.len() >= 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        let request = Request::builder()
+            .uri(format!("/v1/conversations/{}/messages", conversation.id))
+            .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+            .body(Body::empty())
+            .expect("request");
+        completed_messages = response_json(
+            built
+                .router
+                .clone()
+                .oneshot(request)
+                .await
+                .expect("messages response"),
+        )
+        .await;
+    }
+    assert_eq!(completed_messages.messages.len(), 2);
+    assert_eq!(completed_messages.messages[1].text, "Fake response");
+    assert_eq!(
+        completed_messages.messages[1].status,
+        luna_protocol::MessageStatus::Completed
+    );
+
     let bootstrap_request = Request::builder()
         .uri("/v1/bootstrap")
         .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
@@ -92,6 +216,7 @@ async fn pairs_a_device_and_creates_a_conversation() {
     assert_eq!(bootstrap_response.status(), StatusCode::OK);
     let bootstrap: luna_protocol::Bootstrap = response_json(bootstrap_response).await;
     assert_eq!(bootstrap.conversations.len(), 1);
+    built.runtime.shutdown().await;
 }
 
 #[tokio::test]
@@ -113,4 +238,122 @@ async fn health_does_not_expose_private_state() {
         response_json::<serde_json::Value>(response).await,
         serde_json::json!({"status":"ok"})
     );
+}
+
+#[tokio::test]
+async fn websocket_replays_and_streams_persistent_events() {
+    use futures_util::StreamExt;
+    use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
+
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "WebSocket Client",
+                        "platform": "ios"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+    let replay_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conversations")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("replay conversation response");
+    let replay_conversation: Conversation = response_json(replay_response).await;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server_router = built.router.clone();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, server_router)
+            .with_graceful_shutdown(std::future::pending())
+            .await
+            .expect("server");
+    });
+    let mut request = format!("ws://{address}/v1/events?after=0")
+        .into_client_request()
+        .expect("WebSocket request");
+    request.headers_mut().insert(
+        header::AUTHORIZATION,
+        format!("Bearer {}", paired.token)
+            .parse()
+            .expect("authorization"),
+    );
+    let (mut socket, _) = connect_async(request).await.expect("WebSocket");
+    let welcome = socket
+        .next()
+        .await
+        .expect("welcome frame")
+        .expect("welcome");
+    let welcome: luna_protocol::ServerEventEnvelope =
+        serde_json::from_str(welcome.to_text().expect("text")).expect("welcome event");
+    assert!(matches!(
+        welcome.event,
+        luna_protocol::ServerEvent::ServerWelcome { .. }
+    ));
+    let replay = socket
+        .next()
+        .await
+        .expect("replay frame")
+        .expect("replay event");
+    let replay: luna_protocol::ServerEventEnvelope =
+        serde_json::from_str(replay.to_text().expect("text")).expect("replayed event");
+    assert_eq!(replay.conversation_id, Some(replay_conversation.id));
+
+    let create_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conversations")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("create response");
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let event = tokio::time::timeout(Duration::from_secs(1), socket.next())
+        .await
+        .expect("event timeout")
+        .expect("event frame")
+        .expect("event");
+    let event: luna_protocol::ServerEventEnvelope =
+        serde_json::from_str(event.to_text().expect("text")).expect("server event");
+    assert!(event.event_id.is_some());
+    assert!(matches!(
+        event.event,
+        luna_protocol::ServerEvent::ConversationUpserted(_)
+    ));
+
+    socket.close(None).await.expect("close");
+    server.abort();
+    built.runtime.shutdown().await;
 }

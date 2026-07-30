@@ -157,7 +157,7 @@ impl Database {
         updated_at: &str,
     ) -> Result<(), StorageError> {
         let updated = sqlx::query(
-            "UPDATE conversations SET pi_session_id = ?, pi_session_path = ?, state = 'idle', updated_at = ?, version = version + 1 WHERE id = ?",
+            "UPDATE conversations SET pi_session_id = ?, pi_session_path = ?, updated_at = ?, version = version + 1 WHERE id = ?",
         )
         .bind(session_id)
         .bind(session_path)

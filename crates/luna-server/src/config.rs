@@ -5,6 +5,7 @@ use std::{
 
 use directories::BaseDirs;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -17,6 +18,7 @@ pub struct Config {
     pub database_path: PathBuf,
     pub pi_session_directory: PathBuf,
     pub attachment_directory: PathBuf,
+    pub bridge_directory: PathBuf,
     pub pi_executable: PathBuf,
     pub pi_bridge_path: PathBuf,
     pub event_retention_days: u32,
@@ -76,6 +78,14 @@ impl Config {
             .transpose()?
             .unwrap_or(default_data);
         let root = env::current_dir()?;
+        let data_fingerprint = format!(
+            "{:x}",
+            Sha256::digest(data_directory.to_string_lossy().as_bytes())
+        );
+        let bridge_directory = env_path(
+            "LUNA_BRIDGE_DIR",
+            PathBuf::from("/tmp").join(format!("luna-{}", &data_fingerprint[..12])),
+        );
         let port = parse_u16("LUNA_PORT", local.port.unwrap_or(9870))?;
         let retention = parse_u32("LUNA_EVENT_RETENTION_DAYS", 30)?;
         let public_origin = env::var("LUNA_PUBLIC_ORIGIN").ok().or(local.public_origin);
@@ -96,6 +106,7 @@ impl Config {
             database_path: data_directory.join("luna.sqlite"),
             pi_session_directory: data_directory.join("pi-sessions"),
             attachment_directory: data_directory.join("attachments"),
+            bridge_directory,
             data_directory,
             credentials_directory,
             pi_executable: env_path(

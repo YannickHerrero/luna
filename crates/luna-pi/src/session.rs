@@ -79,8 +79,16 @@ impl SessionSupervisor {
         session_path: Option<PathBuf>,
     ) -> Result<Arc<ManagedSession>, SessionError> {
         let mut sessions = self.sessions.lock().await;
-        if let Some(session) = sessions.get(&conversation_id) {
+        if let Some(session) = sessions.get(&conversation_id)
+            && matches!(
+                *session.process.status().borrow(),
+                crate::ProcessStatus::Running
+            )
+        {
             return Ok(session.clone());
+        }
+        if let Some(stale) = sessions.remove(&conversation_id) {
+            stale.shutdown().await;
         }
         let bridge_path = self
             .config

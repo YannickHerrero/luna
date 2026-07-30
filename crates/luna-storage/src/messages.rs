@@ -11,6 +11,7 @@ pub struct AcceptedDispatch {
     pub dispatch_id: Uuid,
     pub message: Message,
     pub created: bool,
+    pub dispatch_required: bool,
     pub event: Option<ServerEventEnvelope>,
 }
 
@@ -49,8 +50,8 @@ impl Database {
         .await?
         {
             let message = map_message(row)?;
-            let dispatch_id: String = sqlx::query_scalar(
-                "SELECT id FROM dispatches WHERE message_id = ?",
+            let (dispatch_id, state): (String, String) = sqlx::query_as(
+                "SELECT id, state FROM dispatches WHERE message_id = ?",
             )
             .bind(message.id.to_string())
             .fetch_one(&mut *transaction)
@@ -60,6 +61,7 @@ impl Database {
                 dispatch_id: Uuid::parse_str(&dispatch_id)?,
                 message,
                 created: false,
+                dispatch_required: matches!(state.as_str(), "accepted" | "failed"),
                 event: None,
             });
         }
@@ -131,8 +133,32 @@ impl Database {
             dispatch_id,
             message,
             created: true,
+            dispatch_required: true,
             event: Some(event),
         })
+    }
+
+    pub async fn set_dispatch_state(
+        &self,
+        dispatch_id: Uuid,
+        state: &str,
+        error_code: Option<&str>,
+        updated_at: &str,
+    ) -> Result<(), StorageError> {
+        let updated = sqlx::query(
+            "UPDATE dispatches SET state = ?, attempts = attempts + CASE WHEN ? = 'running' THEN 1 ELSE 0 END, error_code = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(state)
+        .bind(state)
+        .bind(error_code)
+        .bind(updated_at)
+        .bind(dispatch_id.to_string())
+        .execute(self.pool())
+        .await?;
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound);
+        }
+        Ok(())
     }
 
     pub async fn begin_assistant_message(

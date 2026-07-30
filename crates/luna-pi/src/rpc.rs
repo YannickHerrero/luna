@@ -213,6 +213,18 @@ impl PiProcess {
     pub async fn shutdown(&self) {
         self.stdin.lock().await.take();
         let _ = self.shutdown.send(()).await;
+        let mut status = self.status.clone();
+        let _ = timeout(Duration::from_secs(4), async move {
+            while matches!(
+                *status.borrow(),
+                ProcessStatus::Starting | ProcessStatus::Running
+            ) {
+                if status.changed().await.is_err() {
+                    break;
+                }
+            }
+        })
+        .await;
     }
 
     async fn request(&self, mut value: Value) -> Result<RpcResponse, PiError> {

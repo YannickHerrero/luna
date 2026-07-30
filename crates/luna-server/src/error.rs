@@ -13,6 +13,10 @@ pub enum AppError {
     #[error(transparent)]
     Auth(#[from] crate::auth::AuthError),
     #[error(transparent)]
+    Pi(#[from] luna_pi::PiError),
+    #[error(transparent)]
+    PiSession(#[from] luna_pi::SessionError),
+    #[error(transparent)]
     Time(#[from] time::error::Format),
     #[error(transparent)]
     Json(#[from] serde_json::Error),

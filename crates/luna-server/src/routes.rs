@@ -1,13 +1,19 @@
 use axum::{
     Json, Router,
-    extract::{Path, Query, State},
+    extract::{
+        Path, Query, State,
+        ws::{Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
+    },
     http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
     routing::{get, post},
 };
+use futures_util::{SinkExt, StreamExt};
 use luna_protocol::{
-    Bootstrap, ConversationList, CreateConversationRequest, PROTOCOL_VERSION,
-    PairingExchangeRequest, PairingExchangeResponse, ServerEvent, SyncResponse,
+    ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected, ConversationList,
+    ConversationMessages, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
+    PROTOCOL_VERSION, PairingExchangeRequest, PairingExchangeResponse, SendMessageRequest,
+    SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState, SyncResponse,
     UpdateConversationRequest,
 };
 use serde::Deserialize;
@@ -26,6 +32,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/pairing/exchange", post(pair))
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/sync", get(sync))
+        .route("/v1/events", get(events_socket))
         .route(
             "/v1/conversations",
             get(list_conversations).post(create_conversation),
@@ -34,6 +41,11 @@ pub fn router(state: AppState) -> Router {
             "/v1/conversations/{id}",
             get(get_conversation).patch(update_conversation),
         )
+        .route(
+            "/v1/conversations/{id}/messages",
+            get(list_messages).post(send_message),
+        )
+        .route("/v1/conversations/{id}/abort", post(abort_conversation))
         .route("/v1/conversations/{id}/archive", post(archive_conversation))
         .with_state(state)
 }
@@ -131,8 +143,8 @@ async fn create_conversation(
         )
         .await?;
     state
-        .database
-        .append_event(
+        .events
+        .append(
             Some(conversation.id),
             Some(conversation.id),
             &ServerEvent::ConversationUpserted(conversation.clone()),
@@ -140,6 +152,18 @@ async fn create_conversation(
         )
         .await?;
     Ok((StatusCode::CREATED, Json(conversation)))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MessagePageQuery {
+    before_ordinal: Option<i64>,
+    #[serde(default = "default_message_limit")]
+    limit: i64,
+}
+
+const fn default_message_limit() -> i64 {
+    50
 }
 
 async fn get_conversation(
@@ -154,6 +178,29 @@ async fn get_conversation(
             .await?
             .ok_or(AppError::NotFound)?,
     ))
+}
+
+async fn list_messages(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+    Query(query): Query<MessagePageQuery>,
+) -> Result<Json<ConversationMessages>, AppError> {
+    if state.database.conversation(id).await?.is_none() {
+        return Err(AppError::NotFound);
+    }
+    let limit = query.limit.clamp(1, 100);
+    let messages = state
+        .database
+        .messages(id, query.before_ordinal, limit)
+        .await?;
+    let next_before_ordinal = (messages.len() == usize::try_from(limit).unwrap_or(100))
+        .then(|| messages.first().map(|message| message.ordinal))
+        .flatten();
+    Ok(Json(ConversationMessages {
+        messages,
+        next_before_ordinal,
+    }))
 }
 
 async fn update_conversation(
@@ -174,8 +221,8 @@ async fn update_conversation(
         .rename_conversation(id, title, &updated_at)
         .await?;
     state
-        .database
-        .append_event(
+        .events
+        .append(
             Some(id),
             Some(id),
             &ServerEvent::ConversationUpserted(conversation.clone()),
@@ -185,12 +232,120 @@ async fn update_conversation(
     Ok(Json(conversation))
 }
 
+async fn send_message(
+    State(state): State<AppState>,
+    AuthenticatedDevice(device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+    Json(request): Json<SendMessageRequest>,
+) -> Result<(StatusCode, Json<SendMessageResponse>), AppError> {
+    let message = accept_message(
+        &state,
+        device.id,
+        id,
+        request.client_message_id,
+        request.text,
+        request.attachment_ids,
+    )
+    .await?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(SendMessageResponse {
+            accepted: true,
+            message,
+        }),
+    ))
+}
+
+async fn accept_message(
+    state: &AppState,
+    device_id: Uuid,
+    conversation_id: Uuid,
+    client_message_id: Uuid,
+    text: String,
+    attachment_ids: Vec<Uuid>,
+) -> Result<Message, AppError> {
+    let text = text.trim();
+    if text.is_empty() || text.len() > 100_000 {
+        return Err(AppError::InvalidRequest(
+            "A message between 1 and 100,000 characters is required.".into(),
+        ));
+    }
+    if !attachment_ids.is_empty() {
+        return Err(AppError::InvalidRequest(
+            "Attachments must be uploaded before they can be dispatched.".into(),
+        ));
+    }
+    let conversation = state
+        .database
+        .conversation(conversation_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let delivery = if matches!(
+        conversation.state,
+        SessionState::Working | SessionState::Compacting | SessionState::Retrying
+    ) {
+        MessageDelivery::Steer
+    } else {
+        MessageDelivery::Initial
+    };
+    let accepted = state
+        .database
+        .accept_user_message(
+            conversation_id,
+            device_id,
+            client_message_id,
+            text,
+            delivery,
+            &now()?,
+        )
+        .await?;
+    if let Some(event) = accepted.event {
+        state.events.publish(event);
+    }
+    if accepted.dispatch_required {
+        let runtime = state.runtime.clone();
+        let dispatch_id = accepted.dispatch_id;
+        let text = text.to_owned();
+        tokio::spawn(async move {
+            runtime
+                .dispatch(conversation_id, dispatch_id, text, delivery)
+                .await;
+        });
+    }
+    Ok(accepted.message)
+}
+
+async fn abort_conversation(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, AppError> {
+    state.runtime.abort(id).await?;
+    Ok(StatusCode::ACCEPTED)
+}
+
 async fn archive_conversation(
     State(state): State<AppState>,
     AuthenticatedDevice(_device): AuthenticatedDevice,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    state.database.archive_conversation(id, &now()?).await?;
+    let timestamp = now()?;
+    state.database.archive_conversation(id, &timestamp).await?;
+    state.runtime.deactivate(id).await;
+    let conversation = state
+        .database
+        .conversation(id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    state
+        .events
+        .append(
+            Some(id),
+            Some(id),
+            &ServerEvent::ConversationUpserted(conversation),
+            &timestamp,
+        )
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -221,4 +376,220 @@ async fn sync(
             .collect::<Result<_, _>>()?,
         reset_required: false,
     }))
+}
+
+async fn events_socket(
+    websocket: WebSocketUpgrade,
+    State(state): State<AppState>,
+    AuthenticatedDevice(device): AuthenticatedDevice,
+    Query(query): Query<SyncQuery>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    validate_origin(&axum::http::Method::POST, &headers, &state)?;
+    Ok(websocket
+        .on_upgrade(move |socket| stream_events(socket, state, device.id, query.after.max(0))))
+}
+
+async fn stream_events(socket: WebSocket, state: AppState, device_id: Uuid, after: i64) {
+    let (mut sender, mut receiver) = socket.split();
+    let mut live = state.events.subscribe();
+    let mut cursor = after;
+    let latest = state.database.latest_cursor().await.unwrap_or(cursor);
+    let welcome = ServerEventEnvelope {
+        version: 1,
+        event_id: None,
+        conversation_id: None,
+        emitted_at: now().unwrap_or_else(|_| "1970-01-01T00:00:00Z".into()),
+        event: ServerEvent::ServerWelcome {
+            cursor: latest,
+            resumed: after > 0,
+        },
+    };
+    if send_socket_event(&mut sender, &welcome).await.is_err() {
+        return;
+    }
+    if send_catchup(&state, &mut sender, &mut cursor)
+        .await
+        .is_err()
+    {
+        return;
+    }
+
+    loop {
+        tokio::select! {
+            event = live.recv() => {
+                match event {
+                    Ok(event) => {
+                        let event_cursor = event.event_id.unwrap_or(cursor);
+                        if event_cursor <= cursor { continue; }
+                        if send_socket_event(&mut sender, &event).await.is_err() { break; }
+                        cursor = event_cursor;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                        if send_catchup(&state, &mut sender, &mut cursor).await.is_err() { break; }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+            message = receiver.next() => {
+                let Some(Ok(message)) = message else { break };
+                match message {
+                    WebSocketMessage::Text(text) => {
+                        let response = match serde_json::from_str::<ClientCommand>(&text) {
+                            Ok(command) => handle_client_command(&state, device_id, command).await,
+                            Err(_) => ServerEvent::CommandRejected(CommandRejected {
+                                request_id: Uuid::nil(),
+                                error: ApiError::new(ErrorCode::InvalidRequest, "The client command is invalid.", false),
+                            }),
+                        };
+                        let envelope = ServerEventEnvelope {
+                            version: 1,
+                            event_id: None,
+                            conversation_id: None,
+                            emitted_at: now().unwrap_or_else(|_| "1970-01-01T00:00:00Z".into()),
+                            event: response,
+                        };
+                        if send_socket_event(&mut sender, &envelope).await.is_err() { break; }
+                    }
+                    WebSocketMessage::Close(_) => break,
+                    WebSocketMessage::Ping(value) => {
+                        let _ = sender.send(WebSocketMessage::Pong(value)).await;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+async fn handle_client_command(
+    state: &AppState,
+    device_id: Uuid,
+    command: ClientCommand,
+) -> ServerEvent {
+    let (request_id, result): (Uuid, Result<Option<Message>, AppError>) = match command {
+        ClientCommand::ClientPing { version, command } => {
+            if version != PROTOCOL_VERSION {
+                (
+                    command.request_id,
+                    Err(AppError::InvalidRequest(
+                        "Protocol version mismatch.".into(),
+                    )),
+                )
+            } else {
+                return ServerEvent::ServerPong {
+                    request_id: command.request_id,
+                };
+            }
+        }
+        ClientCommand::ClientHello { version, command } => {
+            if version != PROTOCOL_VERSION {
+                (
+                    command.request_id,
+                    Err(AppError::InvalidRequest(
+                        "Protocol version mismatch.".into(),
+                    )),
+                )
+            } else {
+                return ServerEvent::ServerWelcome {
+                    cursor: state
+                        .database
+                        .latest_cursor()
+                        .await
+                        .unwrap_or(command.last_cursor),
+                    resumed: command.last_cursor > 0,
+                };
+            }
+        }
+        ClientCommand::MessageSend { version, command } => {
+            let request_id = command.request_id;
+            let result = if version != PROTOCOL_VERSION {
+                Err(AppError::InvalidRequest(
+                    "Protocol version mismatch.".into(),
+                ))
+            } else {
+                accept_message(
+                    state,
+                    device_id,
+                    command.conversation_id,
+                    command.client_message_id,
+                    command.text,
+                    command.attachment_ids,
+                )
+                .await
+                .map(Some)
+            };
+            (request_id, result)
+        }
+        ClientCommand::SessionInterrupt { version, command } => {
+            let request_id = command.request_id;
+            let result = if version != PROTOCOL_VERSION {
+                Err(AppError::InvalidRequest(
+                    "Protocol version mismatch.".into(),
+                ))
+            } else {
+                state
+                    .runtime
+                    .abort(command.conversation_id)
+                    .await
+                    .map(|()| None)
+            };
+            (request_id, result)
+        }
+    };
+    match result {
+        Ok(message) => ServerEvent::CommandAccepted(CommandAccepted {
+            request_id,
+            message,
+        }),
+        Err(_) => ServerEvent::CommandRejected(CommandRejected {
+            request_id,
+            error: ApiError::new(
+                ErrorCode::InternalError,
+                "Luna could not accept the command.",
+                true,
+            ),
+        }),
+    }
+}
+
+async fn send_catchup(
+    state: &AppState,
+    sender: &mut futures_util::stream::SplitSink<WebSocket, WebSocketMessage>,
+    cursor: &mut i64,
+) -> Result<(), ()> {
+    loop {
+        let events = state
+            .database
+            .events_after(*cursor, 1_000)
+            .await
+            .map_err(|_| ())?;
+        if events.is_empty() {
+            return Ok(());
+        }
+        let count = events.len();
+        for event in events {
+            if let Some(event_id) = event.event_id {
+                if event_id <= *cursor {
+                    continue;
+                }
+                send_socket_event(sender, &event).await?;
+                *cursor = event_id;
+            }
+        }
+        if count < 1_000 {
+            return Ok(());
+        }
+    }
+}
+
+async fn send_socket_event(
+    sender: &mut futures_util::stream::SplitSink<WebSocket, WebSocketMessage>,
+    event: &ServerEventEnvelope,
+) -> Result<(), ()> {
+    let text = serde_json::to_string(event).map_err(|_| ())?;
+    sender
+        .send(WebSocketMessage::Text(text.into()))
+        .await
+        .map_err(|_| ())
 }

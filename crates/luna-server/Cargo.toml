@@ -10,6 +10,7 @@ axum.workspace = true
 base64.workspace = true
 directories.workspace = true
 dotenvy.workspace = true
+futures-util.workspace = true
 http.workspace = true
 luna-pi = { path = "../luna-pi" }
 luna-protocol = { path = "../luna-protocol" }
@@ -30,3 +31,4 @@ uuid.workspace = true
 [dev-dependencies]
 http-body-util.workspace = true
 tempfile.workspace = true
+tokio-tungstenite.workspace = true
