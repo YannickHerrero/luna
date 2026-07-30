@@ -156,6 +156,7 @@ test.afterAll(async () => {
 })
 
 test('pairs, streams, restores, themes, and archives a conversation', async ({ page }) => {
+  test.setTimeout(45_000)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Pair with Luna' })).toBeVisible()
@@ -350,18 +351,42 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   )
   await page.locator('.activity-details summary').click()
   await expect(page.locator('.activity-details')).toContainText('Planning Luna smoke-test coverage')
+  await page
+    .locator('.message-row.assistant .markdown')
+    .first()
+    .evaluate((element) => {
+      const codeBlock = document.createElement('pre')
+      const code = document.createElement('code')
+      code.textContent = 'intrinsically-wide-conversation-content-'.repeat(40)
+      codeBlock.append(code)
+      element.append(codeBlock)
+    })
+  await page.setViewportSize({ width: 320, height: 812 })
   const mobileLayout = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
-    messageBounds: Array.from(document.querySelectorAll('.message-bubble')).map((element) => {
+    elementBounds: Array.from(
+      document.querySelectorAll(
+        '.conversation-header, .message-scroll, .message-row, .message-stack, .message-bubble, .markdown pre, .task-progress, .composer-wrap, .composer',
+      ),
+    ).map((element) => {
       const bounds = element.getBoundingClientRect()
-      return { left: bounds.left, right: bounds.right }
+      return { className: element.className, left: bounds.left, right: bounds.right }
     }),
+    codeBlock: (() => {
+      const element = document.querySelector('.markdown pre')
+      return element
+        ? { clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }
+        : undefined
+    })(),
   }))
   expect(mobileLayout.scrollWidth).toBeLessThanOrEqual(mobileLayout.clientWidth)
-  for (const bounds of mobileLayout.messageBounds) {
-    expect(bounds.left).toBeGreaterThanOrEqual(0)
-    expect(bounds.right).toBeLessThanOrEqual(mobileLayout.clientWidth)
+  expect(mobileLayout.codeBlock?.scrollWidth).toBeGreaterThan(
+    mobileLayout.codeBlock?.clientWidth ?? Number.POSITIVE_INFINITY,
+  )
+  for (const bounds of mobileLayout.elementBounds) {
+    expect(bounds.left, bounds.className).toBeGreaterThanOrEqual(0)
+    expect(bounds.right, bounds.className).toBeLessThanOrEqual(mobileLayout.clientWidth)
   }
   await page.getByRole('button', { name: 'Back' }).click()
   const sortedConversations = page.locator('.conversation-cell')

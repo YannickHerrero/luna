@@ -293,6 +293,7 @@ textarea:focus-visible {
 .conversation-view {
   display: grid;
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
