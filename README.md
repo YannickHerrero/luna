@@ -25,6 +25,7 @@
 - Streams normalized assistant messages, tool activity, state, workspace, and repository updates.
 - Restores durable Pi context after server or process restarts.
 - Supports steering, interruption, Markdown, syntax highlighting, image attachments, and voice transcription.
+- Generates concise contextual conversation titles with an isolated Pi model request.
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
 - Installs as a responsive, offline-capable PWA with Catppuccin Latte and Mocha themes.

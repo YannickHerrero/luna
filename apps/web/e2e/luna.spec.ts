@@ -12,6 +12,11 @@ let pairingCode: string
 let serverOutput = ''
 
 const fakePi = `#!/usr/bin/env node
+if (process.argv.includes('--print')) {
+  require('node:fs').readFileSync(0, 'utf8')
+  console.log('Luna Browser Acceptance')
+  process.exit(0)
+}
 const net = require('node:net')
 const bridge = net.createConnection(process.env.LUNA_BRIDGE_SOCKET)
 let dispatchId

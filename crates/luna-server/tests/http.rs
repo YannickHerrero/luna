@@ -16,6 +16,12 @@ fn config(directory: &std::path::Path) -> Config {
     fs::write(
         &pi_executable,
         r#"#!/usr/bin/env node
+if (process.argv.includes('--print')) {
+  if (!process.argv.includes('openai-codex/gpt-5.6-luna') || !process.argv.includes('--no-tools')) process.exit(3)
+  require('node:fs').readFileSync(0, 'utf8')
+  console.log('Persistent Message Delivery')
+  process.exit(0)
+}
 const net = require('node:net')
 const bridge = net.createConnection(process.env.LUNA_BRIDGE_SOCKET)
 let dispatchId
@@ -97,6 +103,7 @@ process.stdin.on('end', () => process.exit(0))
         web_directory: directory.join("web"),
         pi_executable,
         pi_bridge_path: directory.join("bridge.ts"),
+        title_model: "openai-codex/gpt-5.6-luna".into(),
         event_retention_days: 30,
         attachment_retention_days: 30,
         transcription_model: "gpt-4o-mini-transcribe".into(),
@@ -344,7 +351,8 @@ async fn pairs_a_device_and_creates_a_conversation() {
         luna_protocol::MessageStatus::Completed
     );
     let mut observed_repositories = Vec::new();
-    for _ in 0..40 {
+    let mut observed_title = String::new();
+    for _ in 0..80 {
         let request = Request::builder()
             .uri(format!("/v1/conversations/{}", conversation.id))
             .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
@@ -356,12 +364,15 @@ async fn pairs_a_device_and_creates_a_conversation() {
             .oneshot(request)
             .await
             .expect("conversation response");
-        observed_repositories = response_json::<Conversation>(response).await.repositories;
-        if !observed_repositories.is_empty() {
+        let current = response_json::<Conversation>(response).await;
+        observed_repositories = current.repositories;
+        observed_title = current.title;
+        if !observed_repositories.is_empty() && observed_title == "Persistent Message Delivery" {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
+    assert_eq!(observed_title, "Persistent Message Delivery");
     assert_eq!(observed_repositories[0].display_name, "repository");
     let icon_url = observed_repositories[0]
         .icon

@@ -5,6 +5,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
+    time::Duration,
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -22,7 +23,7 @@ use tokio::sync::Mutex;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::{auth::now, error::AppError, events::EventHub};
+use crate::{auth::now, error::AppError, events::EventHub, title::TitleGenerator};
 
 pub struct ConversationRuntime {
     supervisor: SessionSupervisor,
@@ -30,6 +31,8 @@ pub struct ConversationRuntime {
     events: EventHub,
     attachment_directory: PathBuf,
     repository_icon_directory: PathBuf,
+    title_generator: TitleGenerator,
+    title_jobs: Mutex<HashSet<Uuid>>,
     pumps: Mutex<HashSet<Uuid>>,
     stopping: Mutex<HashSet<Uuid>>,
     shutting_down: AtomicBool,
@@ -43,13 +46,21 @@ impl ConversationRuntime {
         events: EventHub,
         attachment_directory: PathBuf,
         repository_icon_directory: PathBuf,
+        title_model: String,
     ) -> Self {
+        let title_generator = TitleGenerator::new(
+            config.pi_executable.clone(),
+            title_model,
+            Duration::from_secs(90),
+        );
         Self {
             supervisor: SessionSupervisor::new(config),
             database,
             events,
             attachment_directory,
             repository_icon_directory,
+            title_generator,
+            title_jobs: Mutex::new(HashSet::new()),
             pumps: Mutex::new(HashSet::new()),
             stopping: Mutex::new(HashSet::new()),
             shutting_down: AtomicBool::new(false),
@@ -266,7 +277,7 @@ impl ConversationRuntime {
     }
 
     async fn handle_pi_event(
-        &self,
+        self: &Arc<Self>,
         conversation_id: Uuid,
         event: NormalizedPiEvent,
         assistant_message: &mut Option<Uuid>,
@@ -394,7 +405,15 @@ impl ConversationRuntime {
                         )
                         .await?;
                     self.set_state(conversation_id, SessionState::Idle).await?;
-                    self.generate_title(conversation_id).await?;
+                    if self.title_jobs.lock().await.insert(conversation_id) {
+                        let runtime = Arc::clone(self);
+                        tokio::spawn(async move {
+                            if let Err(error) = runtime.generate_title(conversation_id).await {
+                                warn!(%conversation_id, "Unable to generate conversation title: {error}");
+                            }
+                            runtime.title_jobs.lock().await.remove(&conversation_id);
+                        });
+                    }
                 }
                 NormalizedPiEvent::ToolStarted | NormalizedPiEvent::ToolEnded { .. } => {
                     self.events
@@ -581,13 +600,21 @@ impl ConversationRuntime {
     }
 
     async fn generate_title(&self, conversation_id: Uuid) -> Result<(), AppError> {
-        let messages = self.database.messages(conversation_id, None, 100).await?;
-        let candidates = messages
-            .iter()
-            .filter(|message| message.role == luna_protocol::MessageRole::User)
-            .filter_map(|message| title_from_text(&message.text))
-            .collect::<Vec<_>>();
-        let Some(title) = evolving_title(&candidates) else {
+        let Some(current) = self.database.conversation(conversation_id).await? else {
+            return Ok(());
+        };
+        if current.title_mode != luna_protocol::TitleMode::Automatic
+            || current.title != "New Conversation"
+        {
+            return Ok(());
+        }
+        let messages = self.database.messages(conversation_id, None, 20).await?;
+        let Some(title) = self
+            .title_generator
+            .generate(&messages)
+            .await
+            .map_err(|error| AppError::DependencyUnavailable(error.to_string()))?
+        else {
             return Ok(());
         };
         let timestamp = now()?;
@@ -806,94 +833,6 @@ fn add_icon_candidate(
     }
 }
 
-fn evolving_title(candidates: &[String]) -> Option<String> {
-    let first = candidates.first()?.clone();
-    let Some(latest) = candidates.last().filter(|latest| *latest != &first) else {
-        return Some(first);
-    };
-    let first_words = significant_words(&first);
-    let latest_words = significant_words(latest);
-    let overlap = first_words.intersection(&latest_words).count();
-    let smallest = first_words.len().min(latest_words.len()).max(1);
-    if overlap * 2 >= smallest {
-        return Some(latest.clone());
-    }
-    let first = truncate_title(&first, 34);
-    let latest = truncate_title(latest, 34);
-    Some(format!("{first} + {latest}"))
-}
-
-fn significant_words(value: &str) -> HashSet<String> {
-    const STOP_WORDS: &[&str] = &[
-        "a", "an", "and", "for", "in", "of", "on", "the", "to", "with",
-    ];
-    value
-        .split(|character: char| !character.is_alphanumeric())
-        .map(str::to_ascii_lowercase)
-        .filter(|word| word.len() > 2 && !STOP_WORDS.contains(&word.as_str()))
-        .collect()
-}
-
-fn truncate_title(value: &str, limit: usize) -> String {
-    let mut output = String::new();
-    for word in value.split_whitespace() {
-        if !output.is_empty() && output.chars().count() + word.chars().count() + 1 > limit {
-            break;
-        }
-        if !output.is_empty() {
-            output.push(' ');
-        }
-        output.push_str(word);
-    }
-    output
-}
-
-fn title_from_text(text: &str) -> Option<String> {
-    let compact = text
-        .replace(['#', '*', '`', '_'], "")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let mut candidate = compact.trim();
-    for prefix in [
-        "please ",
-        "can you ",
-        "could you ",
-        "would you ",
-        "help me ",
-        "i need you to ",
-        "also ",
-        "next ",
-        "then ",
-    ] {
-        if candidate.to_ascii_lowercase().starts_with(prefix) {
-            candidate = candidate.get(prefix.len()..).unwrap_or(candidate).trim();
-            break;
-        }
-    }
-    candidate = candidate
-        .split(['\n', '.', '!', '?'])
-        .next()
-        .unwrap_or(candidate)
-        .trim();
-    if candidate.is_empty() {
-        return None;
-    }
-    let mut title = String::new();
-    for word in candidate.split_whitespace() {
-        if !title.is_empty() && title.len() + word.len() + 1 > 56 {
-            break;
-        }
-        if !title.is_empty() {
-            title.push(' ');
-        }
-        title.push_str(word);
-    }
-    let mut characters = title.chars();
-    let first = characters.next()?;
-    Some(first.to_uppercase().collect::<String>() + characters.as_str())
-}
-
 async fn find_repository_root(path: &std::path::Path) -> Option<PathBuf> {
     let mut current = path.to_owned();
     while tokio::fs::metadata(&current).await.is_err() {
@@ -930,7 +869,7 @@ async fn git_output(root: &std::path::Path, arguments: &[&str]) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use super::{ActivityCapture, evolving_title, progress_summary, title_from_text};
+    use super::{ActivityCapture, progress_summary};
 
     #[test]
     fn derives_short_progress_summaries_from_thinking_headings() {
@@ -948,34 +887,5 @@ mod tests {
             Some("Finalizing Luna restart and log validation".into())
         );
         assert_eq!(capture.update(" that stays private"), None);
-    }
-
-    #[test]
-    fn derives_a_short_title_from_the_first_request() {
-        assert_eq!(
-            title_from_text("Please implement authentication and password reset. Keep it private."),
-            Some("Implement authentication and password reset".into())
-        );
-        assert_eq!(
-            title_from_text(
-                "Investigate the very long and unexpectedly complicated synchronization behavior across every connected client"
-            ),
-            Some("Investigate the very long and unexpectedly complicated".into())
-        );
-    }
-
-    #[test]
-    fn evolves_titles_when_a_new_topic_appears() {
-        assert_eq!(
-            evolving_title(&["Authentication".into(), "Password reset flow".into(),]),
-            Some("Authentication + Password reset flow".into())
-        );
-        assert_eq!(
-            evolving_title(&[
-                "Authentication API".into(),
-                "Fix authentication API errors".into(),
-            ]),
-            Some("Fix authentication API errors".into())
-        );
     }
 }

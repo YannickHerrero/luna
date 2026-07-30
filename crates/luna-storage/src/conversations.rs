@@ -240,12 +240,11 @@ impl Database {
         updated_at: &str,
     ) -> Result<Option<Conversation>, StorageError> {
         let updated = sqlx::query(
-            "UPDATE conversations SET title = ?, updated_at = ?, version = version + 1 WHERE id = ? AND title_mode = 'automatic' AND title != ?",
+            "UPDATE conversations SET title = ?, updated_at = ?, version = version + 1 WHERE id = ? AND title_mode = 'automatic' AND title = 'New Conversation'",
         )
         .bind(title)
         .bind(updated_at)
         .bind(id.to_string())
-        .bind(title)
         .execute(self.pool())
         .await?;
         if updated.rows_affected() == 0 {

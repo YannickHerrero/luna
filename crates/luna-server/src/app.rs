@@ -83,6 +83,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         events.clone(),
         config.attachment_directory.clone(),
         config.repository_icon_directory.clone(),
+        config.title_model.clone(),
     ));
     let transcription = TranscriptionService::new(
         config.transcription_api_key.clone(),

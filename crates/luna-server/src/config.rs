@@ -23,6 +23,7 @@ pub struct Config {
     pub web_directory: PathBuf,
     pub pi_executable: PathBuf,
     pub pi_bridge_path: PathBuf,
+    pub title_model: String,
     pub event_retention_days: u32,
     pub attachment_retention_days: u32,
     pub transcription_model: String,
@@ -125,6 +126,8 @@ impl Config {
                 "LUNA_PI_BRIDGE",
                 root.join("integrations/pi/luna-bridge.ts"),
             ),
+            title_model: env::var("LUNA_TITLE_MODEL")
+                .unwrap_or_else(|_| "openai-codex/gpt-5.6-luna".into()),
             event_retention_days: retention,
             attachment_retention_days: attachment_retention,
             transcription_model: env::var("LUNA_TRANSCRIPTION_MODEL")

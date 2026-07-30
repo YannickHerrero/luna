@@ -22,16 +22,17 @@ async fn conversations_and_sync_events_round_trip() {
         .expect("automatic title")
         .expect("updated conversation");
     assert_eq!(automatic.title, "Authentication");
-    let evolved = database
-        .set_automatic_title(
-            id,
-            "Authentication + Password Reset",
-            "2026-01-01T00:00:45Z",
-        )
-        .await
-        .expect("evolved title")
-        .expect("updated conversation");
-    assert_eq!(evolved.title, "Authentication + Password Reset");
+    assert!(
+        database
+            .set_automatic_title(
+                id,
+                "Authentication + Password Reset",
+                "2026-01-01T00:00:45Z",
+            )
+            .await
+            .expect("one-time automatic title")
+            .is_none()
+    );
 
     let renamed = database
         .rename_conversation(id, "Rust server", "2026-01-01T00:01:00Z")
