@@ -68,8 +68,9 @@ process.stdin.on('end', () => process.exit(0))
         .expect("repository icon");
     fs::write(directory.join("repository/icon.png"), repository_icon)
         .expect("repository icon file");
-    fs::create_dir_all(directory.join("web")).expect("web directory");
+    fs::create_dir_all(directory.join("web/_next/static")).expect("web directory");
     fs::write(directory.join("web/index.html"), "<h1>Luna PWA</h1>").expect("web index");
+    fs::write(directory.join("web/_next/static/chunk.js"), "export {}").expect("web asset");
     fs::write(directory.join("bridge.ts"), "export default () => {}").expect("bridge extension");
     #[cfg(unix)]
     {
@@ -397,6 +398,7 @@ async fn health_does_not_expose_private_state() {
     );
     let static_response = built
         .router
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/")
@@ -411,13 +413,35 @@ async fn health_does_not_expose_private_state() {
             .headers()
             .get(header::CACHE_CONTROL)
             .expect("cache control"),
-        "public, max-age=300"
+        "no-cache"
+    );
+    assert!(
+        static_response
+            .headers()
+            .contains_key(header::STRICT_TRANSPORT_SECURITY)
     );
     assert_eq!(
         to_bytes(static_response.into_body(), 1_000)
             .await
             .expect("static body"),
         "<h1>Luna PWA</h1>"
+    );
+    let asset_response = built
+        .router
+        .oneshot(
+            Request::builder()
+                .uri("/_next/static/chunk.js")
+                .body(Body::empty())
+                .expect("asset request"),
+        )
+        .await
+        .expect("asset response");
+    assert_eq!(
+        asset_response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .expect("asset cache control"),
+        "public, max-age=31536000, immutable"
     );
 }
 

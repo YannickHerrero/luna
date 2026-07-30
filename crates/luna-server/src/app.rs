@@ -2,11 +2,13 @@ use std::{sync::Arc, time::Duration};
 
 use axum::{
     Router,
-    http::{HeaderName, HeaderValue, header},
+    body::Body,
+    http::{HeaderName, HeaderValue, Request, header},
+    middleware::{Next, from_fn},
+    response::Response,
 };
 use luna_pi::SessionRuntimeConfig;
 use luna_storage::Database;
-use tower::ServiceBuilder;
 use tower_http::{
     catch_panic::CatchPanicLayer,
     compression::CompressionLayer,
@@ -95,14 +97,10 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         .create_pairing_code()
         .await?;
     let request_id = HeaderName::from_static("x-request-id");
-    let static_files = ServiceBuilder::new()
-        .layer(SetResponseHeaderLayer::if_not_present(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("public, max-age=300"),
-        ))
-        .service(ServeDir::new(web_directory).append_index_html_on_directories(true));
+    let static_files = ServeDir::new(web_directory).append_index_html_on_directories(true);
     let router = routes::router(state)
         .fallback_service(static_files)
+        .layer(from_fn(static_cache_policy))
         .layer(SetResponseHeaderLayer::if_not_present(
             header::CONTENT_SECURITY_POLICY,
             HeaderValue::from_static(
@@ -117,6 +115,14 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
             header::REFERRER_POLICY,
             HeaderValue::from_static("no-referrer"),
         ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::STRICT_TRANSPORT_SECURITY,
+            HeaderValue::from_static("max-age=31536000"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("permissions-policy"),
+            HeaderValue::from_static("camera=(self), microphone=(self)"),
+        ))
         .layer(PropagateRequestIdLayer::new(request_id.clone()))
         .layer(SetRequestIdLayer::new(request_id, MakeRequestUuid))
         .layer(CompressionLayer::new())
@@ -129,4 +135,22 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         runtime,
         maintenance,
     })
+}
+
+async fn static_cache_policy(request: Request<Body>, next: Next) -> Response {
+    let path = request.uri().path().to_owned();
+    let mut response = next.run(request).await;
+    if response.status().is_success() && !path.starts_with("/v1/") {
+        let policy = if path.starts_with("/_next/static/") {
+            "public, max-age=31536000, immutable"
+        } else if path == "/" || path == "/sw.js" || path == "/manifest.webmanifest" {
+            "no-cache"
+        } else {
+            "public, max-age=86400"
+        };
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static(policy));
+    }
+    response
 }

@@ -76,16 +76,35 @@ async fn health_live() -> Json<serde_json::Value> {
 
 async fn health_ready(State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     state.database.ping().await?;
-    for path in [
-        &state.config.pi_executable,
-        &state.config.pi_bridge_path,
-        &state.config.web_directory,
-    ] {
-        if !tokio::fs::try_exists(path).await? {
-            return Err(AppError::DependencyUnavailable(path.display().to_string()));
+    require_regular_file(&state.config.pi_executable).await?;
+    require_regular_file(&state.config.pi_bridge_path).await?;
+    require_regular_file(&state.config.web_directory.join("index.html")).await?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = tokio::fs::metadata(&state.config.pi_executable).await?;
+        if metadata.permissions().mode() & 0o111 == 0 {
+            return Err(AppError::DependencyUnavailable(
+                state.config.pi_executable.display().to_string(),
+            ));
         }
     }
     Ok(Json(serde_json::json!({ "status": "ready" })))
+}
+
+async fn require_regular_file(path: &std::path::Path) -> Result<(), AppError> {
+    let metadata = tokio::fs::metadata(path).await.map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            AppError::DependencyUnavailable(path.display().to_string())
+        } else {
+            AppError::Io(error)
+        }
+    })?;
+    if metadata.is_file() {
+        Ok(())
+    } else {
+        Err(AppError::DependencyUnavailable(path.display().to_string()))
+    }
 }
 
 async fn pair(
