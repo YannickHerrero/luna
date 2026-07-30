@@ -7,6 +7,7 @@ use std::{
     },
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD};
 use luna_pi::{
     BridgeEvent, ManagedSession, NormalizedPiEvent, RpcDelivery, RpcImage, SessionRuntimeConfig,
     SessionSupervisor,
@@ -26,6 +27,7 @@ pub struct ConversationRuntime {
     supervisor: SessionSupervisor,
     database: Database,
     events: EventHub,
+    attachment_directory: PathBuf,
     pumps: Mutex<HashSet<Uuid>>,
     stopping: Mutex<HashSet<Uuid>>,
     shutting_down: AtomicBool,
@@ -33,11 +35,17 @@ pub struct ConversationRuntime {
 
 impl ConversationRuntime {
     #[must_use]
-    pub fn new(config: SessionRuntimeConfig, database: Database, events: EventHub) -> Self {
+    pub fn new(
+        config: SessionRuntimeConfig,
+        database: Database,
+        events: EventHub,
+        attachment_directory: PathBuf,
+    ) -> Self {
         Self {
             supervisor: SessionSupervisor::new(config),
             database,
             events,
+            attachment_directory,
             pumps: Mutex::new(HashSet::new()),
             stopping: Mutex::new(HashSet::new()),
             shutting_down: AtomicBool::new(false),
@@ -103,10 +111,17 @@ impl ConversationRuntime {
         conversation_id: Uuid,
         dispatch_id: Uuid,
         text: String,
+        attachment_ids: Vec<Uuid>,
         delivery: MessageDelivery,
     ) {
         let result = self
-            .dispatch_inner(conversation_id, dispatch_id, &text, delivery)
+            .dispatch_inner(
+                conversation_id,
+                dispatch_id,
+                &text,
+                &attachment_ids,
+                delivery,
+            )
             .await;
         if let Err(error) = result {
             warn!(%conversation_id, %dispatch_id, "Pi dispatch failed: {error}");
@@ -129,6 +144,7 @@ impl ConversationRuntime {
         conversation_id: Uuid,
         dispatch_id: Uuid,
         text: &str,
+        attachment_ids: &[Uuid],
         delivery: MessageDelivery,
     ) -> Result<(), AppError> {
         self.database
@@ -144,8 +160,22 @@ impl ConversationRuntime {
             MessageDelivery::Initial => RpcDelivery::Normal,
             MessageDelivery::Steer => RpcDelivery::Steer,
         };
+        let mut images = Vec::with_capacity(attachment_ids.len());
+        for attachment_id in attachment_ids {
+            let stored = self
+                .database
+                .stored_attachment(*attachment_id)
+                .await?
+                .ok_or(AppError::NotFound)?;
+            let bytes =
+                tokio::fs::read(self.attachment_directory.join(&stored.storage_key)).await?;
+            images.push(RpcImage::new(
+                STANDARD.encode(bytes),
+                stored.attachment.mime_type,
+            ));
+        }
         session
-            .send(dispatch_id, text, &Vec::<RpcImage>::new(), rpc_delivery)
+            .send(dispatch_id, text, &images, rpc_delivery)
             .await?;
         self.database
             .set_dispatch_state(dispatch_id, "dispatched", None, &now()?)

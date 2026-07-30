@@ -6,6 +6,7 @@ pub mod config;
 pub mod error;
 mod events;
 mod extract;
+mod media;
 mod routes;
 mod runtime;
 mod state;

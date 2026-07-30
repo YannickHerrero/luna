@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     extract::{
-        Path, Query, State,
+        DefaultBodyLimit, Path, Query, State,
         ws::{Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
     },
     http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
@@ -23,6 +23,7 @@ use crate::{
     auth::now,
     error::AppError,
     extract::{AuthenticatedDevice, validate_origin, validate_tailnet},
+    media,
     state::AppState,
 };
 
@@ -33,6 +34,18 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/sync", get(sync))
         .route("/v1/events", get(events_socket))
+        .route(
+            "/v1/attachments",
+            post(media::upload_attachment).layer(DefaultBodyLimit::max(22 * 1024 * 1024)),
+        )
+        .route(
+            "/v1/attachments/{id}/content",
+            get(media::attachment_content),
+        )
+        .route(
+            "/v1/attachments/{id}/thumbnail",
+            get(media::attachment_thumbnail),
+        )
         .route(
             "/v1/conversations",
             get(list_conversations).post(create_conversation),
@@ -301,10 +314,16 @@ async fn accept_message(
     if accepted.dispatch_required {
         let runtime = state.runtime.clone();
         let dispatch_id = accepted.dispatch_id;
+        let attachment_ids = accepted
+            .message
+            .attachments
+            .iter()
+            .map(|attachment| attachment.id)
+            .collect();
         let text = text.to_owned();
         tokio::spawn(async move {
             runtime
-                .dispatch(conversation_id, dispatch_id, text, delivery)
+                .dispatch(conversation_id, dispatch_id, text, attachment_ids, delivery)
                 .await;
         });
     }

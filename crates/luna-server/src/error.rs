@@ -11,6 +11,8 @@ pub enum AppError {
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
     Auth(#[from] crate::auth::AuthError),
     #[error(transparent)]
     Pi(#[from] luna_pi::PiError),

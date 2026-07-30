@@ -12,6 +12,7 @@ directories.workspace = true
 dotenvy.workspace = true
 futures-util.workspace = true
 http.workspace = true
+image.workspace = true
 luna-pi = { path = "../luna-pi" }
 luna-protocol = { path = "../luna-protocol" }
 luna-storage = { path = "../luna-storage" }

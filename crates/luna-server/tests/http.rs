@@ -5,7 +5,8 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use luna_protocol::{
-    Conversation, ConversationMessages, PairingExchangeResponse, SendMessageResponse,
+    AttachmentResponse, Conversation, ConversationMessages, PairingExchangeResponse,
+    SendMessageResponse,
 };
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
@@ -42,6 +43,7 @@ process.stdin.on('data', chunk => {
     if (request.type === 'get_state') {
       console.log(JSON.stringify({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'fake-session',sessionFile:'/tmp/fake-luna-session.jsonl',isStreaming:false}}))
     } else if (request.type === 'prompt') {
+      if (!request.images || request.images.length !== 1 || !request.images[0].data) process.exit(2)
       console.log(JSON.stringify({id:request.id,type:'response',command:'prompt',success:true}))
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\n')
       console.log(JSON.stringify({type:'agent_start'}))
@@ -134,6 +136,60 @@ async fn pairs_a_device_and_creates_a_conversation() {
     let conversation: Conversation = response_json(create_response).await;
     assert_eq!(conversation.title, "New Conversation");
 
+    let mut png = Vec::new();
+    image::DynamicImage::new_rgba8(2, 2)
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .expect("PNG");
+    let boundary = "luna-test-boundary";
+    let mut multipart = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"conversationId\"\r\n\r\n{}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\nContent-Type: image/png\r\n\r\n",
+        conversation.id
+    )
+    .into_bytes();
+    multipart.extend_from_slice(&png);
+    multipart.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let upload_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/attachments")
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(multipart))
+                .expect("request"),
+        )
+        .await
+        .expect("upload response");
+    assert_eq!(upload_response.status(), StatusCode::CREATED);
+    let uploaded: AttachmentResponse = response_json(upload_response).await;
+    assert_eq!(uploaded.attachment.width, 2);
+    assert_eq!(uploaded.attachment.height, 2);
+
+    let content_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(&uploaded.attachment.content_url)
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("content response");
+    assert_eq!(content_response.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(content_response.into_body(), 1_000_000)
+            .await
+            .expect("content"),
+        png
+    );
+
     let client_message_id = uuid::Uuid::new_v4();
     let send_request = Request::builder()
         .method("POST")
@@ -144,7 +200,7 @@ async fn pairs_a_device_and_creates_a_conversation() {
             serde_json::json!({
                 "clientMessageId": client_message_id,
                 "text": "Persist this message",
-                "attachmentIds": []
+                "attachmentIds": [uploaded.attachment.id]
             })
             .to_string(),
         ))
@@ -173,6 +229,10 @@ async fn pairs_a_device_and_creates_a_conversation() {
         .expect("messages response");
     let messages: ConversationMessages = response_json(messages_response).await;
     assert_eq!(messages.messages[0].text, "Persist this message");
+    assert_eq!(
+        messages.messages[0].attachments[0].id,
+        uploaded.attachment.id
+    );
 
     let mut completed_messages = messages;
     for _ in 0..40 {

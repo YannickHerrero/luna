@@ -45,6 +45,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         },
         database.clone(),
         events.clone(),
+        config.attachment_directory.clone(),
     ));
     let state = AppState::new(config, database.clone(), events, runtime.clone());
     let pairing_code = AuthService::new(database.clone())

@@ -133,7 +133,7 @@ impl Database {
         .bind(accepted_at)
         .execute(&mut *transaction)
         .await?;
-        for (position, attachment) in attachments.iter().enumerate() {
+        for (position, attachment) in attachments.iter_mut().enumerate() {
             sqlx::query(
                 "INSERT INTO message_attachments (message_id, attachment_id, position) VALUES (?, ?, ?)",
             )
@@ -149,6 +149,7 @@ impl Database {
             .bind(attachment.id.to_string())
             .execute(&mut *transaction)
             .await?;
+            attachment.status = luna_protocol::AttachmentStatus::Attached;
         }
         sqlx::query(
             "INSERT INTO dispatches (id, message_id, worker_command_id, state, attempts, created_at, updated_at) VALUES (?, ?, ?, 'accepted', 0, ?, ?)",
