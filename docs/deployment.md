@@ -11,6 +11,7 @@ From the Luna repository:
 pnpm install --frozen-lockfile
 pnpm generate
 pnpm test
+pnpm --filter @luna/web test:e2e
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -39,6 +40,7 @@ Default state is under `~/Library/Application Support/Luna Server`:
 - `luna.sqlite` — normalized client state and sync events
 - `pi-sessions/` — Pi JSONL session history, authoritative for agent context
 - `attachments/` — private originals and thumbnails
+- `repository-icons/` — private repository icon copies
 
 Back up SQLite with its online backup command and copy Pi sessions and attachments together:
 
@@ -60,8 +62,9 @@ Add this entry to Citadel's ignored `config/services.local.json`:
 }
 ```
 
-Render and validate Citadel configuration before activating or restarting the service. Luna's
-health check is `http://127.0.0.1:9870/v1/health/live`. Preserve the previous binary and state
+Render and validate Citadel configuration before activating the Luna service. Do not stop or
+restart the Citadel supervisor or unrelated services; Luna supports SIGTERM for a service-scoped,
+graceful shutdown. Luna's readiness check is `http://127.0.0.1:9870/v1/health/ready`. Preserve the previous binary and state
 until another tailnet device has completed pairing, conversation creation, streaming, image
 upload, and reconnection checks.
 
@@ -77,8 +80,8 @@ Then verify:
 
 ```sh
 tailscale serve status
-curl --fail http://127.0.0.1:9870/v1/health/live
-curl --fail https://your-mac.example.ts.net:8447/v1/health/live
+curl --fail http://127.0.0.1:9870/v1/health/ready
+curl --fail https://your-mac.example.ts.net:8447/v1/health/ready
 ```
 
 Set `LUNA_PUBLIC_ORIGIN` to the exact HTTPS origin and

@@ -20,12 +20,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     warn!(pairing_code = %built.pairing_code, "Luna pairing code");
     let listener = tokio::net::TcpListener::bind(address).await?;
     axum::serve(listener, built.router)
-        .with_graceful_shutdown(async {
-            let _ = signal::ctrl_c().await;
-        })
+        .with_graceful_shutdown(shutdown_signal())
         .await?;
     built.runtime.shutdown().await;
     built.maintenance.shutdown().await;
     built.database.close().await;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut terminate =
+            signal::unix::signal(signal::unix::SignalKind::terminate()).expect("SIGTERM handler");
+        tokio::select! {
+            _ = signal::ctrl_c() => {}
+            _ = terminate.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = signal::ctrl_c().await;
+    }
 }

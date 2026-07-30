@@ -14,7 +14,7 @@
     "RUST_LOG": "luna_server=info,luna_pi=info"
   },
   "healthCheck": {
-    "url": "http://127.0.0.1:9870/v1/health/live",
+    "url": "http://127.0.0.1:9870/v1/health/ready",
     "timeoutMilliseconds": 5000
   },
   "restart": "on-failure",

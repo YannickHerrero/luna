@@ -84,7 +84,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (server && server.exitCode === null) {
-    server.kill('SIGINT')
+    server.kill('SIGTERM')
     await Promise.race([
       new Promise<void>((resolveExit) => server.once('exit', () => resolveExit())),
       new Promise<void>((resolveTimeout) => setTimeout(resolveTimeout, 5_000)),
