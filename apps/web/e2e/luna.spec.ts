@@ -39,12 +39,12 @@ process.stdin.on('data', chunk => {
       reply({id:request.id,type:'response',command:'get_state',success:true,data:{sessionId:'e2e-session',sessionFile:process.env.LUNA_FAKE_SESSION_FILE,isStreaming:false}})
     } else if (request.type === 'get_entries') {
       reply({id:request.id,type:'response',command:'get_entries',success:true,data:{entries:[],leafId:null}})
-    } else if (request.type === 'prompt' || request.type === 'steer') {
+    } else if (request.type === 'prompt') {
+      const steering = request.streamingBehavior === 'steer'
       reply({id:request.id,type:'response',command:request.type,success:true})
       bridge.write(JSON.stringify({type:'dispatch_recorded',dispatchId}) + '\\n')
-      reply({type:'agent_start'})
-      reply({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:'Fake response from Pi'}})
-      reply({type:'agent_settled'})
+      if (!steering) reply({type:'agent_start'})
+      reply({type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:steering ? ' after steering' : 'Working response from Pi'}})
     } else if (request.type === 'abort') {
       reply({id:request.id,type:'response',command:'abort',success:true})
     }
@@ -108,11 +108,20 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
   await page.getByPlaceholder('Message Luna…').fill('Build a Luna smoke test')
   await page.getByRole('button', { name: 'Send' }).click()
-  await expect(page.getByText('Fake response from Pi')).toBeVisible()
-  await expect(page.locator('.title-button strong')).toHaveText('Build a Luna smoke test')
+  await expect(page.getByText('Working response from Pi')).toBeVisible()
+  await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
+  await page.getByRole('button', { name: 'Interrupt Pi' }).click()
+  await expect(page.locator('.status-pill')).toContainText('Interrupted')
+
+  page.once('dialog', (dialog) => void dialog.accept('Luna acceptance'))
+  await page.getByTitle('Rename conversation').click()
+  await expect(page.locator('.title-button strong')).toHaveText('Luna acceptance')
 
   await page.reload()
-  await expect(page.getByText('Fake response from Pi')).toBeVisible()
+  await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
+  await expect(page.locator('.title-button strong')).toHaveText('Luna acceptance')
   await page.getByRole('button', { name: 'Toggle theme' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'mocha')
   const registrationState = await page.evaluate(async () => {
