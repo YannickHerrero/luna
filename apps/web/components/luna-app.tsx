@@ -21,6 +21,7 @@ import type {
   Conversation,
   ConversationMessages,
   Message,
+  PairingCodeRequestResponse,
   PairingExchangeResponse,
   SendMessageResponse,
   TranscriptionResponse,
@@ -320,6 +321,28 @@ function PairingScreen({
   const [code, setCode] = useState('')
   const [deviceName, setDeviceName] = useState('Web app')
   const [submitting, setSubmitting] = useState(false)
+  const [requestingCode, setRequestingCode] = useState(false)
+  const [notice, setNotice] = useState<string>()
+  const requestCode = async () => {
+    setRequestingCode(true)
+    setNotice(undefined)
+    onError(undefined)
+    try {
+      const response = await api<PairingCodeRequestResponse>('/v1/pairing/request', {
+        method: 'POST',
+      })
+      setCode('')
+      setNotice(
+        `A new code was written to Luna’s Citadel logs. It expires at ${new Date(
+          response.expiresAt,
+        ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
+      )
+    } catch (requestError) {
+      onError(messageFromError(requestError))
+    } finally {
+      setRequestingCode(false)
+    }
+  }
   const pair = async (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitting(true)
@@ -345,8 +368,22 @@ function PairingScreen({
         <p className="eyebrow">Private by design</p>
         <h1>Pair with Luna</h1>
         <p>
-          Enter the one-time code shown by your Luna server. Your conversations stay on your Mac.
+          Ask Luna for a one-time code, find the newest code in its Citadel logs, then enter it
+          below. Your conversations stay on your Mac.
         </p>
+        <button
+          type="button"
+          className="secondary-button pairing-request-button"
+          disabled={requestingCode}
+          onClick={() => void requestCode()}
+        >
+          {requestingCode ? 'Requesting…' : 'Ask for a pairing code'}
+        </button>
+        {notice && (
+          <p className="form-notice" role="status">
+            {notice}
+          </p>
+        )}
         <form onSubmit={(event) => void pair(event)}>
           <label>
             Pairing code

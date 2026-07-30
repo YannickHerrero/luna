@@ -577,7 +577,7 @@ textarea:focus-visible {
   gap: 7px;
   border: 0;
   border-radius: 13px;
-  color: white;
+  color: var(--luna-onAccent);
   background: var(--luna-accent);
   font-weight: 750;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--luna-accent) 24%, transparent);
@@ -718,11 +718,38 @@ textarea:focus-visible {
   letter-spacing: -0.04em;
 }
 
-.pairing-card > p:not(.eyebrow, .form-error) {
-  margin-bottom: 24px;
+.pairing-card > p:not(.eyebrow, .form-error, .form-notice) {
+  margin-bottom: 16px;
   color: var(--luna-muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.secondary-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid var(--luna-border);
+  border-radius: 13px;
+  color: var(--luna-foreground);
+  background: var(--luna-raised);
+  font-weight: 750;
+}
+
+.secondary-button:hover {
+  border-color: var(--luna-accent);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.pairing-request-button {
+  width: 100%;
 }
 
 .pairing-card form,
@@ -754,6 +781,16 @@ textarea:focus-visible {
 .pairing-card input:focus {
   border-color: var(--luna-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--luna-accent) 15%, transparent);
+}
+
+.form-notice {
+  margin: 10px 0 16px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  color: var(--luna-foreground);
+  background: color-mix(in srgb, var(--luna-green) 14%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .form-error {

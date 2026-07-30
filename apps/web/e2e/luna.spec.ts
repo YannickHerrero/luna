@@ -9,6 +9,7 @@ const root = resolve(import.meta.dirname, '../../..')
 let server: ChildProcessWithoutNullStreams
 let directory: string
 let pairingCode: string
+let serverOutput = ''
 
 const fakePi = `#!/usr/bin/env node
 const net = require('node:net')
@@ -102,8 +103,17 @@ test.afterAll(async () => {
 test('pairs, streams, restores, themes, and archives a conversation', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Pair with Luna' })).toBeVisible()
-  await page.getByLabel('Pairing code').fill(pairingCode)
+  const startupCode = pairingCode
+  await page.getByRole('button', { name: 'Ask for a pairing code' }).click()
+  await expect(page.getByRole('status')).toContainText('written to Luna’s Citadel logs')
+  pairingCode = latestPairingCode()
+  expect(pairingCode).not.toBe(startupCode)
+
+  await page.getByLabel('Pairing code').fill(startupCode)
   await page.getByLabel('Device name').fill('Chrome acceptance test')
+  await page.getByRole('button', { name: 'Pair device' }).click()
+  await expect(page.getByText(/invalid, expired, or already used/)).toBeVisible()
+  await page.getByLabel('Pairing code').fill(pairingCode)
   await page.getByRole('button', { name: 'Pair device' }).click()
 
   await page.locator('button[aria-label="New conversation"]').click()
@@ -167,12 +177,14 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
 
 async function waitForPairingCode(process: ChildProcessWithoutNullStreams): Promise<string> {
   return new Promise((resolveCode, reject) => {
-    let output = ''
-    const timeout = setTimeout(() => reject(new Error(`Pairing code not found: ${output}`)), 15_000)
+    const timeout = setTimeout(
+      () => reject(new Error(`Pairing code not found: ${serverOutput}`)),
+      15_000,
+    )
     const ansiEscape = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
     const inspect = (chunk: Buffer) => {
-      output += chunk.toString('utf8').replaceAll(ansiEscape, '')
-      const match = /pairing_code=([A-F0-9]+)/.exec(output)
+      serverOutput += chunk.toString('utf8').replaceAll(ansiEscape, '')
+      const match = /pairing_code=([A-F0-9]+)/.exec(serverOutput)
       if (match?.[1]) {
         clearTimeout(timeout)
         resolveCode(match[1])
@@ -182,6 +194,13 @@ async function waitForPairingCode(process: ChildProcessWithoutNullStreams): Prom
     process.stderr.on('data', inspect)
     process.once('exit', (code) => reject(new Error(`Luna exited before pairing: ${String(code)}`)))
   })
+}
+
+function latestPairingCode(): string {
+  const matches = [...serverOutput.matchAll(/pairing_code=([A-F0-9]+)/g)]
+  const code = matches.at(-1)?.[1]
+  if (!code) throw new Error('No pairing code in Luna output')
+  return code
 }
 
 async function waitForReady(): Promise<void> {
