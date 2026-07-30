@@ -237,6 +237,7 @@ export function LunaApp() {
           <Search size={15} />
           <input
             value={search}
+            aria-label="Search conversations"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search conversations"
           />
@@ -437,8 +438,17 @@ function ConversationView({
     conversation.state,
   )
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: 'smooth' })
+    end.current?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
   }, [messages])
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onBack()
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [onBack])
 
   const rename = async () => {
     const title = window.prompt('Conversation title', conversation.title)?.trim()
@@ -672,6 +682,7 @@ function Composer({
             <span key={`${file.name}-${String(file.lastModified)}`}>
               <img src={url} alt="Pending attachment" />
               <button
+                aria-label={`Remove ${file.name}`}
                 onClick={() => setFiles((current) => current.filter((item) => item !== file))}
               >
                 <X size={12} />
@@ -698,6 +709,7 @@ function Composer({
         <textarea
           value={text}
           rows={1}
+          aria-label={busy ? 'Steer Pi' : 'Message Luna'}
           placeholder={busy ? 'Steer Pi…' : 'Message Luna…'}
           onChange={(event) => setText(event.target.value)}
           onPaste={(event) => addFiles(Array.from(event.clipboardData.files))}

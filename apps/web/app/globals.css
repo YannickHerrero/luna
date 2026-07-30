@@ -45,6 +45,18 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--luna-accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.search-field:focus-within {
+  border-color: var(--luna-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--luna-accent) 18%, transparent);
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
@@ -791,6 +803,17 @@ button {
   30% {
     transform: translateY(-3px);
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

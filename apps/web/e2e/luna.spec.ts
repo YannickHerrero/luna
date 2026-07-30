@@ -133,6 +133,11 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.reload()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
   await expect(page.locator('.title-button strong')).toHaveText('Luna acceptance')
+  await page.keyboard.press('Escape')
+  await expect(
+    page.getByRole('heading', { name: 'Powerful agents. Familiar conversations.' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: /Luna acceptance/ }).click()
   await page.getByRole('button', { name: 'Toggle theme' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'mocha')
   await page.locator('.conversation-cell').evaluate(async (element) => {
