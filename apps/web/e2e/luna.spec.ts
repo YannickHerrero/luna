@@ -70,6 +70,9 @@ test.beforeAll(async () => {
       NO_COLOR: '1',
       LUNA_BIND_HOST: '127.0.0.1',
       LUNA_PORT: '19873',
+      LUNA_PUBLIC_ORIGIN: 'http://127.0.0.1:19873',
+      LUNA_ALLOWED_TAILNET_LOGINS: '',
+      LUNA_TRANSCRIPTION_API_KEY: '',
       LUNA_DATA_DIR: resolve(directory, 'data'),
       LUNA_ENV_FILE: resolve(directory, 'test.env'),
       LUNA_BRIDGE_DIR: resolve('/tmp', `luna-e2e-bridge-${String(process.pid)}`),
@@ -119,9 +122,24 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   await page.locator('button[aria-label="New conversation"]').click()
   await expect(page.getByRole('heading', { name: 'What should we work on?' })).toBeVisible()
 
+  const prompt = page.getByLabel('Message Luna')
+  await prompt.fill('Draft for the first conversation')
+  await page.locator('button[aria-label="New conversation"]').click()
+  await expect(prompt).toHaveValue('')
+  await prompt.fill('Draft for the second conversation')
+  await page.locator('.conversation-cell').nth(1).click()
+  await expect(prompt).toHaveValue('Draft for the first conversation')
+  await page.reload()
+  await expect(prompt).toHaveValue('Draft for the second conversation')
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Archive conversation' }).click()
+  await expect(page.locator('.conversation-cell')).toHaveCount(1)
+  await page.locator('.conversation-cell').click()
+  await expect(prompt).toHaveValue('Draft for the first conversation')
+  await prompt.fill('')
+
   await page.setViewportSize({ width: 375, height: 812 })
   const composer = page.locator('.composer')
-  const prompt = page.getByLabel('Message Luna')
   const composerBounds = await composer.boundingBox()
   expect(composerBounds).not.toBeNull()
   expect(composerBounds?.x).toBeGreaterThanOrEqual(16)

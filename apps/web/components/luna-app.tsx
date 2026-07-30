@@ -34,6 +34,7 @@ import { applyServerEvent, type LunaClientState, type LunaEvent } from '../lib/e
 
 type Phase = 'loading' | 'pairing' | 'ready'
 type Theme = 'latte' | 'mocha'
+type ComposerDraft = { text: string; files: File[] }
 
 const initialState: LunaClientState = {
   conversations: [],
@@ -49,6 +50,7 @@ export function LunaApp() {
   const [error, setError] = useState<string>()
   const [search, setSearch] = useState('')
   const [theme, setTheme] = useState<Theme>('latte')
+  const [drafts, setDrafts] = useState<Record<string, ComposerDraft>>({})
   const cursor = useRef(0)
 
   const installBootstrap = useCallback((bootstrap: Bootstrap) => {
@@ -143,6 +145,37 @@ export function LunaApp() {
     }
   }, [client.selectedConversationId, phase])
 
+  useEffect(() => {
+    const conversationId = client.selectedConversationId
+    if (!conversationId) return
+    setDrafts((current) =>
+      current[conversationId]
+        ? current
+        : {
+            ...current,
+            [conversationId]: { text: loadStoredDraft(conversationId), files: [] },
+          },
+    )
+  }, [client.selectedConversationId])
+
+  const updateDraft = (conversationId: string, update: (draft: ComposerDraft) => ComposerDraft) => {
+    setDrafts((current) => {
+      const next = update(
+        current[conversationId] ?? { text: loadStoredDraft(conversationId), files: [] },
+      )
+      storeDraft(conversationId, next.text)
+      return { ...current, [conversationId]: next }
+    })
+  }
+
+  const clearDraft = (conversationId: string) => {
+    storeDraft(conversationId, '')
+    setDrafts((current) => ({
+      ...current,
+      [conversationId]: { text: '', files: [] },
+    }))
+  }
+
   const setSelectedConversation = (conversationId: string | undefined) => {
     setClient((current) => ({
       ...current,
@@ -189,6 +222,12 @@ export function LunaApp() {
   }
 
   const removeArchivedConversation = (conversationId: string) => {
+    storeDraft(conversationId, '')
+    setDrafts((current) => {
+      const next = { ...current }
+      delete next[conversationId]
+      return next
+    })
     setClient((current) => ({
       ...current,
       conversations: current.conversations.filter(
@@ -273,17 +312,22 @@ export function LunaApp() {
       <section className={`conversation-panel ${selected ? '' : 'mobile-hidden'}`}>
         {selected ? (
           <ConversationView
+            key={selected.id}
             conversation={selected}
             messages={client.messages}
+            draft={drafts[selected.id] ?? { text: '', files: [] }}
             canLoadEarlier={client.nextBeforeOrdinal !== undefined}
             onLoadEarlier={() => void loadEarlierMessages()}
             onBack={() => setSelectedConversation(undefined)}
             onMessage={(message) =>
-              setClient((current) => ({
-                ...current,
-                messages: upsertMessage(current.messages, message),
-              }))
+              setClient((current) =>
+                current.selectedConversationId === message.conversationId
+                  ? { ...current, messages: upsertMessage(current.messages, message) }
+                  : current,
+              )
             }
+            onDraftChange={(update) => updateDraft(selected.id, update)}
+            onDraftSent={() => clearDraft(selected.id)}
             onArchived={() => removeArchivedConversation(selected.id)}
             onRename={(conversation) =>
               setClient((current) => ({
@@ -456,20 +500,26 @@ function ConversationCell({
 function ConversationView({
   conversation,
   messages,
+  draft,
   canLoadEarlier,
   onLoadEarlier,
   onBack,
   onMessage,
+  onDraftChange,
+  onDraftSent,
   onArchived,
   onRename,
   onError,
 }: {
   conversation: Conversation
   messages: Message[]
+  draft: ComposerDraft
   canLoadEarlier: boolean
   onLoadEarlier: () => void
   onBack: () => void
   onMessage: (message: Message) => void
+  onDraftChange: (update: (draft: ComposerDraft) => ComposerDraft) => void
+  onDraftSent: () => void
   onArchived: () => void
   onRename: (conversation: Conversation) => void
   onError: (message: string | undefined) => void
@@ -562,7 +612,15 @@ function ConversationView({
         {busy && !messages.some((message) => message.status === 'streaming') && <TypingIndicator />}
         <div ref={end} />
       </div>
-      <Composer conversation={conversation} busy={busy} onMessage={onMessage} onError={onError} />
+      <Composer
+        conversation={conversation}
+        busy={busy}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onDraftSent={onDraftSent}
+        onMessage={onMessage}
+        onError={onError}
+      />
     </div>
   )
 }
@@ -597,16 +655,21 @@ function MessageBubble({ message }: { message: Message }) {
 function Composer({
   conversation,
   busy,
+  draft,
+  onDraftChange,
+  onDraftSent,
   onMessage,
   onError,
 }: {
   conversation: Conversation
   busy: boolean
+  draft: ComposerDraft
+  onDraftChange: (update: (draft: ComposerDraft) => ComposerDraft) => void
+  onDraftSent: () => void
   onMessage: (message: Message) => void
   onError: (message: string | undefined) => void
 }) {
-  const [text, setText] = useState('')
-  const [files, setFiles] = useState<File[]>([])
+  const { text, files } = draft
   const [sending, setSending] = useState(false)
   const [recording, setRecording] = useState(false)
   const recorder = useRef<MediaRecorder | undefined>(undefined)
@@ -634,9 +697,13 @@ function Composer({
   )
 
   const addFiles = (incoming: File[]) => {
-    setFiles((current) =>
-      [...current, ...incoming.filter((file) => file.type.startsWith('image/'))].slice(0, 6),
-    )
+    onDraftChange((current) => ({
+      ...current,
+      files: [...current.files, ...incoming.filter((file) => file.type.startsWith('image/'))].slice(
+        0,
+        6,
+      ),
+    }))
   }
 
   const sendMessage = async () => {
@@ -668,8 +735,7 @@ function Composer({
         },
       )
       onMessage(response.message)
-      setText('')
-      setFiles([])
+      onDraftSent()
     } catch (requestError) {
       onError(messageFromError(requestError))
     } finally {
@@ -712,7 +778,10 @@ function Composer({
         body.append('file', blob, `recording.${extension}`)
         void api<TranscriptionResponse>('/v1/transcriptions', { method: 'POST', body })
           .then((response) =>
-            setText((current) => `${current}${current ? ' ' : ''}${response.text}`),
+            onDraftChange((current) => ({
+              ...current,
+              text: `${current.text}${current.text ? ' ' : ''}${response.text}`,
+            })),
           )
           .catch((requestError: unknown) => onError(messageFromError(requestError)))
       }
@@ -732,7 +801,12 @@ function Composer({
               <img src={url} alt="Pending attachment" />
               <button
                 aria-label={`Remove ${file.name}`}
-                onClick={() => setFiles((current) => current.filter((item) => item !== file))}
+                onClick={() =>
+                  onDraftChange((current) => ({
+                    ...current,
+                    files: current.files.filter((item) => item !== file),
+                  }))
+                }
               >
                 <X size={12} />
               </button>
@@ -762,7 +836,7 @@ function Composer({
           aria-label={busy ? 'Steer Pi' : 'Message Luna'}
           placeholder={busy ? 'Steer Pi…' : 'Message Luna…'}
           onChange={(event) => {
-            setText(event.target.value)
+            onDraftChange((current) => ({ ...current, text: event.target.value }))
             resizeTextarea(event.currentTarget)
           }}
           onPaste={(event) => addFiles(Array.from(event.clipboardData.files))}
@@ -820,6 +894,23 @@ function Composer({
       </p>
     </div>
   )
+}
+
+function loadStoredDraft(conversationId: string): string {
+  try {
+    return window.localStorage.getItem(`luna-draft:${conversationId}`) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function storeDraft(conversationId: string, text: string) {
+  try {
+    if (text) window.localStorage.setItem(`luna-draft:${conversationId}`, text)
+    else window.localStorage.removeItem(`luna-draft:${conversationId}`)
+  } catch {
+    // The in-memory draft remains available when browser storage is unavailable or full.
+  }
 }
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
