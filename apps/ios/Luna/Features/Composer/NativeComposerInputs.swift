@@ -20,6 +20,9 @@ struct ComposerTextView: UIViewRepresentable {
         view.textColor = UIColor.label
         view.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 8, right: 4)
         view.textContainer.lineFragmentPadding = 0
+        view.textContainer.widthTracksTextView = true
+        view.textContainer.lineBreakMode = .byWordWrapping
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.keyboardDismissMode = .interactive
         view.returnKeyType = .send
         view.isScrollEnabled = false

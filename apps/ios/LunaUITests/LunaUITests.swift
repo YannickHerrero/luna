@@ -74,6 +74,36 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testComposerWrapsLongDraft() {
+        let application = XCUIApplication()
+        application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
+        application.launch()
+
+        let editor = application.textViews["Steer Pi"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        let singleLineHeight = editor.frame.height
+        editor.tap()
+        editor.typeText(
+            Array(
+                repeating: "This long Luna prompt should wrap inside the composer.",
+                count: 8
+            ).joined(separator: " ")
+        )
+
+        let wraps = NSPredicate { _, _ in
+            editor.frame.height > singleLineHeight + 1
+        }
+        expectation(for: wraps, evaluatedWith: editor)
+        waitForExpectations(timeout: 5)
+        XCTAssertLessThanOrEqual(editor.frame.height, 176)
+
+        let screenshot = XCTAttachment(screenshot: application.screenshot())
+        screenshot.name = "Composer wrapping a long prompt"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor
     func testConversationControlsCompactRenameAndArchive() {
         let application = XCUIApplication()
         application.launchArguments = [
