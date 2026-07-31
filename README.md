@@ -30,6 +30,7 @@
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
 - Runs as a responsive, offline-capable PWA and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
+- Ships reserved iOS/watchOS widget surfaces and an embedded Apple Watch companion placeholder for staged native expansion.
 - Serves everything from one loopback-bound Rust process.
 
 Pi process stdout never reaches clients. Output from an authenticated user's explicit `!` shell command is the sole exception: Luna bounds and persists it as a conversation message. SQLite is authoritative for client state, while Pi's session JSONL remains authoritative for agent context.
@@ -59,15 +60,16 @@ The server owns authentication, normalized event persistence, session supervisio
 | `crates/luna-pi`         | Strict JSONL RPC client, process supervision, and normalization |
 | `crates/luna-protocol`   | Canonical Serde/Schemars/Utoipa protocol types                  |
 | `apps/web`               | Statically exported Next.js PWA                                 |
-| `apps/ios`               | Universal native SwiftUI client, tests, and XcodeGen project    |
+| `apps/ios`               | iPhone/iPad app, widgets, Watch companion, tests, and XcodeGen  |
 | `integrations/pi`        | Pi bridge extension                                             |
 | `integrations/citadel`   | Production service manifest                                     |
+| `fastlane`               | Apple ID bootstrap, signing, archive, and TestFlight upload     |
 | `packages/protocol`      | Generated OpenAPI and TypeScript bindings                       |
 | `packages/design-tokens` | Shared Catppuccin design tokens                                 |
 
 ## Development
 
-Requirements: Rust 1.95+, Node.js 24+, and pnpm 11.3+. Native Apple development additionally requires Xcode with an iOS 18+ SDK and XcodeGen 2.45+.
+Requirements: Rust 1.95+, Node.js 24+, and pnpm 11.3+. Native Apple development additionally requires Xcode with iOS 18+ and watchOS 11+ SDKs plus XcodeGen 2.45+.
 
 ```sh
 pnpm install
@@ -110,7 +112,7 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,id=<SIMULATOR_UDID>'
 ```
 
-The native pairing screen can select a private HTTPS server, while `LUNA_SERVER_URL` provides a temporary Xcode-scheme override for development. Device credentials remain in Keychain. See [`apps/ios/README.md`](apps/ios/README.md) for setup, architecture, fixture arguments, iPad verification, signing, and notification-readiness details.
+The native pairing screen can select a private HTTPS server, while `LUNA_SERVER_URL` provides a temporary Xcode-scheme override for development. Device credentials remain in Keychain. See [`apps/ios/README.md`](apps/ios/README.md) for setup, architecture, fixture arguments, iPad/watchOS verification, signing, widgets, and notification-readiness details. TestFlight automation lives in [`fastlane`](fastlane/README.md).
 
 ## Production
 
@@ -134,4 +136,4 @@ See [`docs/deployment.md`](docs/deployment.md) for build, backup, Citadel, Tails
 
 ## Current scope
 
-Luna V1 provides the complete server, PWA, and universal native iPhone/iPad client. APNs registration and provider delivery are intentionally deferred; device targeting and externally driven conversation navigation are already preserved for future notification deep links.
+Luna V1 provides the complete server, PWA, and universal native iPhone/iPad client. The first Apple archive also reserves an iOS widget, an embedded Watch companion, and Watch accessory widgets with explicit placeholder copy. APNs registration and provider delivery are intentionally deferred; Push capability, device targeting, and stable conversation deep links are already preserved for that work.

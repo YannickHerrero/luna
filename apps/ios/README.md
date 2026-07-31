@@ -1,10 +1,10 @@
 # Luna for iPhone and iPad
 
-Luna is a universal native SwiftUI client for iOS and iPadOS 18 or later. It uses the same authenticated HTTP and WebSocket protocol as the PWA, stores the device credential in Keychain, and adapts the PWA’s Catppuccin interface to compact and regular-width Apple devices.
+Luna is a universal native SwiftUI client for iOS and iPadOS 18 or later, with a watchOS 11 companion and WidgetKit placeholders. It uses the same authenticated HTTP and WebSocket protocol as the PWA, stores the device credential in Keychain, and adapts the PWA’s Catppuccin interface to compact and regular-width Apple devices.
 
 ## Requirements
 
-- Xcode with an iOS 18 or later SDK
+- Xcode with iOS 18 and watchOS 11 or later SDKs
 - XcodeGen 2.45 or later
 - Node.js and pnpm versions from the repository root `package.json`
 
@@ -57,7 +57,16 @@ xcodebuild build \
   -destination 'platform=iOS Simulator,id=<IPAD_SIMULATOR_UDID>'
 ```
 
-The UI suite includes deterministic pairing and ready-state fixtures, populated transcript/composer coverage, conversation controls, Dynamic Type audits, and minimum hit-region audits. Debug launches support these fixture arguments:
+Run the watchOS unit and UI suite on an available Apple Watch simulator:
+
+```sh
+xcodebuild test \
+  -project apps/ios/Luna.xcodeproj \
+  -scheme LunaWatch \
+  -destination 'platform=watchOS Simulator,id=<WATCH_SIMULATOR_UDID>'
+```
+
+The iOS UI suite includes deterministic pairing and ready-state fixtures, populated transcript/composer coverage, conversation controls, Dynamic Type audits, and minimum hit-region audits. Debug launches support these fixture arguments:
 
 - `-ui-testing-ready` installs the in-process ready-state fixture.
 - `-ui-testing-list` opens that fixture on the conversation list.
@@ -74,9 +83,18 @@ The UI suite includes deterministic pairing and ready-state fixtures, populated 
 - `Luna/DesignSystem`: shared colors, typography, surfaces, icons, and controls
 - `LunaTests`: protocol, networking, state, Markdown, composer, pairing, and control tests
 - `LunaUITests`: end-to-end native fixture and accessibility acceptance tests
+- `LunaWidgets`: iPhone/iPad Home Screen widget placeholder
+- `LunaWatch`: embedded watchOS companion placeholder and tests
+- `LunaWatchWidgets`: watchOS accessory widget placeholders
 
-## Physical devices and notifications
+## Physical devices, signing, and notifications
 
-Simulator builds do not require signing. To run on a physical device, select a local development team in Xcode; do not commit provisioning profiles, certificates, private keys, or team-specific project changes.
+Simulator builds do not require signing. For physical-device signing, copy `Config/Local.xcconfig.example` to the ignored `Config/Local.xcconfig` and set the local development team. Do not commit provisioning profiles, certificates, private keys, or team-specific project changes.
 
-APNs registration and provider delivery are intentionally deferred. The client already preserves device identity, notification-target state, and externally driven conversation selection so notification deep links can be added without replacing the navigation model. Do not add or reuse an APNs `.p8` key until the server registration and provider routes are designed and approved.
+The main app reserves the Push Notifications entitlement, stable `luna://home` and `luna://conversation/<UUID>` routes, and the server’s existing notification-target state. Notification permission, APNs token registration, and provider delivery remain intentionally deferred. Do not add or reuse an APNs provider `.p8` key until the server registration and delivery routes are designed and approved.
+
+The widget and Watch targets use stable bundle identifiers but intentionally show placeholder state. Future data sharing should use a sanitized App Group snapshot for the iOS widget and WatchConnectivity plus a Watch App Group container for the complication. Device credentials must remain in the iOS Keychain and must not be copied to extensions or the Watch.
+
+## TestFlight
+
+Fastlane provisions and exports the iPhone/iPad app, iOS widget, Watch companion, and Watch widget as one archive. Local API-key metadata belongs in ignored `../../fastlane/.env`; the private key remains outside the repository. See [`../../fastlane/README.md`](../../fastlane/README.md) for lanes and setup, and [`../../docs/apple-platform-roadmap.md`](../../docs/apple-platform-roadmap.md) for the notification and shared-snapshot seams.
