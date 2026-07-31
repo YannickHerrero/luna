@@ -16,7 +16,7 @@ struct ConversationTranscriptView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     if canLoadEarlier {
                         Button("Load earlier messages") {
                             Task { await onLoadEarlier() }
@@ -115,7 +115,7 @@ private struct MessageBubbleView: View {
                 bubble
                 if showsTimestamp {
                     Text(LunaTime.messageTimestamp(message.createdAt))
-                        .font(LunaFont.mono(9))
+                        .lunaMonoFont(9)
                         .foregroundStyle(palette.muted)
                         .padding(.horizontal, 6)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -242,6 +242,7 @@ private struct StreamCaret: View {
 private struct TypingIndicatorView: View {
     let activities: [AgentActivity]
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
     @State private var expanded = false
 
@@ -258,7 +259,7 @@ private struct TypingIndicatorView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(latest.summary)
-                                    .lineLimit(1)
+                                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                                 LunaIconView(icon: .chevronDown, size: 14)
                                     .rotationEffect(.degrees(expanded ? 180 : 0))
                             }
@@ -278,7 +279,7 @@ private struct TypingIndicatorView: View {
                 } else {
                     Text(latest.summary)
                         .foregroundStyle(palette.foreground)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 }
             }
         }
@@ -349,6 +350,7 @@ private struct TypingDots: View {
 private struct TaskListProgressView: View {
     let taskList: AgentTaskList
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
     @State private var expanded = false
 
@@ -379,15 +381,15 @@ private struct TaskListProgressView: View {
                         Text(taskList.title ?? "Plan progress")
                             .font(LunaFont.body(12, weight: .bold))
                             .foregroundStyle(palette.foreground)
-                            .lineLimit(1)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                         Text(progressDescription)
                             .font(LunaFont.body(10))
                             .foregroundStyle(palette.muted)
-                            .lineLimit(1)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     Text("\(resolved)/\(taskList.tasks.count)")
-                        .font(LunaFont.mono(10))
+                        .lunaMonoFont(10)
                         .foregroundStyle(palette.muted)
                     LunaIconView(icon: .chevronDown, size: 15)
                         .foregroundStyle(palette.muted)
@@ -397,6 +399,8 @@ private struct TaskListProgressView: View {
                 .padding(.vertical, 12)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(taskList.title ?? "Plan progress")
+            .accessibilityValue(progressAccessibilityLabel)
 
             ProgressView(
                 value: Double(resolved),
@@ -405,7 +409,7 @@ private struct TaskListProgressView: View {
             .progressViewStyle(.linear)
             .tint(finished ? palette.green : palette.accent)
             .padding(.horizontal, 14)
-            .accessibilityLabel(progressAccessibilityLabel)
+            .accessibilityHidden(true)
 
             if expanded {
                 VStack(alignment: .leading, spacing: 8) {

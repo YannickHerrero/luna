@@ -13,7 +13,7 @@ struct LunaIconButton: View {
         Button(action: action) {
             LunaIconView(icon: icon, size: 18)
                 .foregroundStyle(foreground ?? (isAccent ? Color.white : palette.muted))
-                .frame(width: 38, height: 38)
+                .frame(width: LunaShape.minimumTarget, height: LunaShape.minimumTarget)
                 .background(isAccent ? palette.accent : .clear)
                 .clipShape(Circle())
                 .shadow(
@@ -24,6 +24,10 @@ struct LunaIconButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(
+            minWidth: LunaShape.minimumTarget,
+            minHeight: LunaShape.minimumTarget
+        )
         .accessibilityLabel(accessibilityLabel)
     }
 }

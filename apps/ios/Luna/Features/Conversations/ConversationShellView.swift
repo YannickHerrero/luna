@@ -140,6 +140,7 @@ private struct ConversationPanel: View {
     let onLoadEarlier: () async -> Void
     let onBack: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
     @State private var agentSettingsPresented = false
     @State private var renamePresented = false
@@ -165,6 +166,7 @@ private struct ConversationPanel: View {
                 onShowAgentControls: { agentSettingsPresented = true }
             )
             .id(conversation.id)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .background(palette.surface.opacity(0.94))
         .sheet(isPresented: $agentSettingsPresented) {
@@ -197,53 +199,84 @@ private struct ConversationPanel: View {
     }
 
     private var header: some View {
-        HStack(spacing: 11) {
-            if compact {
-                LunaIconButton(
-                    icon: .arrowLeft,
-                    accessibilityLabel: "Back",
-                    action: onBack
-                )
-            }
-            Button {
-                renameTitle = conversation.title
-                renamePresented = true
-            } label: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(conversation.title)
-                        .font(LunaFont.display(18, weight: .bold))
-                        .foregroundStyle(palette.foreground)
-                        .lineLimit(1)
-                    Text(
-                        conversation.repositories.map(\.displayName).joined(separator: " · ").isEmpty
-                            ? "Home"
-                            : conversation.repositories.map(\.displayName).joined(separator: " · ")
-                    )
-                    .font(LunaFont.mono(10))
-                    .foregroundStyle(palette.muted)
-                    .lineLimit(1)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 11) {
+                        backButton
+                        Spacer(minLength: 8)
+                        statusPill
+                        archiveButton
+                    }
+                    conversationTitleButton
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+            } else {
+                HStack(spacing: 11) {
+                    backButton
+                    conversationTitleButton
+                    statusPill
+                    archiveButton
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Rename \(conversation.title)")
-            .accessibilityHint("Opens a field to change the conversation title")
-            .accessibilityIdentifier("rename-conversation")
-            statusPill
-            LunaIconButton(
-                icon: .archive,
-                accessibilityLabel: "Archive conversation",
-                action: { archivePresented = true }
-            )
         }
         .frame(minHeight: compact ? 62 : 72)
         .padding(.horizontal, compact ? 10 : 20)
+        .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 8 : 0)
+        .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(palette.border)
                 .frame(height: 1)
         }
+    }
+
+    @ViewBuilder
+    private var backButton: some View {
+        if compact {
+            LunaIconButton(
+                icon: .arrowLeft,
+                accessibilityLabel: "Back",
+                action: onBack
+            )
+        }
+    }
+
+    private var conversationTitleButton: some View {
+        Button {
+            renameTitle = conversation.title
+            renamePresented = true
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(conversation.title)
+                    .font(LunaFont.display(18, weight: .bold))
+                    .foregroundStyle(palette.foreground)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                Text(repositoryNames)
+                    .lunaMonoFont(10)
+                    .foregroundStyle(palette.muted)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Rename \(conversation.title)")
+        .accessibilityHint("Opens a field to change the conversation title")
+        .accessibilityIdentifier("rename-conversation")
+    }
+
+    private var repositoryNames: String {
+        let names = conversation.repositories.map(\.displayName).joined(separator: " · ")
+        return names.isEmpty ? "Home" : names
+    }
+
+    private var archiveButton: some View {
+        LunaIconButton(
+            icon: .archive,
+            accessibilityLabel: "Archive conversation",
+            action: { archivePresented = true }
+        )
     }
 
     private func rename() {
@@ -288,10 +321,11 @@ private struct ConversationPanel: View {
                 Text(stateLabel(conversation.state))
             }
         }
-        .font(LunaFont.mono(10))
+        .lunaMonoFont(10)
         .foregroundStyle(palette.muted)
         .padding(.horizontal, compact ? 7 : 10)
-        .frame(height: 30)
+        .padding(.vertical, 6)
+        .frame(minHeight: 30)
         .overlay {
             Capsule().stroke(palette.border, lineWidth: 1)
         }
@@ -302,19 +336,29 @@ private struct ConversationPanel: View {
 
 private struct LunaWelcomeView: View {
     let onCreate: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
 
     var body: some View {
         VStack(spacing: 0) {
             LunaMoonMark()
             Text("YOUR WORK, IN CONVERSATION")
-                .font(LunaFont.mono(10, weight: .bold))
+                .lunaMonoFont(10, weight: .bold)
                 .tracking(1.3)
                 .foregroundStyle(palette.accent)
                 .padding(.top, 18)
-            Text("Powerful agents.\nFamiliar conversations.")
-                .font(LunaFont.display(50, weight: .bold))
-                .tracking(-2.2)
+            Text(
+                dynamicTypeSize.isAccessibilitySize
+                    ? "Powerful agents. Familiar conversations."
+                    : "Powerful agents.\nFamiliar conversations."
+            )
+                .font(
+                    LunaFont.display(
+                        dynamicTypeSize.isAccessibilitySize ? 30 : 50,
+                        weight: .bold
+                    )
+                )
+                .tracking(dynamicTypeSize.isAccessibilitySize ? -1 : -2.2)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(palette.foreground)
                 .padding(.top, 13)

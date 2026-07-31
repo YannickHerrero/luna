@@ -6,6 +6,7 @@ struct AgentControlsView: View {
     let busy: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
     @State private var agent: ConversationAgentState?
     @State private var selectedModelKey = ""
@@ -64,24 +65,45 @@ struct AgentControlsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("CONVERSATION CONTROLS")
-                    .font(LunaFont.mono(10, weight: .bold))
-                    .tracking(1.3)
-                    .foregroundStyle(palette.accent.mix(with: palette.foreground, by: 0.70))
-                Text("Agent settings")
-                    .font(LunaFont.display(27, weight: .bold))
-                    .tracking(-0.8)
-                    .foregroundStyle(palette.foreground)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Spacer()
+                        closeButton
+                    }
+                    headerLabels
+                }
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    headerLabels
+                    Spacer(minLength: 14)
+                    closeButton
+                }
             }
-            Spacer(minLength: 14)
-            LunaIconButton(
-                icon: .x,
-                accessibilityLabel: "Close agent settings",
-                action: { dismiss() }
-            )
         }
+    }
+
+    private var headerLabels: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("CONVERSATION CONTROLS")
+                .lunaMonoFont(10, weight: .bold)
+                .tracking(1.3)
+                .foregroundStyle(palette.accent.mix(with: palette.foreground, by: 0.70))
+            Text("Agent settings")
+                .font(LunaFont.display(27, weight: .bold))
+                .tracking(-0.8)
+                .foregroundStyle(palette.foreground)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var closeButton: some View {
+        LunaIconButton(
+            icon: .x,
+            accessibilityLabel: "Close agent settings",
+            action: { dismiss() }
+        )
     }
 
     @ViewBuilder
@@ -100,6 +122,7 @@ struct AgentControlsView: View {
                     .font(LunaFont.body(11))
                     .foregroundStyle(palette.foreground.opacity(0.86))
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
                     .padding(.top, -10)
                 contextCard(agent)
@@ -169,6 +192,7 @@ struct AgentControlsView: View {
                 Text("This model does not support configurable reasoning.")
                     .font(LunaFont.body(11))
                     .foregroundStyle(palette.foreground.opacity(0.86))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -193,18 +217,18 @@ struct AgentControlsView: View {
 
     private func contextCard(_ agent: ConversationAgentState) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    settingLabel("Conversation context")
-                    Text(contextDescription)
-                        .font(LunaFont.body(14, weight: .bold))
-                        .foregroundStyle(palette.foreground)
-                }
-                Spacer(minLength: 10)
-                if let contextPercent {
-                    Text("\(Int(contextPercent.rounded()))%")
-                        .font(LunaFont.mono(14, weight: .bold))
-                        .foregroundStyle(palette.accent.mix(with: palette.foreground, by: 0.70))
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 8) {
+                        contextLabels
+                        contextPercentLabel
+                    }
+                } else {
+                    HStack(alignment: .center, spacing: 14) {
+                        contextLabels
+                        Spacer(minLength: 10)
+                        contextPercentLabel
+                    }
                 }
             }
 
@@ -217,12 +241,14 @@ struct AgentControlsView: View {
             .font(LunaFont.body(11))
             .foregroundStyle(palette.foreground.opacity(0.86))
             .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
 
             if confirmingCompaction {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Pi will summarize older context while preserving recent work.")
                         .font(LunaFont.body(11))
                         .foregroundStyle(palette.foreground.opacity(0.86))
+                        .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
                         Spacer()
                         Button("Cancel") { confirmingCompaction = false }
@@ -265,6 +291,27 @@ struct AgentControlsView: View {
         .padding(.top, 5)
     }
 
+    private var contextLabels: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            settingLabel("Conversation context")
+            Text(contextDescription)
+                .font(LunaFont.body(14, weight: .bold))
+                .foregroundStyle(palette.foreground)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var contextPercentLabel: some View {
+        if let contextPercent {
+            Text("\(Int(contextPercent.rounded()))%")
+                .lunaMonoFont(14, weight: .bold)
+                .foregroundStyle(palette.accent.mix(with: palette.foreground, by: 0.70))
+                .accessibilityLabel("Conversation context used")
+                .accessibilityValue("\(Int(contextPercent.rounded())) percent")
+        }
+    }
+
     private var contextDescription: String {
         guard let contextTokens else { return "Not measured yet" }
         return "\(formatAgentTokens(contextTokens)) / \(formatAgentTokens(contextWindow ?? 0)) tokens"
@@ -280,15 +327,14 @@ struct AgentControlsView: View {
             }
         }
         .frame(height: 7)
-        .accessibilityElement()
-        .accessibilityLabel("Conversation context used")
-        .accessibilityValue(contextPercent.map { "\(Int($0.rounded())) percent" } ?? "Not measured")
+        .accessibilityHidden(true)
     }
 
     private func settingLabel(_ text: String) -> some View {
         Text(text)
             .font(LunaFont.body(11, weight: .bold))
             .foregroundStyle(palette.foreground)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func selectionLabel(_ text: String) -> some View {
@@ -296,12 +342,14 @@ struct AgentControlsView: View {
             Text(text)
                 .font(LunaFont.body(13, weight: .bold))
                 .foregroundStyle(palette.foreground)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 10)
             LunaIconView(icon: .chevronDown, size: 15)
                 .foregroundStyle(palette.muted)
         }
         .padding(.horizontal, 12)
+        .padding(.vertical, 9)
         .frame(maxWidth: .infinity, minHeight: 46)
         .background(palette.background)
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))

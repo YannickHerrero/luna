@@ -27,6 +27,9 @@ struct LunaPrimaryButtonStyle: ButtonStyle {
         configuration.label
             .font(LunaFont.body(14, weight: .bold))
             .foregroundStyle(palette.onAccent)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 8)
             .frame(minHeight: LunaShape.minimumTarget)
             .padding(.horizontal, 18)
             .background(palette.accent.opacity(isEnabled ? 1 : 0.65))
@@ -45,6 +48,9 @@ struct LunaSecondaryButtonStyle: ButtonStyle {
         configuration.label
             .font(LunaFont.body(14, weight: .bold))
             .foregroundStyle(palette.foreground)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 8)
             .frame(minHeight: LunaShape.minimumTarget)
             .padding(.horizontal, 16)
             .background(palette.raised)

@@ -9,6 +9,7 @@ struct ConversationComposerView: View {
     var onShowAgentControls: () -> Void = {}
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
     @State private var sending = false
     @State private var transcribing = false
@@ -38,7 +39,7 @@ struct ConversationComposerView: View {
             attachmentPreviews
             composerBox
             Text(abbreviatedWorkingDirectory(conversation.activeWorkingDirectory))
-                .font(LunaFont.mono(9))
+                .lunaMonoFont(9)
                 .foregroundStyle(palette.muted)
                 .lineLimit(1)
                 .padding(.horizontal, 14)
@@ -83,7 +84,7 @@ struct ConversationComposerView: View {
 
     private var composerBox: some View {
         Group {
-            if horizontalSizeClass == .compact {
+            if horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 2) {
                     editor
                     HStack(spacing: 2) {
@@ -170,12 +171,18 @@ struct ConversationComposerView: View {
                             LunaIconView(icon: .mic, size: 18)
                         }
                     }
-                    .frame(width: 38, height: 38)
+                    .frame(width: LunaShape.minimumTarget, height: LunaShape.minimumTarget)
                     .foregroundStyle(voiceRecorder.isRecording ? Color.white : palette.muted)
+                    .accessibilityHidden(true)
                     .background(voiceRecorder.isRecording ? palette.red : .clear)
                     .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .frame(
+                    minWidth: LunaShape.minimumTarget,
+                    minHeight: LunaShape.minimumTarget
+                )
+                .contentShape(Circle())
                 .disabled(transcribing)
                 .accessibilityLabel(
                     voiceRecorder.isRecording ? "Stop recording" : "Transcribe voice"
@@ -192,12 +199,18 @@ struct ConversationComposerView: View {
                     }
                 }
                 .foregroundStyle(.white)
-                .frame(width: 38, height: 38)
+                .frame(width: LunaShape.minimumTarget, height: LunaShape.minimumTarget)
                 .background(palette.accent)
+                .accessibilityHidden(true)
                 .clipShape(Circle())
                 .shadow(color: palette.accent.opacity(0.24), radius: 14, y: 8)
             }
             .buttonStyle(.plain)
+            .frame(
+                minWidth: LunaShape.minimumTarget,
+                minHeight: LunaShape.minimumTarget
+            )
+            .contentShape(Circle())
             .disabled(sending)
             .opacity(sending ? 0.55 : 1)
             .accessibilityLabel("Send")

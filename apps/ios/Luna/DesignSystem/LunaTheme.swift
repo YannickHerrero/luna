@@ -92,16 +92,56 @@ extension View {
     }
 }
 
+private struct LunaMonoFontModifier: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var scaledSize: CGFloat = 0
+    let weight: Font.Weight
+
+    init(size: CGFloat, weight: Font.Weight) {
+        _scaledSize = ScaledMetric(wrappedValue: size, relativeTo: .body)
+        self.weight = weight
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: scaledSize, weight: weight, design: .monospaced))
+    }
+}
+
+extension View {
+    func lunaMonoFont(
+        _ size: CGFloat,
+        weight: Font.Weight = .regular
+    ) -> some View {
+        modifier(LunaMonoFontModifier(size: size, weight: weight))
+    }
+}
+
 enum LunaFont {
     static func display(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("Iowan Old Style", fixedSize: size).weight(weight)
+        .custom("Iowan Old Style", size: size, relativeTo: textStyle(for: size))
+            .weight(weight)
     }
 
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        .custom("SF Pro Rounded", size: size, relativeTo: textStyle(for: size))
+            .weight(weight)
     }
 
     static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        .custom("SF Pro Rounded", size: size, relativeTo: textStyle(for: size))
+            .monospaced()
+            .weight(weight)
+    }
+
+    private static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case ..<13: .caption
+        case ..<15: .footnote
+        case ..<18: .body
+        case ..<21: .headline
+        case ..<24: .title3
+        case ..<28: .title2
+        case ..<34: .title
+        default: .largeTitle
+        }
     }
 }

@@ -10,6 +10,7 @@ struct ConversationSidebar: View {
     @Binding var search: String
     @AppStorage("luna-theme") private var storedTheme = LunaTheme.latte.rawValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
 
     private var filteredConversations: [Conversation] {
@@ -34,7 +35,7 @@ struct ConversationSidebar: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("PERSISTENT PI")
-                    .font(LunaFont.mono(10, weight: .bold))
+                    .lunaMonoFont(10, weight: .bold)
                     .tracking(1.3)
                     .foregroundStyle(palette.accent)
                 Text("Luna")
@@ -59,7 +60,10 @@ struct ConversationSidebar: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             LunaIconView(icon: .search, size: 15)
-            TextField("Search conversations", text: $search)
+            TextField(
+                dynamicTypeSize.isAccessibilitySize ? "Search" : "Search conversations",
+                text: $search
+            )
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .font(LunaFont.body(horizontalSizeClass == .compact ? 16 : 13))
@@ -112,7 +116,7 @@ struct ConversationSidebar: View {
     private var footer: some View {
         HStack {
             Text(currentTheme.displayName)
-                .font(LunaFont.mono(10))
+                .lunaMonoFont(10)
             Spacer()
             LunaIconButton(
                 icon: currentTheme == .latte ? .moon : .sun,
@@ -147,32 +151,17 @@ private struct ConversationCell: View {
     let imageLoader: AuthenticatedImageLoader
     let onSelect: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: 11) {
-                avatar
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(conversation.title)
-                        .font(LunaFont.body(13, weight: .bold))
-                        .foregroundStyle(palette.foreground)
-                        .lineLimit(1)
-                    Text(conversation.preview.isEmpty ? stateLabel(conversation.state) : conversation.preview)
-                        .font(LunaFont.body(11))
-                        .foregroundStyle(palette.muted)
-                        .lineLimit(1)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    accessibleContent
+                } else {
+                    standardContent
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text(
-                    LunaTime.conversationTimestamp(
-                        conversation.lastMessageAt ?? conversation.createdAt
-                    )
-                )
-                .font(LunaFont.mono(9))
-                .foregroundStyle(palette.muted)
-                .lineLimit(1)
-                stateDot
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 11)
@@ -192,6 +181,58 @@ private struct ConversationCell: View {
             "\(conversation.title), \(stateLabel(conversation.state)), \(conversation.preview)"
         )
         .accessibilityIdentifier("conversation-\(conversation.id.uuidString)")
+    }
+
+    private var standardContent: some View {
+        HStack(spacing: 11) {
+            avatar
+            VStack(alignment: .leading, spacing: 4) {
+                titleText.lineLimit(1)
+                previewText.lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            timestampText.lineLimit(1)
+            stateDot
+        }
+    }
+
+    private var accessibleContent: some View {
+        HStack(alignment: .top, spacing: 11) {
+            avatar
+            VStack(alignment: .leading, spacing: 7) {
+                titleText
+                previewText
+                HStack(spacing: 8) {
+                    timestampText
+                    Spacer(minLength: 8)
+                    stateDot
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var titleText: some View {
+        Text(conversation.title)
+            .font(LunaFont.body(13, weight: .bold))
+            .foregroundStyle(palette.foreground)
+    }
+
+    private var previewText: some View {
+        Text(conversation.preview.isEmpty ? stateLabel(conversation.state) : conversation.preview)
+            .font(LunaFont.body(11))
+            .foregroundStyle(palette.muted)
+    }
+
+    private var timestampText: some View {
+        Text(
+            LunaTime.conversationTimestamp(
+                conversation.lastMessageAt ?? conversation.createdAt
+            )
+        )
+        .lunaMonoFont(9)
+        .foregroundStyle(palette.muted)
     }
 
     private var avatar: some View {

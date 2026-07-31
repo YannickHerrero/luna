@@ -2,12 +2,40 @@ import XCTest
 
 final class LunaUITests: XCTestCase {
     @MainActor
-    func testApplicationLaunches() {
+    func testApplicationLaunches() throws {
         let application = XCUIApplication()
         application.launch()
         XCTAssertTrue(application.staticTexts["Pair with Luna"].waitForExistence(timeout: 5))
         XCTAssertTrue(application.textFields["pairing-code"].exists)
         XCTAssertTrue(application.textFields["device-name"].exists)
+        try application.performAccessibilityAudit(for: .dynamicType)
+    }
+
+    @MainActor
+    func testReadyScreensPassAccessibilityAudit() throws {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-list", "-luna-theme", "latte",
+        ]
+        application.launch()
+
+        XCTAssertTrue(application.staticTexts["Luna"].waitForExistence(timeout: 5))
+        try application.performAccessibilityAudit(for: [.dynamicType, .hitRegion])
+
+        application.buttons["conversation-00000000-0000-0000-0000-000000000001"].tap()
+        XCTAssertTrue(application.staticTexts["Native client parity"].waitForExistence(timeout: 5))
+        try application.performAccessibilityAudit(for: [.dynamicType, .hitRegion])
+
+        application.buttons["Back"].tap()
+        let agentConversation = application.buttons[
+            "conversation-00000000-0000-0000-0000-000000000003"
+        ]
+        XCTAssertTrue(agentConversation.waitForExistence(timeout: 5))
+        agentConversation.tap()
+        XCTAssertTrue(application.buttons["Agent settings"].waitForExistence(timeout: 5))
+        application.buttons["Agent settings"].tap()
+        XCTAssertTrue(application.staticTexts["Agent settings"].waitForExistence(timeout: 5))
+        try application.performAccessibilityAudit(for: [.dynamicType, .hitRegion])
     }
 
     @MainActor

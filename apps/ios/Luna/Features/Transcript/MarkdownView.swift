@@ -88,7 +88,7 @@ struct MarkdownView: View {
                 .accessibilityLabel(checked ? "Completed" : "Not completed")
         } else if ordered {
             Text("\(index + 1).")
-                .font(LunaFont.mono(11))
+                .lunaMonoFont(11)
                 .foregroundStyle(palette.muted)
         } else {
             Text("•")
@@ -100,7 +100,7 @@ struct MarkdownView: View {
     private func codeBlock(_ source: String, language: String?) -> some View {
         ScrollView(.horizontal) {
             Text(highlightedCode(source, language: language))
-                .font(LunaFont.mono(12))
+                .lunaMonoFont(12)
                 .lineSpacing(5)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
@@ -138,8 +138,20 @@ struct MarkdownView: View {
             }
         }
         .scrollIndicators(.visible)
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Table")
+        .accessibilityValue(tableAccessibilityValue(headers: headers, rows: rows))
+    }
+
+    private func tableAccessibilityValue(headers: [String], rows: [[String]]) -> String {
+        rows.map { row in
+            headers.enumerated().map { column, header in
+                let value = column < row.count ? row[column] : ""
+                return "\(header): \(value)"
+            }
+            .joined(separator: ", ")
+        }
+        .joined(separator: "; ")
     }
 
     private func tableCell(_ text: String, isHeader: Bool) -> some View {

@@ -4,6 +4,7 @@ import UIKit
 struct PairingView: View {
     @Bindable var model: AppModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.lunaPalette) private var palette
 
     @State private var code = ""
@@ -47,15 +48,16 @@ struct PairingView: View {
                 .padding(.bottom, 25)
 
             Text("PRIVATE BY DESIGN")
-                .font(LunaFont.mono(10, weight: .bold))
+                .lunaMonoFont(10, weight: .bold)
                 .tracking(1.3)
                 .foregroundStyle(palette.accent)
+                .accessibilityHidden(true)
 
             Text("Pair with Luna")
                 .font(LunaFont.display(40, weight: .bold))
                 .tracking(-1.6)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.85)
                 .foregroundStyle(palette.foreground)
                 .padding(.vertical, 8)
 
@@ -166,12 +168,13 @@ struct PairingView: View {
                     .fill(palette.green)
                     .frame(width: 7, height: 7)
                 Text(model.configuration.serverURL.host ?? model.configuration.serverURL.absoluteString)
+                    .font(LunaFont.body(12, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Text("Change")
+                    .font(LunaFont.body(12, weight: .semibold))
                     .foregroundStyle(palette.accent)
             }
-            .font(LunaFont.mono(10, weight: .semibold))
             .foregroundStyle(palette.muted)
             .padding(.horizontal, 12)
             .frame(minHeight: 36)
