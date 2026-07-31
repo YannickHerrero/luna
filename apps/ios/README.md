@@ -70,6 +70,8 @@ The iOS UI suite includes deterministic pairing and ready-state fixtures, popula
 
 - `-ui-testing-ready` installs the in-process ready-state fixture.
 - `-ui-testing-list` opens that fixture on the conversation list.
+- `-ui-testing-grouped` enables project grouping for deterministic snapshots.
+- `-ui-testing-reset-grouping` disables project grouping before a persistence test.
 - `-luna-theme latte` or `-luna-theme mocha` selects a deterministic theme.
 
 ## Project structure
@@ -81,6 +83,7 @@ The iOS UI suite includes deterministic pairing and ready-state fixtures, popula
 - `Luna/State`: synchronized conversations, messages, reconnect, and recovery
 - `Luna/Features`: pairing, shell, transcript, composer, and agent controls
 - `Luna/DesignSystem`: shared colors, typography, surfaces, icons, and controls
+- `LunaShared/Snapshots`: versioned, allowlisted App Group snapshot models and storage
 - `LunaTests`: protocol, networking, state, Markdown, composer, pairing, and control tests
 - `LunaUITests`: end-to-end native fixture and accessibility acceptance tests
 - `LunaWidgets`: iPhone/iPad Home Screen widget placeholder
@@ -93,7 +96,7 @@ Simulator builds do not require signing. For physical-device signing, copy `Conf
 
 The main app reserves the Push Notifications entitlement, stable `luna://home` and `luna://conversation/<UUID>` routes, and the server’s existing notification-target state. Notification permission, APNs token registration, and provider delivery remain intentionally deferred. Do not add or reuse an APNs provider `.p8` key until the server registration and delivery routes are designed and approved.
 
-The widget and Watch targets use stable bundle identifiers but intentionally show placeholder state. Future data sharing should use a sanitized App Group snapshot for the iOS widget and WatchConnectivity plus a Watch App Group container for the complication. Device credentials must remain in the iOS Keychain and must not be copied to extensions or the Watch.
+The app, widget, Watch app, and Watch widget declare `group.com.yannickherrero.luna` and compile the same versioned, allowlisted active-agent snapshot store. Widget publication and WatchConnectivity are separate layers; device credentials remain in the iOS Keychain and are never represented in snapshot models or copied to extensions or the Watch. Physical-device and distribution signing require associating the App Group with every participating App ID and regenerating profiles during an explicitly approved release stage.
 
 ## TestFlight
 

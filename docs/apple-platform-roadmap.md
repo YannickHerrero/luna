@@ -28,7 +28,7 @@ Do not add or reuse an APNs provider `.p8` key before that design is implemented
 
 ## Widget and Watch snapshot boundary
 
-Extensions and the Watch must never receive the bearer credential stored in the iOS Keychain. Future live widgets should exchange a small, sanitized, versioned snapshot containing only fields required for display, for example conversation ID, title, session state, preview, unread count, and update time.
+Extensions and the Watch must never receive the bearer credential stored in the iOS Keychain. Luna's shared snapshot layer uses a strict, versioned allowlist: conversation ID, bounded title, session state, bounded summarized activity, and update time. It caps the number of agents, normalizes control characters and whitespace, rejects unknown schema versions, and has no fields for messages, credentials, tokens, or repository paths.
 
 The intended flow is:
 
@@ -44,7 +44,7 @@ Authenticated iOS state
   → Watch app and Watch WidgetKit timeline
 ```
 
-Reserve `group.com.yannickherrero.luna` when snapshot sharing is implemented. Adding the group requires associating it with all participating App IDs and regenerating their provisioning profiles. Until then, the static placeholders intentionally have no App Group entitlement.
+All four Apple targets now declare `group.com.yannickherrero.luna`; the iOS app/widget and Watch app/widget use the same filename and schema in their device-local group containers. The source entitlement does not perform Apple Developer portal changes: physical-device and distribution signing still require associating the group with every participating App ID and regenerating profiles during an explicitly approved release stage.
 
 ## Release boundary
 

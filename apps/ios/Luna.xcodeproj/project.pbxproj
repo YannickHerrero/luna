@@ -31,6 +31,8 @@
 		468B9F13174914AE84E432A1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A63041E831EF9240CE61F907 /* PrivacyInfo.xcprivacy */; };
 		5024609EE38307661CBC945C /* LunaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446892BB5B365737EE00315F /* LunaApp.swift */; };
 		55B9BB28E50143DAD4976951 /* ConversationShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E74A437020C38E3448B41E /* ConversationShellView.swift */; };
+		56F7F3D8D5376ECA09ECCCC4 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
+		5788E0F8B62B883A886ABE62 /* SnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */; };
 		5B7FE1C6748EBD559735CF83 /* LunaWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 742807A2B95FB9969E766059 /* LunaWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		60A4B863CF7D50182AF219DF /* LunaTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D800357345CADB742046B83B /* LunaTimeTests.swift */; };
 		63C5177BA73E69FF55428E90 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */; };
@@ -41,6 +43,7 @@
 		79FB38B90A7B1F45FBB430B1 /* MarkdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */; };
 		7BBF6590B1B934FAFDA8BC84 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E556359BF68F1642E3BA0FA5 /* AppModel.swift */; };
 		8484D71F46A61DF8FC6E8E0E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0115226D947BB6D519EA0EF6 /* PrivacyInfo.xcprivacy */; };
+		8915E1DF9F78B3FC4A72D507 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
 		8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFD1B295E68E217F4E87326 /* LunaTheme.swift */; };
 		8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */; };
 		8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E615B4F62478DD81610EC904 /* MarkdownView.swift */; };
@@ -60,6 +63,7 @@
 		B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */; };
 		C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */; };
 		C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */; };
+		C248E43AA2CDE4213041AF56 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
 		C2F36A2D4F3DA6AED2E85243 /* CodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */; };
 		C457C3B6B6A743B7D64EF1FE /* AgentControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D52EB1E0C99044C5EA937635 /* AgentControlsTests.swift */; };
 		C57DD66DBB68DEAA4B849838 /* Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BBCE5382FCDBEC76F3E0884 /* Events.swift */; };
@@ -74,6 +78,7 @@
 		ECFE0E7A759B6EFEFA185537 /* LunaControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9561CCFA4B4C5A8F4DA3030D /* LunaControls.swift */; };
 		F2136227F163FC7448EAAD28 /* LunaWatchStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AEDA02EB12B1DEC12CDB063 /* LunaWatchStatusWidget.swift */; };
 		F2E236D56FCB80F448B8D4DF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 20D38BD211CE005BF08DE098 /* PrivacyInfo.xcprivacy */; };
+		F40F4A80E28055A8624659F6 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
 		F4B98DDA68748E8F38FA9E74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C77C10BEEA3129002A168D6 /* Assets.xcassets */; };
 		FACE1E590A3A54F5629C9529 /* ConversationProjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = C038F07B22DC8671085BCF5D /* ConversationProjects.swift */; };
 		FE049D8823F1C86517DAC4B3 /* project-grouping.json in Resources */ = {isa = PBXBuildFile; fileRef = CD9AB1795257D60682E05372 /* project-grouping.json */; };
@@ -175,6 +180,7 @@
 		0EBD08A622DC05B5D6C4BA28 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		10DD83F26A896CBD3D7BB2BC /* Entities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entities.swift; sourceTree = "<group>"; };
 		1371E2642AF91DD26B4B5BB7 /* LunaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWidgets.swift; sourceTree = "<group>"; };
+		163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedImageLoader.swift; sourceTree = "<group>"; };
 		1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
 		1C4E86961E12819FF660F840 /* LunaRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaRoute.swift; sourceTree = "<group>"; };
@@ -233,6 +239,7 @@
 		D8FBE0D0B195535D34251B98 /* LunaWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchUITests.swift; sourceTree = "<group>"; };
 		D9BE9D9ED57041FAB2589F3D /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		E239F62A1C9244159CFDE4A6 /* LunaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LunaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaSnapshot.swift; sourceTree = "<group>"; };
 		E33D93670D8849CD3E1276AE /* LunaRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaRouteTests.swift; sourceTree = "<group>"; };
 		E556359BF68F1642E3BA0FA5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		E615B4F62478DD81610EC904 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
@@ -358,6 +365,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		3DEF33D5528725350601CB11 /* Snapshots */ = {
+			isa = PBXGroup;
+			children = (
+				E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */,
+			);
+			path = Snapshots;
+			sourceTree = "<group>";
+		};
 		561DF00A51072B22238E0036 /* LunaTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -373,6 +388,7 @@
 				F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */,
 				2D02B47A7E4945E3F685C892 /* PairingTests.swift */,
 				FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */,
+				163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */,
 			);
 			path = LunaTests;
 			sourceTree = "<group>";
@@ -381,8 +397,17 @@
 			isa = PBXGroup;
 			children = (
 				FC4C763FEE21B5F16F0D0345 /* DesignSystem */,
+				E2A238B1009FF3661DFB840D /* Snapshots */,
 			);
 			name = Shared;
+			sourceTree = "<group>";
+		};
+		6EAFBCD88E6E8452284C6F91 /* LunaShared */ = {
+			isa = PBXGroup;
+			children = (
+				3DEF33D5528725350601CB11 /* Snapshots */,
+			);
+			path = LunaShared;
 			sourceTree = "<group>";
 		};
 		9993F51BD6D6D55688C3B5A9 /* LunaWidgets */ = {
@@ -509,6 +534,14 @@
 				C3BC8C717F081C2E00C316BF /* State */,
 			);
 			path = Luna;
+			sourceTree = "<group>";
+		};
+		E2A238B1009FF3661DFB840D /* Snapshots */ = {
+			isa = PBXGroup;
+			children = (
+				6EAFBCD88E6E8452284C6F91 /* LunaShared */,
+			);
+			name = Snapshots;
 			sourceTree = "<group>";
 		};
 		E756513B71C6D3794F7C07C9 /* Protocol */ = {
@@ -721,6 +754,9 @@
 						ProvisioningStyle = Automatic;
 						TestTargetID = 59C9ADA3ED60F4DD6C8D46A6;
 					};
+					59C9ADA3ED60F4DD6C8D46A6 = {
+						SystemCapabilities = "[\"com.apple.ApplicationGroups.iOS\": [\"enabled\": 1]]";
+					};
 					6097A6542593C1955CC546D4 = {
 						ProvisioningStyle = Automatic;
 						TestTargetID = EDEBD772AE9343A01D9935A3;
@@ -728,11 +764,17 @@
 					975C31D17CA2F12EFDECA012 = {
 						ProvisioningStyle = Automatic;
 					};
+					A34920B9952DE8C8AB616E46 = {
+						SystemCapabilities = "[\"com.apple.ApplicationGroups.iOS\": [\"enabled\": 1]]";
+					};
 					E154FFDE9FAFF378939D603A = {
 						ProvisioningStyle = Automatic;
 					};
 					EDEBD772AE9343A01D9935A3 = {
-						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.ApplicationGroups.iOS\": [\"enabled\": 1]]";
+					};
+					F05E1BF236A9829FBD21CB64 = {
+						SystemCapabilities = "[\"com.apple.ApplicationGroups.iOS\": [\"enabled\": 1]]";
 					};
 				};
 			};
@@ -813,6 +855,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				960D617D2DD0D4E429DB97EB /* LunaColors.swift in Sources */,
+				F40F4A80E28055A8624659F6 /* LunaSnapshot.swift in Sources */,
 				A58E3C292E2426AEF670B6D4 /* LunaWatchApp.swift in Sources */,
 				35ED7821BC15259781BA8F87 /* LunaWatchHomeView.swift in Sources */,
 			);
@@ -822,6 +865,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8915E1DF9F78B3FC4A72D507 /* LunaSnapshot.swift in Sources */,
 				F2136227F163FC7448EAAD28 /* LunaWatchStatusWidget.swift in Sources */,
 				1EDBABC3AF8F07E011EA4672 /* LunaWatchWidgets.swift in Sources */,
 			);
@@ -843,6 +887,7 @@
 				B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */,
 				3DAE34D4A6DDAB4EE0140C5E /* PairingTests.swift in Sources */,
 				93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */,
+				5788E0F8B62B883A886ABE62 /* SnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -875,6 +920,7 @@
 				AD3445321C1D0415A74992A7 /* LunaIcon.swift in Sources */,
 				1BC36092F2B3D81B85ADD779 /* LunaIconButton.swift in Sources */,
 				660DADFB2FB33F3B7EB18E89 /* LunaRoute.swift in Sources */,
+				56F7F3D8D5376ECA09ECCCC4 /* LunaSnapshot.swift in Sources */,
 				CDA4FBE97FDCE7142D786FE7 /* LunaSurface.swift in Sources */,
 				8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */,
 				1B8224EAE0A4611AF5D043FA /* LunaTime.swift in Sources */,
@@ -904,6 +950,7 @@
 			files = (
 				ABA8D6972EE584D148484EDF /* LunaColors.swift in Sources */,
 				302F12F9BD2E38F06E293C61 /* LunaContinueWidget.swift in Sources */,
+				C248E43AA2CDE4213041AF56 /* LunaSnapshot.swift in Sources */,
 				DF4CCA95E8B781CCC07B864A /* LunaWidgets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1070,6 +1117,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LunaWidgets/LunaWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWidgets/Info.plist;
@@ -1108,6 +1156,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LunaWidgets/LunaWidgets.entitlements;
 				INFOPLIST_FILE = LunaWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1272,6 +1321,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LunaWatch/LunaWatch.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWatch/Info.plist;
@@ -1326,6 +1376,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LunaWatchWidgets/LunaWatchWidgets.entitlements;
 				INFOPLIST_FILE = LunaWatchWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1367,6 +1418,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LunaWatch/LunaWatch.entitlements;
 				INFOPLIST_FILE = LunaWatch/Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yannickherrero.luna.watchkitapp;
 				PRODUCT_NAME = LunaWatch;
@@ -1382,6 +1434,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LunaWatchWidgets/LunaWatchWidgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWatchWidgets/Info.plist;

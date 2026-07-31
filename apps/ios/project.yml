@@ -31,10 +31,14 @@ targets:
     platform: iOS
     attributes:
       SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
         com.apple.Push:
           enabled: 1
     sources:
       - path: Luna
+      - path: LunaShared
+        group: Shared/Snapshots
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     dependencies:
@@ -86,10 +90,17 @@ targets:
   LunaWidgets:
     type: app-extension
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: LunaWidgets
         excludes:
           - Info.plist
+          - LunaWidgets.entitlements
+      - path: LunaShared
+        group: Shared/Snapshots
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     info:
@@ -105,6 +116,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.widgets
         PRODUCT_NAME: LunaWidgets
         APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: LunaWidgets/LunaWidgets.entitlements
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: '1,2'
       configs:
@@ -115,10 +127,17 @@ targets:
   LunaWatch:
     type: application
     platform: watchOS
+    attributes:
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: LunaWatch
         excludes:
           - Info.plist
+          - LunaWatch.entitlements
+      - path: LunaShared
+        group: Shared/Snapshots
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     dependencies:
@@ -136,6 +155,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.watchkitapp
         PRODUCT_NAME: LunaWatch
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: LunaWatch/LunaWatch.entitlements
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: '4'
         WATCHOS_DEPLOYMENT_TARGET: 11.0
@@ -148,10 +168,17 @@ targets:
   LunaWatchWidgets:
     type: app-extension
     platform: watchOS
+    attributes:
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: LunaWatchWidgets
         excludes:
           - Info.plist
+          - LunaWatchWidgets.entitlements
+      - path: LunaShared
+        group: Shared/Snapshots
     info:
       path: LunaWatchWidgets/Info.plist
       properties:
@@ -165,6 +192,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.watchkitapp.widgets
         PRODUCT_NAME: LunaWatchWidgets
         APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: LunaWatchWidgets/LunaWatchWidgets.entitlements
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: '4'
         WATCHOS_DEPLOYMENT_TARGET: 11.0
