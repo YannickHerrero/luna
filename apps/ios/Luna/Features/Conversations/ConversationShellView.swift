@@ -41,6 +41,7 @@ struct ConversationShellView: View {
         Group {
             if let conversation = store.selectedConversation {
                 ConversationPanel(
+                    store: store,
                     conversation: conversation,
                     messages: store.selectedMessages,
                     imageLoader: store.imageLoader,
@@ -65,6 +66,7 @@ struct ConversationShellView: View {
             Group {
                 if let conversation = store.selectedConversation {
                     ConversationPanel(
+                        store: store,
                         conversation: conversation,
                         messages: store.selectedMessages,
                         imageLoader: store.imageLoader,
@@ -129,6 +131,7 @@ struct ConversationShellView: View {
 }
 
 private struct ConversationPanel: View {
+    @Bindable var store: ConversationStore
     let conversation: Conversation
     let messages: [Message]
     let imageLoader: AuthenticatedImageLoader
@@ -150,10 +153,10 @@ private struct ConversationPanel: View {
                 onLoadEarlier: onLoadEarlier
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            composerPlaceholder
+            ConversationComposerView(store: store, conversation: conversation)
+                .id(conversation.id)
         }
         .background(palette.surface.opacity(0.94))
-        .accessibilityIdentifier("conversation-panel")
     }
 
     private var header: some View {
@@ -215,39 +218,6 @@ private struct ConversationPanel: View {
         .accessibilityLabel(stateLabel(conversation.state))
     }
 
-    private var composerPlaceholder: some View {
-        HStack(spacing: 2) {
-            LunaIconView(icon: .settings, size: 18)
-                .frame(width: 38, height: 38)
-            LunaIconView(icon: .paperclip, size: 18)
-                .frame(width: 38, height: 38)
-            Text("Message Luna…")
-                .font(LunaFont.body(compact ? 16 : 14))
-                .foregroundStyle(palette.muted)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 9)
-            LunaIconView(icon: .mic, size: 18)
-                .frame(width: 38, height: 38)
-            LunaIconView(icon: .send, size: 17)
-                .foregroundStyle(.white)
-                .frame(width: 38, height: 38)
-                .background(palette.accent)
-                .clipShape(Circle())
-        }
-        .foregroundStyle(palette.muted)
-        .padding(8)
-        .frame(minHeight: 54)
-        .background(palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(palette.border, lineWidth: 1)
-        }
-        .shadow(color: palette.foreground.opacity(0.08), radius: 20, y: 16)
-        .padding(.horizontal, compact ? 16 : 64)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
-    }
 }
 
 private struct LunaWelcomeView: View {

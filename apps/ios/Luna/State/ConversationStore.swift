@@ -14,16 +14,24 @@ final class ConversationStore {
     private(set) var state: LunaClientState
     private(set) var connectionStatus = ConnectionStatus.disconnected
     private(set) var isLoadingMessages = false
+    private(set) var composerDrafts: [UUID: ComposerDraft] = [:]
     var errorMessage: String?
 
     @ObservationIgnored private let client: APIClient
     @ObservationIgnored private let eventSource: any EventSource
     @ObservationIgnored let imageLoader: AuthenticatedImageLoader
+    @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
 
-    init(client: APIClient, bootstrap: Bootstrap, eventSource: any EventSource) {
+    init(
+        client: APIClient,
+        bootstrap: Bootstrap,
+        eventSource: any EventSource,
+        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence()
+    ) {
         self.client = client
         self.eventSource = eventSource
+        self.draftPersistence = draftPersistence
         imageLoader = AuthenticatedImageLoader(client: client)
         var state = LunaClientState()
         state.install(bootstrap)
@@ -94,6 +102,98 @@ final class ConversationStore {
         } catch {
             errorMessage = message(from: error)
         }
+    }
+
+    func composerDraft(for conversationId: UUID) -> ComposerDraft {
+        composerDrafts[conversationId]
+            ?? ComposerDraft(
+                text: draftPersistence.text(for: conversationId),
+                attachments: []
+            )
+    }
+
+    func setDraftText(_ text: String, for conversationId: UUID) {
+        var draft = composerDraft(for: conversationId)
+        draft.text = text
+        composerDrafts[conversationId] = draft
+        draftPersistence.setText(text, for: conversationId)
+    }
+
+    func addDraftAttachments(_ attachments: [DraftAttachment], for conversationId: UUID) {
+        var draft = composerDraft(for: conversationId)
+        draft.attachments = Array((draft.attachments + attachments).prefix(6))
+        composerDrafts[conversationId] = draft
+    }
+
+    func removeDraftAttachment(_ id: UUID, for conversationId: UUID) {
+        var draft = composerDraft(for: conversationId)
+        draft.attachments.removeAll { $0.id == id }
+        composerDrafts[conversationId] = draft
+    }
+
+    func clearDraft(for conversationId: UUID) {
+        composerDrafts[conversationId] = .empty
+        draftPersistence.setText("", for: conversationId)
+    }
+
+    @discardableResult
+    func submitMessage(
+        in conversationId: UUID,
+        text: String,
+        attachments: [DraftAttachment]
+    ) async throws -> Bool {
+        switch ComposerSubmission.parse(text: text, attachmentCount: attachments.count) {
+        case .empty:
+            return false
+        case .invalidShellAttachments:
+            throw ComposerError.shellAttachments
+        case .stop:
+            if state.conversations.first(where: { $0.id == conversationId })?.state.isBusy == true {
+                try await abortConversation(conversationId)
+            }
+            return true
+        case let .message(messageText):
+            var attachmentIds: [UUID] = []
+            for attachment in attachments {
+                var form = MultipartForm()
+                form.addField(name: "conversationId", value: conversationId.uuidString)
+                form.addFile(
+                    name: "file",
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    data: attachment.data
+                )
+                let response: AttachmentResponse = try await client.upload(
+                    "/v1/attachments",
+                    form: form
+                )
+                attachmentIds.append(response.attachment.id)
+            }
+            let response: SendMessageResponse = try await client.post(
+                "/v1/conversations/\(conversationId.uuidString)/messages",
+                body: SendMessageRequest(
+                    clientMessageId: UUID(),
+                    text: messageText,
+                    attachmentIds: attachmentIds
+                )
+            )
+            state.upsertMessage(response.message)
+            return true
+        }
+    }
+
+    func abortConversation(_ conversationId: UUID) async throws {
+        try await client.postVoid("/v1/conversations/\(conversationId.uuidString)/abort")
+    }
+
+    func transcribe(_ data: Data, fileName: String, mimeType: String) async throws -> String {
+        var form = MultipartForm()
+        form.addFile(name: "file", fileName: fileName, mimeType: mimeType, data: data)
+        let response: TranscriptionResponse = try await client.upload(
+            "/v1/transcriptions",
+            form: form
+        )
+        return response.text
     }
 
     func apply(_ event: ServerEventEnvelope) {

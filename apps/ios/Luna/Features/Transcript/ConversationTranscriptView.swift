@@ -87,7 +87,9 @@ struct ConversationTranscriptView: View {
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         guard contentHeight > viewportHeight, viewportHeight > 0 else { return }
-        let animated = positionedInitialMessages && !reduceMotion
+        let animated = positionedInitialMessages
+            && !reduceMotion
+            && !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing") }
         positionedInitialMessages = true
         if animated {
             withAnimation(.easeOut(duration: 0.22)) {
@@ -218,13 +220,17 @@ private struct StreamCaret: View {
     @Environment(\.lunaPalette) private var palette
     @State private var visible = true
 
+    private var animateCaret: Bool {
+        !reduceMotion && !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing") }
+    }
+
     var body: some View {
         Rectangle()
             .fill(palette.accent)
             .frame(width: 7, height: 16)
             .opacity(visible ? 1 : 0.12)
             .onAppear {
-                guard !reduceMotion else { return }
+                guard animateCaret else { return }
                 withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: true)) {
                     visible = false
                 }
@@ -313,6 +319,10 @@ private struct TypingDots: View {
     @Environment(\.lunaPalette) private var palette
     @State private var animate = false
 
+    private var animateDots: Bool {
+        !reduceMotion && !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing") }
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<3) { index in
@@ -321,7 +331,7 @@ private struct TypingDots: View {
                     .frame(width: 6, height: 6)
                     .offset(y: animate ? -2 : 2)
                     .animation(
-                        reduceMotion
+                        !animateDots
                             ? nil
                             : .easeInOut(duration: 0.6)
                                 .repeatForever(autoreverses: true)
@@ -331,7 +341,7 @@ private struct TypingDots: View {
             }
         }
         .frame(minHeight: 17)
-        .onAppear { animate = true }
+        .onAppear { animate = animateDots }
         .accessibilityHidden(true)
     }
 }

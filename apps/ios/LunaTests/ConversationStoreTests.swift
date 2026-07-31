@@ -42,6 +42,7 @@ private actor StoreTransport: HTTPTransport {
     }
 
     func lastRequest() -> URLRequest? { requests.last }
+    func allRequests() -> [URLRequest] { requests }
 }
 
 @MainActor
@@ -116,6 +117,148 @@ struct ConversationStoreTests {
     }
 
     @Test
+    func restoresDraftTextWithoutPersistingAttachmentBytes() throws {
+        let defaults = try #require(UserDefaults(suiteName: "ConversationDraftTests.\(UUID())"))
+        let persistence = ComposerDraftPersistence(defaults: defaults, prefix: "draft:")
+        let conversation = storeConversation(id: 1)
+        let client = APIClient(
+            baseURL: server,
+            credentials: MemoryCredentialStore(),
+            transport: StoreTransport([])
+        )
+        let firstStore = ConversationStore(
+            client: client,
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource(),
+            draftPersistence: persistence
+        )
+        firstStore.setDraftText("Continue this conversation", for: conversation.id)
+        firstStore.addDraftAttachments(
+            [
+                DraftAttachment(
+                    data: Data("image".utf8),
+                    fileName: "preview.png",
+                    mimeType: "image/png"
+                ),
+            ],
+            for: conversation.id
+        )
+
+        let restoredStore = ConversationStore(
+            client: client,
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource(),
+            draftPersistence: persistence
+        )
+
+        #expect(restoredStore.composerDraft(for: conversation.id).text == "Continue this conversation")
+        #expect(restoredStore.composerDraft(for: conversation.id).attachments.isEmpty)
+    }
+
+    @Test
+    func uploadsAttachmentsAndAcceptsMessages() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let conversation = storeConversation(id: 1)
+        let attachment = storeAttachment(id: 7)
+        let accepted = storeMessage(
+            id: 8,
+            conversationId: conversation.id,
+            text: "Review this"
+        )
+        let transport = StoreTransport([
+            .init(
+                status: 201,
+                data: try JSONEncoder().encode(AttachmentResponse(attachment: attachment))
+            ),
+            .init(
+                status: 200,
+                data: try JSONEncoder().encode(
+                    SendMessageResponse(accepted: true, message: accepted)
+                )
+            ),
+        ])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource()
+        )
+
+        let submitted = try await store.submitMessage(
+            in: conversation.id,
+            text: " Review this ",
+            attachments: [
+                DraftAttachment(
+                    data: Data("image".utf8),
+                    fileName: "preview.png",
+                    mimeType: "image/png"
+                ),
+            ]
+        )
+
+        let requests = await transport.allRequests()
+        #expect(submitted)
+        #expect(requests.count == 2)
+        #expect(requests[0].url?.path == "/v1/attachments")
+        #expect(requests[0].value(forHTTPHeaderField: "Content-Type")?.contains("multipart/form-data") == true)
+        #expect(String(data: requests[0].httpBody ?? Data(), encoding: .utf8)?.contains(conversation.id.uuidString) == true)
+        let body = try JSONDecoder().decode(SendMessageRequest.self, from: requests[1].httpBody ?? Data())
+        #expect(body.text == "Review this")
+        #expect(body.attachmentIds == [attachment.id])
+        #expect(store.selectedMessages.contains { $0.id == accepted.id })
+    }
+
+    @Test
+    func stopCommandAbortsBusyConversation() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let conversation = storeConversation(id: 1, state: .working)
+        let transport = StoreTransport([.init(status: 204, data: Data())])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource()
+        )
+
+        let submitted = try await store.submitMessage(
+            in: conversation.id,
+            text: "/stop",
+            attachments: []
+        )
+
+        #expect(submitted)
+        #expect((await transport.lastRequest())?.url?.path.hasSuffix("/abort") == true)
+    }
+
+    @Test
+    func uploadsAudioForTranscription() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let transport = StoreTransport([
+            .init(
+                status: 200,
+                data: try JSONEncoder().encode(TranscriptionResponse(text: "spoken text"))
+            ),
+        ])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([storeConversation(id: 1)]),
+            eventSource: EmptyEventSource()
+        )
+
+        let text = try await store.transcribe(
+            Data("audio".utf8),
+            fileName: "recording.m4a",
+            mimeType: "audio/mp4"
+        )
+
+        #expect(text == "spoken text")
+        let request = await transport.lastRequest()
+        #expect(request?.url?.path == "/v1/transcriptions")
+        #expect(String(data: request?.httpBody ?? Data(), encoding: .utf8)?.contains("recording.m4a") == true)
+    }
+
+    @Test
     func loadsAndPaginatesSelectedMessages() async throws {
         let credentials = MemoryCredentialStore()
         await credentials.setToken("token", for: server)
@@ -168,12 +311,12 @@ private func storeBootstrap(_ conversations: [Conversation], cursor: Int64 = 0) 
     )
 }
 
-private func storeConversation(id: Int) -> Conversation {
+private func storeConversation(id: Int, state: SessionState = .idle) -> Conversation {
     Conversation(
         id: storeUUID(id),
         title: "Conversation \(id)",
         titleMode: .automatic,
-        state: .idle,
+        state: state,
         preview: "Preview",
         activeWorkingDirectory: "/Users/example",
         repositories: [],
@@ -208,6 +351,21 @@ private func storeMessage(
         ordinal: ordinal,
         createdAt: "2026-03-20T10:01:00Z",
         updatedAt: "2026-03-20T10:01:00Z"
+    )
+}
+
+private func storeAttachment(id: Int) -> Luna.Attachment {
+    Luna.Attachment(
+        id: storeUUID(id),
+        fileName: "preview.png",
+        mimeType: "image/png",
+        byteSize: 5,
+        width: 10,
+        height: 10,
+        status: .ready,
+        contentUrl: "/v1/attachments/\(storeUUID(id))/content",
+        thumbnailUrl: "/v1/attachments/\(storeUUID(id))/thumbnail",
+        createdAt: "2026-03-20T10:00:00Z"
     )
 }
 

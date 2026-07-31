@@ -36,6 +36,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Luna connects privately to the Luna server on your development machine.
+        INFOPLIST_KEY_NSCameraUsageDescription: Luna uses the camera when you attach a new photo to a conversation.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Luna records audio only when you ask it to transcribe your voice.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
         SUPPORTS_MACCATALYST: NO

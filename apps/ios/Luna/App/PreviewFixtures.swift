@@ -12,7 +12,10 @@ enum PreviewFixtures {
             ),
             credentials: FixtureCredentialStore(),
             transport: FixtureHTTPTransport(messages: messages),
-            eventSource: EmptyEventSource()
+            eventSource: EmptyEventSource(),
+            draftPersistence: ComposerDraftPersistence(
+                defaults: UserDefaults(suiteName: "LunaPreviewDraft.\(UUID())")!
+            )
         )
         model.install(bootstrap)
         if showConversationList {
@@ -226,12 +229,42 @@ private actor FixtureHTTPTransport: HTTPTransport {
            let idString = request.url?.pathComponents.dropLast().last,
            let conversationId = UUID(uuidString: idString)
         {
-            data = try JSONEncoder().encode(
-                ConversationMessages(
-                    messages: messages[conversationId] ?? [],
-                    nextBeforeOrdinal: nil
+            if request.httpMethod == "POST" {
+                let payload = try JSONDecoder().decode(
+                    SendMessageRequest.self,
+                    from: request.httpBody ?? Data()
                 )
-            )
+                data = try JSONEncoder().encode(
+                    SendMessageResponse(
+                        accepted: true,
+                        message: Message(
+                            id: UUID(),
+                            conversationId: conversationId,
+                            clientMessageId: payload.clientMessageId,
+                            role: .user,
+                            status: .accepted,
+                            delivery: .steer,
+                            text: payload.text,
+                            attachments: [],
+                            sentByDeviceId: nil,
+                            ordinal: 100,
+                            createdAt: "2026-07-31T07:41:00Z",
+                            updatedAt: "2026-07-31T07:41:00Z"
+                        )
+                    )
+                )
+            } else {
+                data = try JSONEncoder().encode(
+                    ConversationMessages(
+                        messages: messages[conversationId] ?? [],
+                        nextBeforeOrdinal: nil
+                    )
+                )
+            }
+        } else if request.url?.path.hasSuffix("/abort") == true {
+            data = Data()
+        } else if request.url?.path == "/v1/transcriptions" {
+            data = try JSONEncoder().encode(TranscriptionResponse(text: "Transcribed preview"))
         } else {
             throw APIClientError.invalidResponse
         }

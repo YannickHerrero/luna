@@ -33,17 +33,20 @@ final class AppModel {
     @ObservationIgnored private let credentials: any CredentialStore
     @ObservationIgnored private let transport: any HTTPTransport
     @ObservationIgnored private let eventSource: any EventSource
+    @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
 
     init(
         configuration: ServerConfiguration = ServerConfiguration(),
         credentials: any CredentialStore = KeychainCredentialStore.shared,
         transport: any HTTPTransport = URLSessionHTTPTransport(),
-        eventSource: any EventSource = URLSessionEventSource()
+        eventSource: any EventSource = URLSessionEventSource(),
+        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence()
     ) {
         self.configuration = configuration
         self.credentials = credentials
         self.transport = transport
         self.eventSource = eventSource
+        self.draftPersistence = draftPersistence
     }
 
     var client: APIClient {
@@ -105,7 +108,8 @@ final class AppModel {
         conversationStore = ConversationStore(
             client: client,
             bootstrap: bootstrap,
-            eventSource: eventSource
+            eventSource: eventSource,
+            draftPersistence: draftPersistence
         )
         phase = .ready
         errorMessage = nil
