@@ -36,6 +36,8 @@ targets:
       - path: Luna
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Luna/DesignSystem/Generated
+    dependencies:
+      - target: LunaWidgets
     info:
       path: Luna/Resources/Info.plist
       properties:
@@ -73,6 +75,30 @@ targets:
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
         CODE_SIGN_ENTITLEMENTS: Luna/Resources/Luna.entitlements
         SUPPORTS_MACCATALYST: NO
+  LunaWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LunaWidgets
+        excludes:
+          - Info.plist
+      - path: ../../packages/design-tokens/generated/LunaColors.swift
+        group: LunaWidgets/DesignSystem/Generated
+    info:
+      path: LunaWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Luna Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.widgets
+        PRODUCT_NAME: LunaWidgets
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: '1,2'
   LunaTests:
     type: bundle.unit-test
     platform: iOS
@@ -103,6 +129,7 @@ schemes:
     build:
       targets:
         Luna: all
+        LunaWidgets: all
         LunaTests: [test]
         LunaUITests: [test]
     run:

@@ -49,6 +49,20 @@
                ReferencedContainer = "container:Luna.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F05E1BF236A9829FBD21CB64"
+               BuildableName = "LunaWidgets.appex"
+               BlueprintName = "LunaWidgets"
+               ReferencedContainer = "container:Luna.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
