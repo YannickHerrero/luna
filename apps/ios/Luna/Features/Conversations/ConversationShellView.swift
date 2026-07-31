@@ -141,6 +141,12 @@ private struct ConversationPanel: View {
     let onBack: () -> Void
 
     @Environment(\.lunaPalette) private var palette
+    @State private var agentSettingsPresented = false
+    @State private var renamePresented = false
+    @State private var archivePresented = false
+    @State private var renameTitle = ""
+    @State private var renaming = false
+    @State private var archiving = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -153,10 +159,41 @@ private struct ConversationPanel: View {
                 onLoadEarlier: onLoadEarlier
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            ConversationComposerView(store: store, conversation: conversation)
-                .id(conversation.id)
+            ConversationComposerView(
+                store: store,
+                conversation: conversation,
+                onShowAgentControls: { agentSettingsPresented = true }
+            )
+            .id(conversation.id)
         }
         .background(palette.surface.opacity(0.94))
+        .sheet(isPresented: $agentSettingsPresented) {
+            AgentControlsView(
+                store: store,
+                conversationId: conversation.id,
+                busy: conversation.state.isBusy
+            )
+            .presentationDetents(compact ? [.fraction(0.86)] : [.height(720)])
+            .presentationDragIndicator(.hidden)
+            .presentationCornerRadius(compact ? 25 : 24)
+        }
+        .alert("Conversation title", isPresented: $renamePresented) {
+            TextField("Conversation title", text: $renameTitle)
+                .accessibilityIdentifier("conversation-title-field")
+            Button("Cancel", role: .cancel) {}
+            Button("Rename") { rename() }
+                .disabled(
+                    renaming
+                        || renameTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+        }
+        .alert("Archive “\(conversation.title)”?", isPresented: $archivePresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Archive", role: .destructive) { archive() }
+                .disabled(archiving)
+        } message: {
+            Text("This conversation will be removed from Luna’s active list.")
+        }
     }
 
     private var header: some View {
@@ -168,26 +205,36 @@ private struct ConversationPanel: View {
                     action: onBack
                 )
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(conversation.title)
-                    .font(LunaFont.display(18, weight: .bold))
-                    .foregroundStyle(palette.foreground)
+            Button {
+                renameTitle = conversation.title
+                renamePresented = true
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(conversation.title)
+                        .font(LunaFont.display(18, weight: .bold))
+                        .foregroundStyle(palette.foreground)
+                        .lineLimit(1)
+                    Text(
+                        conversation.repositories.map(\.displayName).joined(separator: " · ").isEmpty
+                            ? "Home"
+                            : conversation.repositories.map(\.displayName).joined(separator: " · ")
+                    )
+                    .font(LunaFont.mono(10))
+                    .foregroundStyle(palette.muted)
                     .lineLimit(1)
-                Text(
-                    conversation.repositories.map(\.displayName).joined(separator: " · ").isEmpty
-                        ? "Home"
-                        : conversation.repositories.map(\.displayName).joined(separator: " · ")
-                )
-                .font(LunaFont.mono(10))
-                .foregroundStyle(palette.muted)
-                .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Rename \(conversation.title)")
+            .accessibilityHint("Opens a field to change the conversation title")
+            .accessibilityIdentifier("rename-conversation")
             statusPill
             LunaIconButton(
                 icon: .archive,
                 accessibilityLabel: "Archive conversation",
-                action: {}
+                action: { archivePresented = true }
             )
         }
         .frame(minHeight: compact ? 62 : 72)
@@ -197,6 +244,39 @@ private struct ConversationPanel: View {
                 .fill(palette.border)
                 .frame(height: 1)
         }
+    }
+
+    private func rename() {
+        let title = renameTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != conversation.title, !renaming else { return }
+        renaming = true
+        store.errorMessage = nil
+        Task {
+            defer { renaming = false }
+            do {
+                try await store.renameConversation(conversation.id, title: title)
+            } catch {
+                store.errorMessage = message(from: error)
+            }
+        }
+    }
+
+    private func archive() {
+        guard !archiving else { return }
+        archiving = true
+        store.errorMessage = nil
+        Task {
+            defer { archiving = false }
+            do {
+                try await store.archiveConversation(conversation.id)
+            } catch {
+                store.errorMessage = message(from: error)
+            }
+        }
+    }
+
+    private func message(from error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 
     private var statusPill: some View {

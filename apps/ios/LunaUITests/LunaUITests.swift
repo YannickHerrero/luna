@@ -13,7 +13,7 @@ final class LunaUITests: XCTestCase {
     @MainActor
     func testTranscriptShowsProgressAndWorkingActivity() {
         let application = XCUIApplication()
-        application.launchArguments = ["-ui-testing-ready"]
+        application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
         application.launch()
 
         XCTAssertTrue(application.buttons["Back"].waitForExistence(timeout: 5))
@@ -29,7 +29,7 @@ final class LunaUITests: XCTestCase {
     @MainActor
     func testComposerSendsDraft() {
         let application = XCUIApplication()
-        application.launchArguments = ["-ui-testing-ready"]
+        application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
         application.launch()
 
         let editor = application.textViews["Steer Pi"]
@@ -46,9 +46,98 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testConversationControlsCompactRenameAndArchive() {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-list", "-luna-theme", "latte",
+        ]
+        application.launch()
+
+        let conversation = application.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Notification service'")
+        ).firstMatch
+        XCTAssertTrue(conversation.waitForExistence(timeout: 5))
+        conversation.tap()
+
+        application.buttons["Agent settings"].tap()
+        XCTAssertTrue(application.staticTexts["Agent settings"].waitForExistence(timeout: 5))
+        let modelControl = application.buttons["agent-model"]
+        let thinkingControl = application.buttons["thinking-level"]
+        XCTAssertTrue(modelControl.exists)
+        XCTAssertTrue(thinkingControl.exists)
+        XCTAssertTrue(application.staticTexts["48K / 200K tokens"].exists)
+
+        modelControl.tap()
+        let gptModel = application.buttons["GPT-5"]
+        XCTAssertTrue(gptModel.waitForExistence(timeout: 2))
+        gptModel.tap()
+        thinkingControl.tap()
+        let extraHighThinking = application.buttons["Extra high"]
+        XCTAssertTrue(extraHighThinking.waitForExistence(timeout: 2))
+        extraHighThinking.tap()
+        application.buttons["apply-agent-settings"].tap()
+        XCTAssertTrue(application.staticTexts["GPT-5"].waitForExistence(timeout: 5))
+        XCTAssertTrue(application.staticTexts["Extra high"].exists)
+
+        application.buttons["Compact context"].tap()
+        XCTAssertTrue(application.staticTexts["Pi will summarize older context while preserving recent work."].exists)
+        application.buttons["Compact now"].tap()
+        XCTAssertTrue(application.staticTexts["12K / 200K tokens"].waitForExistence(timeout: 5))
+        let settingsScreenshot = XCTAttachment(screenshot: application.screenshot())
+        settingsScreenshot.name = "Agent settings after compaction"
+        settingsScreenshot.lifetime = .keepAlways
+        add(settingsScreenshot)
+        application.buttons["Close agent settings"].tap()
+
+        application.buttons["rename-conversation"].tap()
+        let titleField = application.alerts["Conversation title"].textFields.firstMatch
+        XCTAssertTrue(titleField.waitForExistence(timeout: 2))
+        XCTAssertEqual(titleField.value as? String, "Notification service")
+        titleField.tap()
+        titleField.typeKey("a", modifierFlags: .command)
+        titleField.typeText("APNs service")
+        XCTAssertEqual(titleField.value as? String, "APNs service")
+        application.buttons["Rename"].tap()
+        let titleButton = application.buttons["rename-conversation"]
+        let renamedTitle = NSPredicate(format: "label == %@", "Rename APNs service")
+        expectation(for: renamedTitle, evaluatedWith: titleButton)
+        waitForExpectations(timeout: 5)
+
+        application.buttons["Archive conversation"].tap()
+        XCTAssertTrue(application.alerts["Archive “APNs service”?"].waitForExistence(timeout: 2))
+        application.buttons["Archive"].tap()
+        XCTAssertTrue(application.textFields["Search conversations"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testBusyConversationDisablesAgentMutations() {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-list", "-luna-theme", "latte",
+        ]
+        application.launch()
+
+        let conversation = application.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Launch Luna'")
+        ).firstMatch
+        XCTAssertTrue(conversation.waitForExistence(timeout: 5))
+        conversation.tap()
+        application.buttons["Agent settings"].tap()
+
+        let model = application.buttons["agent-model"]
+        XCTAssertTrue(model.waitForExistence(timeout: 5))
+        XCTAssertFalse(model.isEnabled)
+        XCTAssertFalse(application.buttons["thinking-level"].isEnabled)
+        XCTAssertFalse(application.buttons["apply-agent-settings"].isEnabled)
+        XCTAssertFalse(application.buttons["compact-context"].isEnabled)
+    }
+
+    @MainActor
     func testReadyFixtureNavigatesFromListToConversation() {
         let application = XCUIApplication()
-        application.launchArguments = ["-ui-testing-ready", "-ui-testing-list"]
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-list", "-luna-theme", "latte",
+        ]
         application.launch()
 
         XCTAssertTrue(application.staticTexts["Luna"].waitForExistence(timeout: 5))

@@ -136,7 +136,7 @@ struct ConversationComposerView: View {
         HStack(spacing: 2) {
             LunaIconButton(
                 icon: .settings,
-                accessibilityLabel: "Agent controls",
+                accessibilityLabel: "Agent settings",
                 action: onShowAgentControls
             )
             LunaIconButton(

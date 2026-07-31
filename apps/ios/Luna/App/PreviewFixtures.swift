@@ -11,7 +11,11 @@ enum PreviewFixtures {
                 fallback: server
             ),
             credentials: FixtureCredentialStore(),
-            transport: FixtureHTTPTransport(messages: messages),
+            transport: FixtureHTTPTransport(
+                messages: messages,
+                conversations: conversations,
+                agentState: agentState
+            ),
             eventSource: EmptyEventSource(),
             draftPersistence: ComposerDraftPersistence(
                 defaults: UserDefaults(suiteName: "LunaPreviewDraft.\(UUID())")!
@@ -68,6 +72,42 @@ enum PreviewFixtures {
             lastSeenAt: "2026-07-31T07:40:00Z"
         ),
         conversations: conversations
+    )
+
+    static let agentState = ConversationAgentState(
+        model: AgentModel(
+            provider: "anthropic",
+            id: "claude-sonnet-4",
+            name: "Claude Sonnet 4",
+            reasoning: true,
+            contextWindow: 200_000,
+            supportedThinkingLevels: [.off, .low, .medium, .high]
+        ),
+        thinkingLevel: .medium,
+        availableModels: [
+            AgentModel(
+                provider: "anthropic",
+                id: "claude-sonnet-4",
+                name: "Claude Sonnet 4",
+                reasoning: true,
+                contextWindow: 200_000,
+                supportedThinkingLevels: [.off, .low, .medium, .high]
+            ),
+            AgentModel(
+                provider: "openai",
+                id: "gpt-5",
+                name: "GPT-5",
+                reasoning: true,
+                contextWindow: 400_000,
+                supportedThinkingLevels: [.minimal, .low, .medium, .high, .xhigh]
+            ),
+        ],
+        contextUsage: ContextUsage(
+            tokens: 48_000,
+            contextWindow: 200_000,
+            percent: 24
+        ),
+        autoCompactionEnabled: true
     )
 
     static let messages: [UUID: [Message]] = [
@@ -218,9 +258,17 @@ private actor FixtureCredentialStore: CredentialStore {
 
 private actor FixtureHTTPTransport: HTTPTransport {
     let messages: [UUID: [Message]]
+    let conversations: [Conversation]
+    let agentState: ConversationAgentState
 
-    init(messages: [UUID: [Message]]) {
+    init(
+        messages: [UUID: [Message]],
+        conversations: [Conversation],
+        agentState: ConversationAgentState
+    ) {
         self.messages = messages
+        self.conversations = conversations
+        self.agentState = agentState
     }
 
     func data(for request: URLRequest) throws -> HTTPResponse {
@@ -261,8 +309,53 @@ private actor FixtureHTTPTransport: HTTPTransport {
                     )
                 )
             }
-        } else if request.url?.path.hasSuffix("/abort") == true {
+        } else if request.url?.path.hasSuffix("/agent") == true {
+            if request.httpMethod == "PATCH" {
+                let update = try JSONDecoder().decode(
+                    UpdateConversationAgentRequest.self,
+                    from: request.httpBody ?? Data()
+                )
+                let selected = update.model.flatMap { selection in
+                    agentState.availableModels.first {
+                        $0.provider == selection.provider && $0.id == selection.modelId
+                    }
+                } ?? agentState.model
+                data = try JSONEncoder().encode(
+                    ConversationAgentState(
+                        model: selected,
+                        thinkingLevel: update.thinkingLevel ?? agentState.thinkingLevel,
+                        availableModels: agentState.availableModels,
+                        contextUsage: agentState.contextUsage,
+                        autoCompactionEnabled: true
+                    )
+                )
+            } else {
+                data = try JSONEncoder().encode(agentState)
+            }
+        } else if request.url?.path.hasSuffix("/compact") == true {
+            data = try JSONEncoder().encode(
+                CompactConversationResponse(
+                    tokensBefore: 48_000,
+                    estimatedTokensAfter: 12_000
+                )
+            )
+        } else if request.url?.path.hasSuffix("/archive") == true
+            || request.url?.path.hasSuffix("/abort") == true
+        {
             data = Data()
+        } else if request.httpMethod == "PATCH",
+                  let idString = request.url?.pathComponents.last,
+                  let conversationId = UUID(uuidString: idString),
+                  var conversation = conversations.first(where: {
+                      $0.id == conversationId
+                  })
+        {
+            let update = try JSONDecoder().decode(
+                UpdateConversationRequest.self,
+                from: request.httpBody ?? Data()
+            )
+            if let title = update.title { conversation.title = title }
+            data = try JSONEncoder().encode(conversation)
         } else if request.url?.path == "/v1/transcriptions" {
             data = try JSONEncoder().encode(TranscriptionResponse(text: "Transcribed preview"))
         } else {
