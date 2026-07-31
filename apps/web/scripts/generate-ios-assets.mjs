@@ -92,6 +92,10 @@ await writeJSON(resolve(appIconSet, 'Contents.json'), {
   info: { author: 'xcode', version: 1 },
 })
 
+/**
+ * @param {string} path
+ * @param {unknown} value
+ */
 async function writeJSON(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`)
 }
