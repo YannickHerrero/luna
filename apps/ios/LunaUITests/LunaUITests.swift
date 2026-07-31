@@ -208,4 +208,21 @@ final class LunaUITests: XCTestCase {
         conversation.tap()
         XCTAssertTrue(application.buttons["Back"].waitForExistence(timeout: 5))
     }
+
+    @MainActor
+    func testConversationSupportsLeadingEdgeSwipeBack() {
+        let application = XCUIApplication()
+        application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
+        application.launch()
+
+        XCTAssertTrue(application.buttons["Back"].waitForExistence(timeout: 5))
+        let window = application.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+        let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
+
+        XCTAssertTrue(application.textFields["Search conversations"].waitForExistence(timeout: 5))
+        XCTAssertFalse(application.buttons["Back"].exists)
+    }
 }

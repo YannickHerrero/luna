@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ConversationShellView: View {
     @Bindable var store: ConversationStore
@@ -38,23 +39,38 @@ struct ConversationShellView: View {
     }
 
     private var compactLayout: some View {
-        Group {
-            if let conversation = store.selectedConversation {
-                ConversationPanel(
-                    store: store,
-                    conversation: conversation,
-                    messages: store.selectedMessages,
-                    imageLoader: store.imageLoader,
-                    canLoadEarlier: store.canLoadEarlier,
-                    compact: true,
-                    onLoadEarlier: { await store.loadEarlierMessages() },
-                    onBack: store.showConversationList
-                )
-            } else {
-                sidebar
-            }
+        NavigationStack {
+            sidebar
+                .navigationDestination(isPresented: compactConversationPresented) {
+                    if let conversation = store.selectedConversation {
+                        ConversationPanel(
+                            store: store,
+                            conversation: conversation,
+                            messages: store.selectedMessages,
+                            imageLoader: store.imageLoader,
+                            canLoadEarlier: store.canLoadEarlier,
+                            compact: true,
+                            onLoadEarlier: { await store.loadEarlierMessages() },
+                            onBack: store.showConversationList
+                        )
+                        .navigationBarBackButtonHidden()
+                        .background(InteractivePopGestureEnabler())
+                    }
+                }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .background(palette.surface)
+    }
+
+    private var compactConversationPresented: Binding<Bool> {
+        Binding(
+            get: { store.selectedConversation != nil },
+            set: { presented in
+                if !presented {
+                    store.showConversationList()
+                }
+            }
+        )
     }
 
     private func regularLayout(width: CGFloat) -> some View {
@@ -127,6 +143,29 @@ struct ConversationShellView: View {
         .buttonStyle(.plain)
         .padding(24)
         .accessibilityLabel("Dismiss error: \(message)")
+    }
+}
+
+private struct InteractivePopGestureEnabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    @MainActor
+    final class Controller: UIViewController {
+        override func loadView() {
+            view = UIView()
+            view.isUserInteractionEnabled = false
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            // SwiftUI disables edge-pop when its system back button is hidden.
+            navigationController?.interactivePopGestureRecognizer?.delegate = nil
+            navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        }
     }
 }
 
