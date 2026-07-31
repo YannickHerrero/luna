@@ -5,6 +5,8 @@ final class LunaUITests: XCTestCase {
     func testApplicationLaunches() {
         let application = XCUIApplication()
         application.launch()
-        XCTAssertTrue(application.staticTexts["Luna"].waitForExistence(timeout: 5))
+        XCTAssertTrue(application.staticTexts["Pair with Luna"].waitForExistence(timeout: 5))
+        XCTAssertTrue(application.textFields["pairing-code"].exists)
+        XCTAssertTrue(application.textFields["device-name"].exists)
     }
 }

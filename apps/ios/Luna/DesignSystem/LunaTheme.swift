@@ -94,7 +94,7 @@ extension View {
 
 enum LunaFont {
     static func display(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("Iowan Old Style", size: size, relativeTo: .title).weight(weight)
+        .custom("Iowan Old Style", fixedSize: size).weight(weight)
     }
 
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
