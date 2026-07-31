@@ -14,7 +14,7 @@
     "dev:web": "pnpm --filter @luna/web dev",
     "format": "prettier --write . && cargo fmt --all",
     "format:check": "prettier --check . && cargo fmt --all --check",
-    "generate": "pnpm --filter @luna/design-tokens generate && pnpm --filter @luna/protocol generate",
+    "generate": "pnpm --filter @luna/design-tokens generate && pnpm --filter @luna/protocol generate && pnpm --filter @luna/web generate:ios-assets",
     "lint": "eslint . --no-error-on-unmatched-pattern",
     "test": "pnpm test:web && cargo test --workspace",
     "test:web": "pnpm --recursive --if-present test",

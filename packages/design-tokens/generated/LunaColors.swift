@@ -36,3 +36,16 @@ enum LunaColors {
     static let mauve = Color(red: 0.796078, green: 0.650980, blue: 0.968627)
   }
 }
+
+enum LunaShape {
+  static let radius: CGFloat = 14.0
+  static let radiusLarge: CGFloat = 22.0
+  static let conversationAvatarRadius: CGFloat = 14.0
+  static let messageRadius: CGFloat = 18.0
+  static let minimumTarget: CGFloat = 44.0
+}
+
+enum LunaMotion {
+  static let standardDuration = 0.200
+  static let springDuration = 0.260
+}

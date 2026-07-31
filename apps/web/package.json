@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm generate:icons && next build",
     "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:ios-assets": "node scripts/generate-ios-assets.mjs",
     "dev": "next dev",
     "test": "vitest run --exclude e2e/**",
     "test:e2e": "pnpm build && cargo build --manifest-path ../../Cargo.toml -p luna-server && playwright test",
