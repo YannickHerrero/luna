@@ -29,6 +29,8 @@ final class AppModel {
     private(set) var conversationStore: ConversationStore?
     var errorMessage: String?
 
+    @ObservationIgnored private var pendingRoute: LunaRoute?
+
     let configuration: ServerConfiguration
     @ObservationIgnored private let credentials: any CredentialStore
     @ObservationIgnored private let transport: any HTTPTransport
@@ -102,6 +104,21 @@ final class AppModel {
         await start()
     }
 
+    func open(_ url: URL) async {
+        guard let route = LunaRoute(url: url) else { return }
+        guard phase == .ready else {
+            pendingRoute = route
+            return
+        }
+        await apply(route)
+    }
+
+    func resolvePendingRoute() async {
+        guard phase == .ready, let route = pendingRoute else { return }
+        pendingRoute = nil
+        await apply(route)
+    }
+
     func install(_ bootstrap: Bootstrap) {
         conversationStore?.stopRealtime()
         self.bootstrap = bootstrap
@@ -113,6 +130,23 @@ final class AppModel {
         )
         phase = .ready
         errorMessage = nil
+    }
+
+    private func apply(_ route: LunaRoute) async {
+        guard let store = conversationStore else {
+            pendingRoute = route
+            return
+        }
+        switch route {
+        case .home:
+            store.showConversationList()
+        case let .conversation(id):
+            guard store.conversations.contains(where: { $0.id == id }) else {
+                store.errorMessage = "This conversation is unavailable."
+                return
+            }
+            await store.selectConversation(id)
+        }
     }
 
     private func validateProtocol(_ bootstrap: Bootstrap) throws {

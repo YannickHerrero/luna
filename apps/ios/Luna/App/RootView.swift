@@ -42,6 +42,14 @@ struct RootView: View {
                 await model.start()
             }
         }
+        .task(id: model.phase) {
+            if model.phase == .ready {
+                await model.resolvePendingRoute()
+            }
+        }
+        .onOpenURL { url in
+            Task { await model.open(url) }
+        }
     }
 }
 

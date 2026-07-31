@@ -28,6 +28,10 @@ targets:
   Luna:
     type: application
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.Push:
+          enabled: 1
     sources:
       - path: Luna
       - path: ../../packages/design-tokens/generated/LunaColors.swift
@@ -37,6 +41,10 @@ targets:
       properties:
         CFBundleDisplayName: Luna
         CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: com.yannickherrero.luna
+            CFBundleURLSchemes:
+              - luna
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSceneManifest:
@@ -63,6 +71,7 @@ targets:
         PRODUCT_NAME: Luna
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+        CODE_SIGN_ENTITLEMENTS: Luna/Resources/Luna.entitlements
         SUPPORTS_MACCATALYST: NO
   LunaTests:
     type: bundle.unit-test
