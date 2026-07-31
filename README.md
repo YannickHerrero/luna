@@ -17,6 +17,7 @@
 
 <p align="center">
   <img src="docs/images/luna-mobile.png" width="360" alt="Luna conversation view on mobile">
+  <img src="docs/images/luna-mobile-list.png" width="360" alt="Luna conversation list on mobile">
 </p>
 
 ## What Luna does
