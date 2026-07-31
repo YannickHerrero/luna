@@ -6,11 +6,11 @@
 
 <p align="center">
   Persistent Pi conversations from every device.<br>
-  A private Rust server and installable PWA for continuing agent work without losing context.
+  A private Rust server with web, iPhone, and iPad clients for continuing agent work without losing context.
 </p>
 
 <p align="center">
-  <strong>Rust</strong> · <strong>Axum</strong> · <strong>SQLite</strong> · <strong>Next.js</strong> · <strong>Pi RPC</strong> · <strong>Tailscale</strong>
+  <strong>Rust</strong> · <strong>Axum</strong> · <strong>SQLite</strong> · <strong>Next.js</strong> · <strong>SwiftUI</strong> · <strong>Pi RPC</strong> · <strong>Tailscale</strong>
 </p>
 
 ![Luna conversation view on desktop](docs/images/luna-desktop.png)
@@ -29,7 +29,7 @@
 - Generates concise contextual conversation titles with an isolated Pi model request.
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
-- Installs as a responsive, offline-capable PWA with Catppuccin Latte and Mocha themes.
+- Runs as a responsive, offline-capable PWA and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
 - Serves everything from one loopback-bound Rust process.
 
 Pi process stdout never reaches clients. Output from an authenticated user's explicit `!` shell command is the sole exception: Luna bounds and persists it as a conversation message. SQLite is authoritative for client state, while Pi's session JSONL remains authoritative for agent context.
@@ -38,7 +38,8 @@ Pi process stdout never reaches clients. Output from an authenticated user's exp
 
 ```mermaid
 flowchart LR
-    Device[Installable PWA] -->|HTTPS / WebSocket| TS[Tailscale Serve]
+    Web[Installable PWA] -->|HTTPS / WebSocket| TS[Tailscale Serve]
+    Apple[Native iPhone and iPad app] -->|HTTPS / WebSocket| TS
     TS -->|loopback HTTP| Server[luna-server\nAxum + Tokio]
     Server --> DB[(SQLite)]
     Server --> Media[Private media storage]
@@ -58,6 +59,7 @@ The server owns authentication, normalized event persistence, session supervisio
 | `crates/luna-pi`         | Strict JSONL RPC client, process supervision, and normalization |
 | `crates/luna-protocol`   | Canonical Serde/Schemars/Utoipa protocol types                  |
 | `apps/web`               | Statically exported Next.js PWA                                 |
+| `apps/ios`               | Universal native SwiftUI client, tests, and XcodeGen project    |
 | `integrations/pi`        | Pi bridge extension                                             |
 | `integrations/citadel`   | Production service manifest                                     |
 | `packages/protocol`      | Generated OpenAPI and TypeScript bindings                       |
@@ -65,7 +67,7 @@ The server owns authentication, normalized event persistence, session supervisio
 
 ## Development
 
-Requirements: Rust 1.95+, Node.js 24+, and pnpm 11.3+.
+Requirements: Rust 1.95+, Node.js 24+, and pnpm 11.3+. Native Apple development additionally requires Xcode with an iOS 18+ SDK and XcodeGen 2.45+.
 
 ```sh
 pnpm install
@@ -93,6 +95,23 @@ pnpm --filter @luna/web test:e2e
 
 The suite covers pairing, persistent streaming, steering, interruption, image upload, rename/archive flows, reload recovery, themes, service workers, keyboard behavior, and serious/critical accessibility checks.
 
+### Native iPhone and iPad development
+
+The checked-in Xcode project is generated from `apps/ios/project.yml`. After running `pnpm generate`, regenerate it with XcodeGen and run the native unit/UI suite on an available simulator:
+
+```sh
+cd apps/ios
+xcodegen generate
+cd ../..
+xcrun simctl list devices available
+xcodebuild test \
+  -project apps/ios/Luna.xcodeproj \
+  -scheme Luna \
+  -destination 'platform=iOS Simulator,id=<SIMULATOR_UDID>'
+```
+
+The native pairing screen can select a private HTTPS server, while `LUNA_SERVER_URL` provides a temporary Xcode-scheme override for development. Device credentials remain in Keychain. See [`apps/ios/README.md`](apps/ios/README.md) for setup, architecture, fixture arguments, iPad verification, signing, and notification-readiness details.
+
 ## Production
 
 Luna is designed to bind only to `127.0.0.1`, run under [Citadel](https://github.com/YannickHerrero/citadel), and be exposed privately through **Tailscale Serve**—never Funnel.
@@ -115,4 +134,4 @@ See [`docs/deployment.md`](docs/deployment.md) for build, backup, Citadel, Tails
 
 ## Current scope
 
-Luna V1 provides the complete server and PWA stack. Native iOS/iPadOS clients and notification delivery are intentionally deferred; notification-target tracking is already preserved in the protocol and storage model.
+Luna V1 provides the complete server, PWA, and universal native iPhone/iPad client. APNs registration and provider delivery are intentionally deferred; device targeting and externally driven conversation navigation are already preserved for future notification deep links.
