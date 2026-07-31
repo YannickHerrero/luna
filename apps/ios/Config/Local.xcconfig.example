@@ -1,0 +1,3 @@
+// Copy to Local.xcconfig for physical-device signing.
+// This file contains non-secret local project metadata and is ignored by Git.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID

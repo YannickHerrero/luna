@@ -28,6 +28,7 @@
 		746DEBCC2CBCC91F89751784 /* AuthenticatedImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */; };
 		79FB38B90A7B1F45FBB430B1 /* MarkdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */; };
 		7BBF6590B1B934FAFDA8BC84 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E556359BF68F1642E3BA0FA5 /* AppModel.swift */; };
+		8484D71F46A61DF8FC6E8E0E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0115226D947BB6D519EA0EF6 /* PrivacyInfo.xcprivacy */; };
 		8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFD1B295E68E217F4E87326 /* LunaTheme.swift */; };
 		8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */; };
 		8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E615B4F62478DD81610EC904 /* MarkdownView.swift */; };
@@ -74,6 +75,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0115226D947BB6D519EA0EF6 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0695B7744D91951C5A34E305 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
 		07513D9CF7E8AE8D866C482F /* NativeComposerInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerInputs.swift; sourceTree = "<group>"; };
 		0EBD08A622DC05B5D6C4BA28 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -85,6 +87,7 @@
 		302CDA3842D14DAA19FB466F /* ConversationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStoreTests.swift; sourceTree = "<group>"; };
 		3299407BD23BA1484448E336 /* MultipartForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipartForm.swift; sourceTree = "<group>"; };
 		37224358526A57AC70F20BA0 /* LunaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaUITests.swift; sourceTree = "<group>"; };
+		372E1ADBEE23857F755B87A7 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		39D79A5020F9E11215648BD2 /* LunaTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTime.swift; sourceTree = "<group>"; };
 		3BBCE5382FCDBEC76F3E0884 /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
 		446892BB5B365737EE00315F /* LunaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaApp.swift; sourceTree = "<group>"; };
@@ -108,6 +111,7 @@
 		BB5BE7E52636B4529580B80B /* ConversationTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationTranscriptView.swift; sourceTree = "<group>"; };
 		BDF59CED60218ECEC6977138 /* LunaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTests.swift; sourceTree = "<group>"; };
 		C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlighter.swift; sourceTree = "<group>"; };
+		C207A2B06080F0309E8742D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D399E4DA6B951325F78CD25C /* Luna.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Luna.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D52EB1E0C99044C5EA937635 /* AgentControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentControlsTests.swift; sourceTree = "<group>"; };
 		D57DA3D0C9E7F119F8B76BDD /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
@@ -149,6 +153,8 @@
 			isa = PBXGroup;
 			children = (
 				8C77C10BEEA3129002A168D6 /* Assets.xcassets */,
+				C207A2B06080F0309E8742D8 /* Info.plist */,
+				0115226D947BB6D519EA0EF6 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -171,6 +177,14 @@
 				FA3179E92ACF1637BD27B8BC /* Transcript */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		2F0B3E06209EE85B5D06292B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				372E1ADBEE23857F755B87A7 /* Base.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		3B27887B5DC4CF7093A67CA8 /* App */ = {
@@ -233,6 +247,7 @@
 		BCE224A24DD6FDE472019650 = {
 			isa = PBXGroup;
 			children = (
+				2F0B3E06209EE85B5D06292B /* Config */,
 				CD6164EF533913AF3497943F /* Luna */,
 				561DF00A51072B22238E0036 /* LunaTests */,
 				9D8E91BF2481FEE4DE33F5E2 /* LunaUITests */,
@@ -394,7 +409,14 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					6097A6542593C1955CC546D4 = {
+						ProvisioningStyle = Automatic;
 						TestTargetID = EDEBD772AE9343A01D9935A3;
+					};
+					E154FFDE9FAFF378939D603A = {
+						ProvisioningStyle = Automatic;
+					};
+					EDEBD772AE9343A01D9935A3 = {
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -425,6 +447,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F4B98DDA68748E8F38FA9E74 /* Assets.xcassets in Resources */,
+				8484D71F46A61DF8FC6E8E0E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -533,6 +556,7 @@
 		};
 		1969CB8D53AF6852AF716F72 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 372E1ADBEE23857F755B87A7 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -564,6 +588,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -634,15 +659,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Luna;
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Luna uses the camera when you attach a new photo to a conversation.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Luna connects privately to the Luna server on your development machine.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Luna records audio only when you ask it to transcribe your voice.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_FILE = Luna/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -657,6 +674,7 @@
 		};
 		A656E583166AE2A51EF0E151 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 372E1ADBEE23857F755B87A7 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -688,12 +706,12 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_LANGUAGE = en;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -748,15 +766,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Luna;
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Luna uses the camera when you attach a new photo to a conversation.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Luna connects privately to the Luna server on your development machine.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Luna records audio only when you ask it to transcribe your voice.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_FILE = Luna/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

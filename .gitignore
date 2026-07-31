@@ -31,6 +31,10 @@ DerivedData/
 .build/
 xcuserdata/
 *.xcuserstate
+/apps/ios/Config/Local.xcconfig
+/fastlane/build/
+/fastlane/report.xml
+/fastlane/test_output/
 
 # Test output
 test-results/
