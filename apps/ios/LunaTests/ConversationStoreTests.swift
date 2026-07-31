@@ -172,6 +172,42 @@ struct ConversationStoreTests {
     }
 
     @Test
+    func loadsAndRestoresArchivedConversations() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let archived = storeConversation(id: 2, archivedAt: "2026-03-21T10:00:00Z")
+        var restored = archived
+        restored.archivedAt = nil
+        let transport = StoreTransport([
+            .init(
+                status: 200,
+                data: try JSONEncoder().encode(ConversationList(conversations: [archived]))
+            ),
+            .init(status: 200, data: try JSONEncoder().encode(restored)),
+        ])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([storeConversation(id: 1)]),
+            eventSource: EmptyEventSource()
+        )
+
+        await store.showArchivedConversationList()
+        #expect(store.listScope == .archived)
+        #expect(store.visibleConversations.map(\.id) == [archived.id])
+
+        #expect(try await store.restoreConversation(archived.id) == restored)
+        #expect(store.listScope == .active)
+        #expect(store.selectedConversationId == restored.id)
+        #expect(store.archivedConversations.isEmpty)
+        #expect(store.conversations.contains(where: { $0.id == restored.id }))
+
+        let requests = await transport.allRequests()
+        #expect(requests.map(\.httpMethod) == ["GET", "POST"])
+        #expect(requests[0].url?.query == "scope=archived")
+        #expect(requests[1].url?.path.hasSuffix("/restore") == true)
+    }
+
+    @Test
     func loadsUpdatesAndCompactsAgentState() async throws {
         let credentials = MemoryCredentialStore()
         await credentials.setToken("token", for: server)
@@ -408,7 +444,11 @@ private func storeBootstrap(_ conversations: [Conversation], cursor: Int64 = 0) 
     )
 }
 
-private func storeConversation(id: Int, state: SessionState = .idle) -> Conversation {
+private func storeConversation(
+    id: Int,
+    state: SessionState = .idle,
+    archivedAt: String? = nil
+) -> Conversation {
     Conversation(
         id: storeUUID(id),
         title: "Conversation \(id)",
@@ -422,7 +462,7 @@ private func storeConversation(id: Int, state: SessionState = .idle) -> Conversa
         lastMessageAt: nil,
         notificationTargetDeviceId: nil,
         unreadCount: 0,
-        archivedAt: nil,
+        archivedAt: archivedAt,
         createdAt: "2026-03-20T10:00:00Z",
         updatedAt: "2026-03-20T10:00:00Z",
         version: 1

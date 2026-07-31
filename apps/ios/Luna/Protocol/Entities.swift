@@ -168,7 +168,7 @@ struct Conversation: Codable, Equatable, Identifiable, Sendable {
     var lastMessageAt: LunaTimestamp?
     var notificationTargetDeviceId: UUID?
     let unreadCount: Int64
-    let archivedAt: LunaTimestamp?
+    var archivedAt: LunaTimestamp?
     let createdAt: LunaTimestamp
     let updatedAt: LunaTimestamp
     let version: Int64

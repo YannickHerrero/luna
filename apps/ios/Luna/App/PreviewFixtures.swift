@@ -14,6 +14,7 @@ enum PreviewFixtures {
             transport: FixtureHTTPTransport(
                 messages: messages,
                 conversations: conversations,
+                archivedConversations: archivedConversations,
                 agentState: agentState
             ),
             eventSource: EmptyEventSource(),
@@ -59,6 +60,20 @@ enum PreviewFixtures {
             lastMessageAt: "2026-07-29T09:00:00Z"
         ),
     ]
+
+    static let archivedConversations: [Conversation] = {
+        var archived = conversation(
+            id: 11,
+            title: "Archived release notes",
+            state: .stopped,
+            preview: "Completed Luna release planning.",
+            repository: "Luna",
+            fallback: "L",
+            lastMessageAt: "2026-07-28T09:00:00Z"
+        )
+        archived.archivedAt = "2026-07-30T09:00:00Z"
+        return [archived]
+    }()
 
     static let bootstrap = Bootstrap(
         protocolVersion: 1,
@@ -208,7 +223,7 @@ enum PreviewFixtures {
         taskList: AgentTaskList? = nil,
         lastMessageAt: String
     ) -> Conversation {
-        let repositoryId = id(value + 20)
+        let repositoryId = repository == "Luna" ? id(21) : id(value + 20)
         return Conversation(
             id: id(value),
             title: title,
@@ -259,15 +274,18 @@ private actor FixtureCredentialStore: CredentialStore {
 private actor FixtureHTTPTransport: HTTPTransport {
     let messages: [UUID: [Message]]
     let conversations: [Conversation]
+    let archivedConversations: [Conversation]
     let agentState: ConversationAgentState
 
     init(
         messages: [UUID: [Message]],
         conversations: [Conversation],
+        archivedConversations: [Conversation],
         agentState: ConversationAgentState
     ) {
         self.messages = messages
         self.conversations = conversations
+        self.archivedConversations = archivedConversations
         self.agentState = agentState
     }
 
@@ -339,6 +357,19 @@ private actor FixtureHTTPTransport: HTTPTransport {
                     estimatedTokensAfter: 12_000
                 )
             )
+        } else if request.url?.path == "/v1/conversations",
+                  request.url?.query == "scope=archived"
+        {
+            data = try JSONEncoder().encode(
+                ConversationList(conversations: archivedConversations)
+            )
+        } else if request.url?.path.hasSuffix("/restore") == true,
+                  let idString = request.url?.pathComponents.dropLast().last,
+                  let conversationId = UUID(uuidString: idString),
+                  var conversation = archivedConversations.first(where: { $0.id == conversationId })
+        {
+            conversation.archivedAt = nil
+            data = try JSONEncoder().encode(conversation)
         } else if request.url?.path.hasSuffix("/archive") == true
             || request.url?.path.hasSuffix("/abort") == true
         {

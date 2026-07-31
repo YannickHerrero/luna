@@ -231,6 +231,47 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testGroupsAndRestoresArchivedConversations() {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-list", "-luna-theme", "latte",
+            "-ui-testing-reset-grouping",
+        ]
+        application.launch()
+
+        let grouping = application.buttons["Group by project"]
+        XCTAssertTrue(grouping.waitForExistence(timeout: 5))
+        grouping.tap()
+        let grouped = application.buttons["Grouped by project"]
+        XCTAssertTrue(grouped.waitForExistence(timeout: 5))
+        XCTAssertEqual(grouped.value as? String, "On")
+        XCTAssertTrue(
+            application.descendants(matching: .any).matching(
+                NSPredicate(format: "label == %@", "Luna, 2 conversations")
+            ).firstMatch.exists
+        )
+
+        application.buttons["Archived"].tap()
+        let archived = application.buttons[
+            "conversation-00000000-0000-0000-0000-000000000011"
+        ]
+        XCTAssertTrue(archived.waitForExistence(timeout: 5))
+        archived.tap()
+        XCTAssertTrue(application.staticTexts["Archived release notes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            application.staticTexts["This conversation is archived and read-only."].exists
+        )
+        application.buttons["restore-conversation"].tap()
+        XCTAssertFalse(application.staticTexts["This conversation is archived and read-only."].exists)
+        let back = application.buttons["Back"]
+        if back.waitForExistence(timeout: 1) {
+            back.tap()
+        }
+        XCTAssertTrue(archived.waitForExistence(timeout: 5))
+        XCTAssertEqual(application.buttons["Grouped by project"].value as? String, "On")
+    }
+
+    @MainActor
     func testConversationSupportsLeadingEdgeSwipeBack() {
         let application = XCUIApplication()
         application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]

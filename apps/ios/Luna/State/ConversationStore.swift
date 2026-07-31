@@ -8,6 +8,11 @@ enum ConnectionStatus: Equatable, Sendable {
     case waitingToReconnect
 }
 
+enum ConversationListScope: String, Sendable {
+    case active
+    case archived
+}
+
 @MainActor
 @Observable
 final class ConversationStore {
@@ -15,6 +20,8 @@ final class ConversationStore {
     private(set) var connectionStatus = ConnectionStatus.disconnected
     private(set) var isLoadingMessages = false
     private(set) var composerDrafts: [UUID: ComposerDraft] = [:]
+    private(set) var archivedConversations: [Conversation] = []
+    private(set) var listScope = ConversationListScope.active
     var errorMessage: String?
 
     @ObservationIgnored private let client: APIClient
@@ -39,7 +46,13 @@ final class ConversationStore {
     }
 
     var conversations: [Conversation] { state.conversations }
-    var selectedConversation: Conversation? { state.selectedConversation }
+    var visibleConversations: [Conversation] {
+        listScope == .active ? conversations : archivedConversations
+    }
+    var selectedConversation: Conversation? {
+        state.selectedConversation
+            ?? archivedConversations.first { $0.id == state.selectedConversationId }
+    }
     var selectedMessages: [Message] { state.selectedMessages }
     var selectedConversationId: UUID? { state.selectedConversationId }
     var canLoadEarlier: Bool {
@@ -69,7 +82,31 @@ final class ConversationStore {
         state.select(nil)
     }
 
+    func showActiveConversationList() {
+        listScope = .active
+        state.select(nil)
+    }
+
+    func showArchivedConversationList() async {
+        errorMessage = nil
+        do {
+            let response: ConversationList = try await client.get(
+                "/v1/conversations?scope=archived"
+            )
+            archivedConversations = LunaClientState.sorted(response.conversations)
+            listScope = .archived
+            state.select(nil)
+        } catch {
+            errorMessage = message(from: error)
+        }
+    }
+
     func selectConversation(_ id: UUID?) async {
+        if let id, conversations.contains(where: { $0.id == id }) {
+            listScope = .active
+        } else if let id, archivedConversations.contains(where: { $0.id == id }) {
+            listScope = .archived
+        }
         state.select(id)
         guard let id else { return }
         await loadMessages(for: id, before: nil, replacing: true)
@@ -96,6 +133,7 @@ final class ConversationStore {
                 "/v1/conversations",
                 body: CreateConversationRequest()
             )
+            listScope = .active
             state.upsertConversation(conversation)
             state.select(conversation.id)
             state.messages[conversation.id] = []
@@ -112,7 +150,12 @@ final class ConversationStore {
                 avatarAttachmentId: nil
             )
         )
-        state.upsertConversation(conversation)
+        if let index = archivedConversations.firstIndex(where: { $0.id == conversationId }) {
+            archivedConversations[index] = conversation
+            archivedConversations = LunaClientState.sorted(archivedConversations)
+        } else {
+            state.upsertConversation(conversation)
+        }
     }
 
     func archiveConversation(_ conversationId: UUID) async throws {
@@ -120,6 +163,18 @@ final class ConversationStore {
         state.removeConversation(conversationId)
         composerDrafts.removeValue(forKey: conversationId)
         draftPersistence.setText("", for: conversationId)
+    }
+
+    @discardableResult
+    func restoreConversation(_ conversationId: UUID) async throws -> Conversation {
+        let conversation: Conversation = try await client.post(
+            "/v1/conversations/\(conversationId.uuidString)/restore"
+        )
+        archivedConversations.removeAll { $0.id == conversationId }
+        state.upsertConversation(conversation)
+        listScope = .active
+        state.select(conversation.id)
+        return conversation
     }
 
     func loadAgentState(for conversationId: UUID) async throws -> ConversationAgentState {
@@ -233,6 +288,18 @@ final class ConversationStore {
     }
 
     func apply(_ event: ServerEventEnvelope) {
+        if case let .conversationUpserted(conversation) = event.event {
+            if conversation.archivedAt == nil {
+                archivedConversations.removeAll { $0.id == conversation.id }
+            } else if listScope == .archived {
+                if let index = archivedConversations.firstIndex(where: { $0.id == conversation.id }) {
+                    archivedConversations[index] = conversation
+                } else {
+                    archivedConversations.append(conversation)
+                }
+                archivedConversations = LunaClientState.sorted(archivedConversations)
+            }
+        }
         state.apply(event)
     }
 
@@ -257,7 +324,7 @@ final class ConversationStore {
             } else if case let .commandRejected(rejection) = envelope.event {
                 errorMessage = rejection.error.message
             }
-            state.apply(envelope)
+            apply(envelope)
             connectionStatus = .connected
         }
     }
@@ -294,6 +361,8 @@ final class ConversationStore {
             )
         }
         state.install(bootstrap)
+        archivedConversations = []
+        listScope = .active
     }
 
     private func loadMessages(

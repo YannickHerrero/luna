@@ -4,10 +4,14 @@ struct ConversationSidebar: View {
     let conversations: [Conversation]
     let selectedConversationId: UUID?
     let imageLoader: AuthenticatedImageLoader
+    let listScope: ConversationListScope
     let onSelect: (UUID) -> Void
     let onCreate: () -> Void
+    let onShowActive: () -> Void
+    let onShowArchived: () -> Void
 
     @Binding var search: String
+    @Binding var groupByProject: Bool
     @AppStorage("luna-theme") private var storedTheme = LunaTheme.latte.rawValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -20,10 +24,15 @@ struct ConversationSidebar: View {
         }
     }
 
+    private var projectSections: [ConversationProjectSection] {
+        conversationProjectSections(filteredConversations)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
             searchField
+            listControls
             conversationList
             footer
         }
@@ -84,24 +93,52 @@ struct ConversationSidebar: View {
         .padding(.bottom, 12)
     }
 
+    private var listControls: some View {
+        HStack(spacing: 6) {
+            Button(groupByProject ? "Grouped by project" : "Group by project") {
+                groupByProject.toggle()
+            }
+            .accessibilityValue(groupByProject ? "On" : "Off")
+            .accessibilityIdentifier("group-conversations")
+            Spacer(minLength: 4)
+            Button(listScope == .active ? "Archived" : "Active") {
+                if listScope == .active { onShowArchived() } else { onShowActive() }
+            }
+            .accessibilityIdentifier("conversation-list-scope")
+        }
+        .buttonStyle(ConversationListControlStyle())
+        .padding(.horizontal, 15)
+        .padding(.bottom, 8)
+    }
+
     private var conversationList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(filteredConversations) { conversation in
-                    ConversationCell(
-                        conversation: conversation,
-                        isSelected: conversation.id == selectedConversationId,
-                        imageLoader: imageLoader,
-                        onSelect: { onSelect(conversation.id) }
-                    )
+                if groupByProject {
+                    ForEach(projectSections) { section in
+                        ProjectHeader(
+                            repository: section.repository,
+                            count: section.conversations.count,
+                            imageLoader: imageLoader
+                        )
+                        ForEach(section.conversations) { conversation in
+                            conversationCell(conversation)
+                        }
+                    }
+                } else {
+                    ForEach(filteredConversations) { conversation in
+                        conversationCell(conversation)
+                    }
                 }
                 if filteredConversations.isEmpty {
                     VStack(spacing: 8) {
-                        Text("No conversations yet.")
+                        Text(emptyListMessage)
                             .foregroundStyle(palette.muted)
-                        Button("Start one", action: onCreate)
-                            .fontWeight(.bold)
-                            .foregroundStyle(palette.accent)
+                        Button(listScope == .active ? "Start one" : "Show active") {
+                            if listScope == .active { onCreate() } else { onShowActive() }
+                        }
+                        .fontWeight(.bold)
+                        .foregroundStyle(palette.accent)
                     }
                     .font(LunaFont.body(13))
                     .padding(.vertical, 60)
@@ -111,6 +148,20 @@ struct ConversationSidebar: View {
             .padding(.bottom, 14)
         }
         .frame(maxHeight: .infinity)
+    }
+
+    private var emptyListMessage: String {
+        if !search.isEmpty { return "No matching conversations." }
+        return listScope == .active ? "No conversations yet." : "No archived conversations."
+    }
+
+    private func conversationCell(_ conversation: Conversation) -> some View {
+        ConversationCell(
+            conversation: conversation,
+            isSelected: conversation.id == selectedConversationId,
+            imageLoader: imageLoader,
+            onSelect: { onSelect(conversation.id) }
+        )
     }
 
     private var footer: some View {
@@ -142,6 +193,73 @@ struct ConversationSidebar: View {
 
     private func toggleTheme() {
         storedTheme = (currentTheme == .latte ? LunaTheme.mocha : .latte).rawValue
+    }
+}
+
+private struct ProjectHeader: View {
+    let repository: Repository?
+    let count: Int
+    let imageLoader: AuthenticatedImageLoader
+
+    @Environment(\.lunaPalette) private var palette
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Group {
+                if let path = repository?.icon.contentUrl {
+                    AuthenticatedImageView(path: path, loader: imageLoader) {
+                        fallbackIcon
+                    }
+                    .scaledToFill()
+                } else {
+                    fallbackIcon
+                }
+            }
+            .frame(width: 22, height: 22)
+            .background(palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(palette.border, lineWidth: 1)
+            }
+            Text(repository?.displayName ?? "No Project")
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text("\(count)")
+        }
+        .lunaMonoFont(10, weight: .bold)
+        .foregroundStyle(palette.muted)
+        .padding(.horizontal, 12)
+        .padding(.top, 9)
+        .padding(.bottom, 5)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(repository?.displayName ?? "No Project"), \(count) conversations")
+        .accessibilityIdentifier("project-\(repository?.id.uuidString ?? "none")")
+    }
+
+    private var fallbackIcon: some View {
+        Text(repository?.icon.fallbackText ?? "☾")
+            .font(LunaFont.display(10, weight: .bold))
+            .foregroundStyle(palette.accent)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ConversationListControlStyle: ButtonStyle {
+    @Environment(\.lunaPalette) private var palette
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .lunaMonoFont(9)
+            .foregroundStyle(palette.muted)
+            .padding(.horizontal, 9)
+            .frame(minHeight: 30)
+            .background(configuration.isPressed ? palette.raised : palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(configuration.isPressed ? palette.accent : palette.border, lineWidth: 1)
+            }
     }
 }
 

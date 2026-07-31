@@ -8,6 +8,7 @@ struct ConversationShellView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lunaPalette) private var palette
     @State private var search = ""
+    @AppStorage("luna-group-conversations") private var groupByProject = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -106,16 +107,22 @@ struct ConversationShellView: View {
 
     private var sidebar: some View {
         ConversationSidebar(
-            conversations: store.conversations,
+            conversations: store.visibleConversations,
             selectedConversationId: store.selectedConversationId,
             imageLoader: store.imageLoader,
+            listScope: store.listScope,
             onSelect: { id in
                 Task { await store.selectConversation(id) }
             },
             onCreate: {
                 Task { await store.createConversation() }
             },
-            search: $search
+            onShowActive: store.showActiveConversationList,
+            onShowArchived: {
+                Task { await store.showArchivedConversationList() }
+            },
+            search: $search,
+            groupByProject: $groupByProject
         )
     }
 
@@ -187,6 +194,7 @@ private struct ConversationPanel: View {
     @State private var renameTitle = ""
     @State private var renaming = false
     @State private var archiving = false
+    @State private var restoring = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -200,13 +208,17 @@ private struct ConversationPanel: View {
             )
             .id(conversation.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            ConversationComposerView(
-                store: store,
-                conversation: conversation,
-                onShowAgentControls: { agentSettingsPresented = true }
-            )
-            .id(conversation.id)
-            .fixedSize(horizontal: false, vertical: true)
+            if conversation.archivedAt == nil {
+                ConversationComposerView(
+                    store: store,
+                    conversation: conversation,
+                    onShowAgentControls: { agentSettingsPresented = true }
+                )
+                .id(conversation.id)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                archivedAction
+            }
         }
         .background(palette.surface.opacity(0.94))
         .sheet(isPresented: $agentSettingsPresented) {
@@ -311,12 +323,38 @@ private struct ConversationPanel: View {
         return names.isEmpty ? "Home" : names
     }
 
+    @ViewBuilder
     private var archiveButton: some View {
-        LunaIconButton(
-            icon: .archive,
-            accessibilityLabel: "Archive conversation",
-            action: { archivePresented = true }
-        )
+        if conversation.archivedAt == nil {
+            LunaIconButton(
+                icon: .archive,
+                accessibilityLabel: "Archive conversation",
+                action: { archivePresented = true }
+            )
+        } else {
+            Button("Restore", action: restore)
+                .buttonStyle(LunaSecondaryButtonStyle())
+                .disabled(restoring)
+                .accessibilityIdentifier("restore-conversation")
+        }
+    }
+
+    private var archivedAction: some View {
+        HStack(spacing: 14) {
+            Text("This conversation is archived and read-only.")
+                .font(LunaFont.body(12))
+                .foregroundStyle(palette.muted)
+            Button("Restore conversation", action: restore)
+                .buttonStyle(LunaSecondaryButtonStyle())
+                .disabled(restoring)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, compact ? 16 : 64)
+        .padding(.vertical, 12)
+        .background(palette.surface)
+        .overlay(alignment: .top) {
+            Rectangle().fill(palette.border).frame(height: 1)
+        }
     }
 
     private func rename() {
@@ -342,6 +380,20 @@ private struct ConversationPanel: View {
             defer { archiving = false }
             do {
                 try await store.archiveConversation(conversation.id)
+            } catch {
+                store.errorMessage = message(from: error)
+            }
+        }
+    }
+
+    private func restore() {
+        guard !restoring else { return }
+        restoring = true
+        store.errorMessage = nil
+        Task {
+            defer { restoring = false }
+            do {
+                try await store.restoreConversation(conversation.id)
             } catch {
                 store.errorMessage = message(from: error)
             }
