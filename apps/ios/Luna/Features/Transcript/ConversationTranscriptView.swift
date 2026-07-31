@@ -86,7 +86,12 @@ struct ConversationTranscriptView: View {
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        guard contentHeight > viewportHeight, viewportHeight > 0 else { return }
+        guard !messages.isEmpty,
+              contentHeight > viewportHeight,
+              viewportHeight > 0
+        else {
+            return
+        }
         let animated = positionedInitialMessages
             && !reduceMotion
             && !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing") }

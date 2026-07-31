@@ -159,6 +159,7 @@ private struct ConversationPanel: View {
                 canLoadEarlier: canLoadEarlier,
                 onLoadEarlier: onLoadEarlier
             )
+            .id(conversation.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             ConversationComposerView(
                 store: store,
