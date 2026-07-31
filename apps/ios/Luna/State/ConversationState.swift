@@ -45,12 +45,7 @@ struct LunaClientState: Equatable, Sendable {
         switch envelope.event {
         case let .conversationUpserted(conversation):
             if conversation.archivedAt != nil {
-                conversations.removeAll { $0.id == conversation.id }
-                messages.removeValue(forKey: conversation.id)
-                nextBeforeOrdinal.removeValue(forKey: conversation.id)
-                if selectedConversationId == conversation.id {
-                    selectedConversationId = nil
-                }
+                removeConversation(conversation.id)
             } else {
                 upsertConversation(conversation)
             }
@@ -117,6 +112,15 @@ struct LunaClientState: Equatable, Sendable {
             conversations.append(conversation)
         }
         conversations = Self.sorted(conversations)
+    }
+
+    mutating func removeConversation(_ conversationId: UUID) {
+        conversations.removeAll { $0.id == conversationId }
+        messages.removeValue(forKey: conversationId)
+        nextBeforeOrdinal.removeValue(forKey: conversationId)
+        if selectedConversationId == conversationId {
+            selectedConversationId = nil
+        }
     }
 
     mutating func upsertMessage(_ message: Message) {

@@ -104,6 +104,42 @@ final class ConversationStore {
         }
     }
 
+    func renameConversation(_ conversationId: UUID, title: String) async throws {
+        let conversation: Conversation = try await client.patch(
+            "/v1/conversations/\(conversationId.uuidString)",
+            body: UpdateConversationRequest(
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                avatarAttachmentId: nil
+            )
+        )
+        state.upsertConversation(conversation)
+    }
+
+    func archiveConversation(_ conversationId: UUID) async throws {
+        try await client.postVoid("/v1/conversations/\(conversationId.uuidString)/archive")
+        state.removeConversation(conversationId)
+        composerDrafts.removeValue(forKey: conversationId)
+        draftPersistence.setText("", for: conversationId)
+    }
+
+    func loadAgentState(for conversationId: UUID) async throws -> ConversationAgentState {
+        try await client.get("/v1/conversations/\(conversationId.uuidString)/agent")
+    }
+
+    func updateAgentState(
+        for conversationId: UUID,
+        request: UpdateConversationAgentRequest
+    ) async throws -> ConversationAgentState {
+        try await client.patch(
+            "/v1/conversations/\(conversationId.uuidString)/agent",
+            body: request
+        )
+    }
+
+    func compactConversation(_ conversationId: UUID) async throws -> CompactConversationResponse {
+        try await client.post("/v1/conversations/\(conversationId.uuidString)/compact")
+    }
+
     func composerDraft(for conversationId: UUID) -> ComposerDraft {
         composerDrafts[conversationId]
             ?? ComposerDraft(

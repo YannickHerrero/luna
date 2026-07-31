@@ -117,6 +117,103 @@ struct ConversationStoreTests {
     }
 
     @Test
+    func renamesConversationAndUpdatesLocalState() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let conversation = storeConversation(id: 1)
+        var renamed = conversation
+        renamed.title = "Native controls"
+        let transport = StoreTransport([
+            .init(status: 200, data: try JSONEncoder().encode(renamed)),
+        ])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource()
+        )
+
+        try await store.renameConversation(conversation.id, title: "  Native controls  ")
+
+        #expect(store.selectedConversation?.title == "Native controls")
+        let request = try #require(await transport.lastRequest())
+        #expect(request.httpMethod == "PATCH")
+        #expect(request.url?.path == "/v1/conversations/\(conversation.id.uuidString)")
+        let body = try JSONDecoder().decode(
+            UpdateConversationRequest.self,
+            from: request.httpBody ?? Data()
+        )
+        #expect(body.title == "Native controls")
+    }
+
+    @Test
+    func archivesConversationAndDiscardsItsDraft() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let conversation = storeConversation(id: 1)
+        let defaults = try #require(UserDefaults(suiteName: "ArchiveDraftTests.\(UUID())"))
+        let persistence = ComposerDraftPersistence(defaults: defaults, prefix: "draft:")
+        let transport = StoreTransport([.init(status: 204, data: Data())])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource(),
+            draftPersistence: persistence
+        )
+        store.setDraftText("Unsaved note", for: conversation.id)
+
+        try await store.archiveConversation(conversation.id)
+
+        #expect(store.conversations.isEmpty)
+        #expect(store.selectedConversationId == nil)
+        #expect(persistence.text(for: conversation.id).isEmpty)
+        let request = try #require(await transport.lastRequest())
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/v1/conversations/\(conversation.id.uuidString)/archive")
+    }
+
+    @Test
+    func loadsUpdatesAndCompactsAgentState() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("token", for: server)
+        let conversation = storeConversation(id: 1)
+        let initial = storeAgentState(thinking: .medium)
+        let updated = storeAgentState(thinking: .high)
+        let compacted = CompactConversationResponse(
+            tokensBefore: 48_000,
+            estimatedTokensAfter: 12_000
+        )
+        let transport = StoreTransport([
+            .init(status: 200, data: try JSONEncoder().encode(initial)),
+            .init(status: 200, data: try JSONEncoder().encode(updated)),
+            .init(status: 200, data: try JSONEncoder().encode(compacted)),
+        ])
+        let store = ConversationStore(
+            client: APIClient(baseURL: server, credentials: credentials, transport: transport),
+            bootstrap: storeBootstrap([conversation]),
+            eventSource: EmptyEventSource()
+        )
+        let request = UpdateConversationAgentRequest(
+            model: AgentModelSelection(provider: "anthropic", modelId: "claude-sonnet-4"),
+            thinkingLevel: .high
+        )
+
+        #expect(try await store.loadAgentState(for: conversation.id) == initial)
+        #expect(try await store.updateAgentState(for: conversation.id, request: request) == updated)
+        #expect(try await store.compactConversation(conversation.id) == compacted)
+
+        let requests = await transport.allRequests()
+        #expect(requests.map(\.httpMethod) == ["GET", "PATCH", "POST"])
+        #expect(requests[0].url?.path.hasSuffix("/agent") == true)
+        #expect(
+            try JSONDecoder().decode(
+                UpdateConversationAgentRequest.self,
+                from: requests[1].httpBody ?? Data()
+            ) == request
+        )
+        #expect(requests[2].url?.path.hasSuffix("/compact") == true)
+    }
+
+    @Test
     func restoresDraftTextWithoutPersistingAttachmentBytes() throws {
         let defaults = try #require(UserDefaults(suiteName: "ConversationDraftTests.\(UUID())"))
         let persistence = ComposerDraftPersistence(defaults: defaults, prefix: "draft:")
@@ -351,6 +448,28 @@ private func storeMessage(
         ordinal: ordinal,
         createdAt: "2026-03-20T10:01:00Z",
         updatedAt: "2026-03-20T10:01:00Z"
+    )
+}
+
+private func storeAgentState(thinking: ThinkingLevel) -> ConversationAgentState {
+    let model = AgentModel(
+        provider: "anthropic",
+        id: "claude-sonnet-4",
+        name: "Claude Sonnet 4",
+        reasoning: true,
+        contextWindow: 200_000,
+        supportedThinkingLevels: [.off, .low, .medium, .high]
+    )
+    return ConversationAgentState(
+        model: model,
+        thinkingLevel: thinking,
+        availableModels: [model],
+        contextUsage: ContextUsage(
+            tokens: 48_000,
+            contextWindow: 200_000,
+            percent: 24
+        ),
+        autoCompactionEnabled: true
     )
 }
 
