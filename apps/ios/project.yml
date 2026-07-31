@@ -111,6 +111,8 @@ targets:
           - Info.plist
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
+    dependencies:
+      - target: LunaWatchWidgets
     info:
       path: LunaWatch/Info.plist
       properties:
@@ -128,6 +130,29 @@ targets:
         TARGETED_DEVICE_FAMILY: '4'
         WATCHOS_DEPLOYMENT_TARGET: 11.0
         WK_COMPANION_APP_BUNDLE_IDENTIFIER: com.yannickherrero.luna
+  LunaWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: LunaWatchWidgets
+        excludes:
+          - Info.plist
+    info:
+      path: LunaWatchWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Luna Watch Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.watchkitapp.widgets
+        PRODUCT_NAME: LunaWatchWidgets
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: '4'
+        WATCHOS_DEPLOYMENT_TARGET: 11.0
   LunaWatchTests:
     type: bundle.unit-test
     platform: watchOS
@@ -207,6 +232,7 @@ schemes:
     build:
       targets:
         LunaWatch: all
+        LunaWatchWidgets: all
         LunaWatchTests: [test]
         LunaWatchUITests: [test]
     run:
