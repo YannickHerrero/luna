@@ -42,10 +42,12 @@ import { AgentControls } from './agent-controls.js'
 import { ApiFailure, api, messageFromError } from '../lib/api.js'
 import { applyLatestMessage, sortConversations, upsertConversation } from '../lib/conversations.js'
 import { applyServerEvent, type LunaClientState, type LunaEvent } from '../lib/events.js'
+import { groupConversationsByProject } from '../lib/projects.js'
 import { formatConversationTimestamp, formatMessageTimestamp } from '../lib/time.js'
 
 type Phase = 'loading' | 'pairing' | 'ready'
 type Theme = 'latte' | 'mocha'
+type ConversationListScope = 'active' | 'archived'
 type ComposerDraft = { text: string; files: File[] }
 
 const initialState: LunaClientState = {
@@ -62,6 +64,9 @@ export function LunaApp() {
   const [error, setError] = useState<string>()
   const [search, setSearch] = useState('')
   const [theme, setTheme] = useState<Theme>('latte')
+  const [listScope, setListScope] = useState<ConversationListScope>('active')
+  const [groupByProject, setGroupByProject] = useState(false)
+  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([])
   const [drafts, setDrafts] = useState<Record<string, ComposerDraft>>({})
   const cursor = useRef(0)
 
@@ -87,6 +92,7 @@ export function LunaApp() {
           ? 'mocha'
           : 'latte'
     setTheme(next)
+    setGroupByProject(window.localStorage.getItem('luna-group-conversations') === 'true')
     document.documentElement.dataset.theme = next
     void api<Bootstrap>('/v1/bootstrap')
       .then(installBootstrap)
@@ -198,12 +204,32 @@ export function LunaApp() {
     }))
   }
 
+  const selectListScope = async (scope: ConversationListScope) => {
+    setListScope(scope)
+    setSelectedConversation(undefined)
+    if (scope !== 'archived') return
+    try {
+      const response = await api<{ conversations: Conversation[] }>(
+        '/v1/conversations?scope=archived',
+      )
+      setArchivedConversations(sortConversations(response.conversations))
+    } catch (requestError) {
+      setError(messageFromError(requestError))
+    }
+  }
+
+  const selectGrouping = (grouped: boolean) => {
+    setGroupByProject(grouped)
+    window.localStorage.setItem('luna-group-conversations', String(grouped))
+  }
+
   const createConversation = async () => {
     try {
       const conversation = await api<Conversation>('/v1/conversations', {
         method: 'POST',
         body: JSON.stringify({}),
       })
+      setListScope('active')
       setClient((current) => ({
         ...current,
         conversations: upsertConversation(current.conversations, conversation),
@@ -263,11 +289,22 @@ export function LunaApp() {
     return <PairingScreen error={error} onPaired={installBootstrap} onError={setError} />
   }
 
-  const selected = client.conversations.find(
+  const availableConversations =
+    listScope === 'active' ? client.conversations : archivedConversations
+  const selected = availableConversations.find(
     (conversation) => conversation.id === client.selectedConversationId,
   )
-  const filtered = client.conversations.filter((conversation) =>
+  const filtered = availableConversations.filter((conversation) =>
     conversation.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+  )
+  const projectSections = groupByProject ? groupConversationsByProject(filtered) : []
+  const conversationCell = (conversation: Conversation) => (
+    <ConversationCell
+      key={conversation.id}
+      conversation={conversation}
+      selected={conversation.id === selected?.id}
+      onSelect={() => setSelectedConversation(conversation.id)}
+    />
   )
 
   return (
@@ -295,19 +332,62 @@ export function LunaApp() {
             placeholder="Search conversations"
           />
         </label>
-        <nav className="conversation-list" aria-label="Conversations">
-          {filtered.map((conversation) => (
-            <ConversationCell
-              key={conversation.id}
-              conversation={conversation}
-              selected={conversation.id === selected?.id}
-              onSelect={() => setSelectedConversation(conversation.id)}
-            />
-          ))}
+        <div className="conversation-list-controls" aria-label="Conversation list options">
+          <button
+            type="button"
+            aria-pressed={groupByProject}
+            onClick={() => selectGrouping(!groupByProject)}
+          >
+            {groupByProject ? 'Grouped by project' : 'Group by project'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={listScope === 'archived'}
+            onClick={() => void selectListScope(listScope === 'active' ? 'archived' : 'active')}
+          >
+            {listScope === 'active' ? 'Archived' : 'Active'}
+          </button>
+        </div>
+        <nav
+          className="conversation-list"
+          aria-label={listScope === 'active' ? 'Conversations' : 'Archived conversations'}
+        >
+          {groupByProject
+            ? projectSections.map((section) => (
+                <section className="conversation-project" key={section.id ?? 'no-project'}>
+                  <h2>
+                    <span className="project-avatar" aria-hidden="true">
+                      {section.repository?.icon.contentUrl ? (
+                        <img src={section.repository.icon.contentUrl} alt="" />
+                      ) : (
+                        (section.repository?.icon.fallbackText ?? '☾')
+                      )}
+                    </span>
+                    <span>{section.repository?.displayName ?? 'No Project'}</span>
+                    <small>{section.conversations.length}</small>
+                  </h2>
+                  {section.conversations.map(conversationCell)}
+                </section>
+              ))
+            : filtered.map(conversationCell)}
           {filtered.length === 0 && (
             <div className="empty-list">
-              <p>No conversations yet.</p>
-              <button onClick={() => void createConversation()}>Start one</button>
+              <p>
+                {search
+                  ? 'No matching conversations.'
+                  : listScope === 'archived'
+                    ? 'No archived conversations.'
+                    : 'No conversations yet.'}
+              </p>
+              <button
+                onClick={() =>
+                  listScope === 'archived'
+                    ? void selectListScope('active')
+                    : void createConversation()
+                }
+              >
+                {listScope === 'archived' ? 'Show active' : 'Start one'}
+              </button>
             </div>
           )}
         </nav>
@@ -345,12 +425,27 @@ export function LunaApp() {
             onDraftChange={(update) => updateDraft(selected.id, update)}
             onDraftSent={() => clearDraft(selected.id)}
             onArchived={() => removeArchivedConversation(selected.id)}
-            onRename={(conversation) =>
+            onRestored={(conversation) => {
+              setArchivedConversations((current) =>
+                current.filter((item) => item.id !== conversation.id),
+              )
+              setListScope('active')
               setClient((current) => ({
                 ...current,
                 conversations: upsertConversation(current.conversations, conversation),
+                selectedConversationId: conversation.id,
               }))
-            }
+            }}
+            onRename={(conversation) => {
+              if (listScope === 'archived') {
+                setArchivedConversations((current) => upsertConversation(current, conversation))
+              } else {
+                setClient((current) => ({
+                  ...current,
+                  conversations: upsertConversation(current.conversations, conversation),
+                }))
+              }
+            }}
             onError={setError}
           />
         ) : (
@@ -526,6 +621,7 @@ function ConversationView({
   onDraftChange,
   onDraftSent,
   onArchived,
+  onRestored,
   onRename,
   onError,
 }: {
@@ -539,6 +635,7 @@ function ConversationView({
   onDraftChange: (update: (draft: ComposerDraft) => ComposerDraft) => void
   onDraftSent: () => void
   onArchived: () => void
+  onRestored: (conversation: Conversation) => void
   onRename: (conversation: Conversation) => void
   onError: (message: string | undefined) => void
 }) {
@@ -605,6 +702,18 @@ function ConversationView({
     }
   }
 
+  const restore = async () => {
+    try {
+      onRestored(
+        await api<Conversation>(`/v1/conversations/${conversation.id}/restore`, {
+          method: 'POST',
+        }),
+      )
+    } catch (requestError) {
+      onError(messageFromError(requestError))
+    }
+  }
+
   return (
     <div className="conversation-view">
       <header className="conversation-header">
@@ -621,14 +730,20 @@ function ConversationView({
         <span className={`status-pill ${busy ? 'active' : ''}`}>
           <span /> {stateLabel(conversation.state)}
         </span>
-        <button
-          className="icon-button"
-          aria-label="Archive conversation"
-          title="Archive conversation"
-          onClick={() => void archive()}
-        >
-          <Archive size={17} />
-        </button>
+        {conversation.archivedAt ? (
+          <button className="header-action" onClick={() => void restore()}>
+            Restore
+          </button>
+        ) : (
+          <button
+            className="icon-button"
+            aria-label="Archive conversation"
+            title="Archive conversation"
+            onClick={() => void archive()}
+          >
+            <Archive size={17} />
+          </button>
+        )}
       </header>
       <div ref={messageScroll} className="message-scroll">
         {canLoadEarlier && (
@@ -653,16 +768,25 @@ function ConversationView({
         )}
         {busy && <TypingIndicator activities={conversation.activities} />}
       </div>
-      <Composer
-        conversation={conversation}
-        busy={busy}
-        draft={draft}
-        onDraftChange={onDraftChange}
-        onDraftSent={onDraftSent}
-        onMessage={onMessage}
-        onStop={stop}
-        onError={onError}
-      />
+      {conversation.archivedAt ? (
+        <div className="archived-conversation-action">
+          <p>This conversation is archived and read-only.</p>
+          <button className="secondary-button" onClick={() => void restore()}>
+            Restore conversation
+          </button>
+        </div>
+      ) : (
+        <Composer
+          conversation={conversation}
+          busy={busy}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          onDraftSent={onDraftSent}
+          onMessage={onMessage}
+          onStop={stop}
+          onError={onError}
+        />
+      )}
     </div>
   )
 }

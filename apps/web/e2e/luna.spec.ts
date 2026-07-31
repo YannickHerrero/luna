@@ -156,7 +156,7 @@ test.afterAll(async () => {
 })
 
 test('pairs, streams, restores, themes, and archives a conversation', async ({ page }) => {
-  test.setTimeout(60_000)
+  test.setTimeout(120_000)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Pair with Luna' })).toBeVisible()
@@ -572,6 +572,28 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Archive conversation' }).click()
   await expect(page.getByText('No conversations yet.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Archived' }).click()
+  await expect(page.locator('.conversation-cell')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Group by project' }).click()
+  await expect(page.getByRole('button', { name: 'Grouped by project' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.locator('.conversation-project h2')).not.toHaveCount(0)
+
+  await page.locator('.conversation-cell').first().click()
+  await expect(page.getByText('This conversation is archived and read-only.')).toBeVisible()
+  await page.getByRole('button', { name: 'Restore conversation' }).click()
+  await expect(page.getByText('This conversation is archived and read-only.')).toBeHidden()
+  await expect(page.getByLabel('Message Luna')).toBeVisible()
+  await expect(page.locator('.conversation-cell')).toHaveCount(1)
+
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Grouped by project' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 })
 
 async function waitForPairingCode(process: ChildProcessWithoutNullStreams): Promise<string> {
