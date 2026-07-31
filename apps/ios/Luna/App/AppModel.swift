@@ -26,20 +26,24 @@ final class AppModel {
 
     private(set) var phase = AppPhase.loading
     private(set) var bootstrap: Bootstrap?
+    private(set) var conversationStore: ConversationStore?
     var errorMessage: String?
 
     let configuration: ServerConfiguration
     @ObservationIgnored private let credentials: any CredentialStore
     @ObservationIgnored private let transport: any HTTPTransport
+    @ObservationIgnored private let eventSource: any EventSource
 
     init(
         configuration: ServerConfiguration = ServerConfiguration(),
         credentials: any CredentialStore = KeychainCredentialStore.shared,
-        transport: any HTTPTransport = URLSessionHTTPTransport()
+        transport: any HTTPTransport = URLSessionHTTPTransport(),
+        eventSource: any EventSource = URLSessionEventSource()
     ) {
         self.configuration = configuration
         self.credentials = credentials
         self.transport = transport
+        self.eventSource = eventSource
     }
 
     var client: APIClient {
@@ -88,13 +92,21 @@ final class AppModel {
     }
 
     func changeServer(to input: String) async throws {
+        conversationStore?.stopRealtime()
         try configuration.update(input)
         bootstrap = nil
+        conversationStore = nil
         await start()
     }
 
     func install(_ bootstrap: Bootstrap) {
+        conversationStore?.stopRealtime()
         self.bootstrap = bootstrap
+        conversationStore = ConversationStore(
+            client: client,
+            bootstrap: bootstrap,
+            eventSource: eventSource
+        )
         phase = .ready
         errorMessage = nil
     }

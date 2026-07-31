@@ -107,6 +107,20 @@ struct ServerEventEnvelope: Decodable, Equatable, Sendable {
     let emittedAt: LunaTimestamp
     let event: ServerEvent
 
+    init(
+        version: UInt8 = 1,
+        eventId: Int64? = nil,
+        conversationId: UUID? = nil,
+        emittedAt: LunaTimestamp = "1970-01-01T00:00:00Z",
+        event: ServerEvent
+    ) {
+        self.version = version
+        self.eventId = eventId
+        self.conversationId = conversationId
+        self.emittedAt = emittedAt
+        self.event = event
+    }
+
     private enum CodingKeys: String, CodingKey {
         case version
         case eventId

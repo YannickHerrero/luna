@@ -15,7 +15,11 @@ struct RootView: View {
             case .pairing:
                 PairingView(model: model)
             case .ready:
-                ReadyPlaceholderView()
+                if let store = model.conversationStore {
+                    ReadyPlaceholderView(store: store)
+                } else {
+                    LoadingView()
+                }
             }
         }
         .task {
@@ -44,7 +48,9 @@ private struct LoadingView: View {
 }
 
 private struct ReadyPlaceholderView: View {
+    @Bindable var store: ConversationStore
     @Environment(\.lunaPalette) private var palette
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -52,6 +58,17 @@ private struct ReadyPlaceholderView: View {
             Text("Luna")
                 .font(LunaFont.display(40, weight: .bold))
                 .foregroundStyle(palette.foreground)
+        }
+        .task {
+            store.startRealtime()
+            await store.loadSelectedMessages()
+        }
+        .onChange(of: scenePhase) { _, next in
+            if next == .active {
+                store.resumeRealtime()
+            } else if next == .background {
+                store.stopRealtime()
+            }
         }
     }
 }
