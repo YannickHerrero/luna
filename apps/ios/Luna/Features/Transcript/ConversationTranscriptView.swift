@@ -150,7 +150,29 @@ private struct MessageBubbleView: View {
         .accessibilityAction { showsTimestamp.toggle() }
     }
 
+    @ViewBuilder
     private var bubble: some View {
+        if message.role == .user {
+            bubbleContent
+                .padding(EdgeInsets(top: 10, leading: 15, bottom: 10, trailing: 15))
+                .background(palette.accent)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 19,
+                        bottomLeadingRadius: 19,
+                        bottomTrailingRadius: 6,
+                        topTrailingRadius: 19,
+                        style: .continuous
+                    )
+                )
+                .shadow(color: palette.accent.opacity(0.16), radius: 25, y: 8)
+        } else {
+            bubbleContent
+                .padding(.vertical, 5)
+        }
+    }
+
+    private var bubbleContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !message.attachments.isEmpty {
                 attachmentGrid
@@ -171,22 +193,6 @@ private struct MessageBubbleView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(message.role == .user ? EdgeInsets(top: 10, leading: 15, bottom: 10, trailing: 15) : EdgeInsets(top: 5, leading: 0, bottom: 5, trailing: 0))
-        .background(message.role == .user ? palette.accent : .clear)
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 19,
-                bottomLeadingRadius: 19,
-                bottomTrailingRadius: message.role == .user ? 6 : 19,
-                topTrailingRadius: 19,
-                style: .continuous
-            )
-        )
-        .shadow(
-            color: message.role == .user ? palette.accent.opacity(0.16) : .clear,
-            radius: 25,
-            y: 8
-        )
     }
 
     private var attachmentGrid: some View {
