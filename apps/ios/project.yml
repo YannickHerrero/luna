@@ -1,0 +1,83 @@
+name: Luna
+options:
+  bundleIdPrefix: com.yannickherrero
+  deploymentTarget:
+    iOS: "18.0"
+  minimumXcodeGenVersion: 2.45.0
+  groupSortPosition: top
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    IPHONEOS_DEPLOYMENT_TARGET: 18.0
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_LANGUAGE: en
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CLANG_ENABLE_MODULES: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+targets:
+  Luna:
+    type: application
+    platform: iOS
+    sources:
+      - path: Luna
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna
+        PRODUCT_NAME: Luna
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Luna
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SUPPORTS_MACCATALYST: NO
+  LunaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LunaTests
+    dependencies:
+      - target: Luna
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Luna.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Luna"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  LunaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LunaUITests
+    dependencies:
+      - target: Luna
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yannickherrero.luna.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Luna
+schemes:
+  Luna:
+    build:
+      targets:
+        Luna: all
+        LunaTests: [test]
+        LunaUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - name: LunaTests
+          parallelizable: true
+        - name: LunaUITests
+          parallelizable: false
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
