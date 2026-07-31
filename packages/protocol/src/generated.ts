@@ -180,6 +180,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/conversations/{id}/restore': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['conversation_restore']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/health/live': {
     parameters: {
       query?: never
@@ -488,6 +504,8 @@ export interface components {
       /** Format: int64 */
       nextBeforeOrdinal?: number | null
     }
+    /** @enum {string} */
+    ConversationScope: 'active' | 'archived' | 'all'
     ConversationTitleUpdated: {
       automatic: boolean
       title: string
@@ -894,7 +912,10 @@ export interface operations {
   }
   conversations_list: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description Active, archived, or all conversations */
+        scope?: components['schemas']['ConversationScope']
+      }
       header?: never
       path?: never
       cookie?: never
@@ -1180,6 +1201,35 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['SendMessageResponse']
+        }
+      }
+    }
+  }
+  conversation_restore: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Conversation']
+        }
+      }
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
         }
       }
     }

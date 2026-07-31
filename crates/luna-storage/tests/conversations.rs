@@ -1,4 +1,4 @@
-use luna_protocol::{ServerEvent, SessionState, TitleMode};
+use luna_protocol::{ConversationScope, ServerEvent, SessionState, TitleMode};
 use luna_storage::Database;
 use uuid::Uuid;
 
@@ -66,6 +66,75 @@ async fn conversations_and_sync_events_round_trip() {
 }
 
 #[tokio::test]
+async fn lists_and_restores_archived_conversations() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let database = Database::connect(&directory.path().join("archives.sqlite"))
+        .await
+        .expect("database");
+    let active_id = Uuid::new_v4();
+    let archived_id = Uuid::new_v4();
+    database
+        .create_conversation(active_id, "/Users/test", "2026-01-01T00:00:00Z")
+        .await
+        .expect("active conversation");
+    database
+        .create_conversation(archived_id, "/Users/test", "2026-01-02T00:00:00Z")
+        .await
+        .expect("archived conversation");
+    database
+        .archive_conversation(archived_id, "2026-01-03T00:00:00Z")
+        .await
+        .expect("archive");
+
+    let active = database
+        .conversations(ConversationScope::Active)
+        .await
+        .expect("active list");
+    assert_eq!(
+        active.iter().map(|item| item.id).collect::<Vec<_>>(),
+        vec![active_id]
+    );
+    let archived = database
+        .conversations(ConversationScope::Archived)
+        .await
+        .expect("archived list");
+    assert_eq!(
+        archived.iter().map(|item| item.id).collect::<Vec<_>>(),
+        vec![archived_id]
+    );
+    assert_eq!(
+        database
+            .conversations(ConversationScope::All)
+            .await
+            .expect("complete list")
+            .len(),
+        2
+    );
+
+    let restored = database
+        .restore_conversation(archived_id, "2026-01-04T00:00:00Z")
+        .await
+        .expect("restore");
+    assert_eq!(restored.archived_at, None);
+    assert_eq!(restored.state, SessionState::Stopped);
+    assert_eq!(
+        database
+            .conversations(ConversationScope::Active)
+            .await
+            .expect("restored active list")
+            .len(),
+        2
+    );
+    assert!(
+        database
+            .conversations(ConversationScope::Archived)
+            .await
+            .expect("empty archive")
+            .is_empty()
+    );
+}
+
+#[tokio::test]
 async fn orders_conversations_by_their_latest_message() {
     let directory = tempfile::tempdir().expect("temp directory");
     let database = Database::connect(&directory.path().join("ordering.sqlite"))
@@ -87,7 +156,7 @@ async fn orders_conversations_by_their_latest_message() {
         .expect("newer conversation");
     assert_eq!(
         database
-            .conversations(false)
+            .conversations(ConversationScope::Active)
             .await
             .expect("initial ordering")
             .iter()
@@ -116,7 +185,7 @@ async fn orders_conversations_by_their_latest_message() {
         .expect("state update");
 
     let conversations = database
-        .conversations(false)
+        .conversations(ConversationScope::Active)
         .await
         .expect("message ordering");
     assert_eq!(conversations[0].id, older_conversation);

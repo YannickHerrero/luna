@@ -160,6 +160,17 @@ pub struct SyncResponse {
     pub reset_required: bool,
 }
 
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum ConversationScope {
+    #[default]
+    Active,
+    Archived,
+    All,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationList {

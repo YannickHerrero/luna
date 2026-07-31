@@ -12,8 +12,8 @@ use futures_util::{SinkExt, StreamExt};
 use luna_protocol::{
     ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
     CompactConversationResponse, ConversationAgentState, ConversationList, ConversationMessages,
-    CreateConversationRequest, ErrorCode, Message, MessageDelivery, PROTOCOL_VERSION,
-    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    ConversationScope, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
+    PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
     SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState,
     SyncResponse, UpdateConversationAgentRequest, UpdateConversationRequest,
 };
@@ -75,6 +75,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/conversations/{id}/compact", post(compact_conversation))
         .route("/v1/conversations/{id}/abort", post(abort_conversation))
         .route("/v1/conversations/{id}/archive", post(archive_conversation))
+        .route("/v1/conversations/{id}/restore", post(restore_conversation))
         .with_state(state)
 }
 
@@ -154,7 +155,10 @@ async fn pair(
         .await?
         .ok_or(AppError::PairingCodeInvalid)?;
     let cursor = state.database.latest_cursor().await?;
-    let conversations = state.database.conversations(false).await?;
+    let conversations = state
+        .database
+        .conversations(ConversationScope::Active)
+        .await?;
     let body = PairingExchangeResponse {
         device_id: paired.device.id,
         token: paired.token.clone(),
@@ -194,16 +198,26 @@ async fn bootstrap(
         protocol_version: PROTOCOL_VERSION,
         cursor: state.database.latest_cursor().await?,
         device,
-        conversations: state.database.conversations(false).await?,
+        conversations: state
+            .database
+            .conversations(ConversationScope::Active)
+            .await?,
     }))
+}
+
+#[derive(Deserialize, Default)]
+struct ConversationListQuery {
+    #[serde(default)]
+    scope: ConversationScope,
 }
 
 async fn list_conversations(
     State(state): State<AppState>,
     AuthenticatedDevice(_device): AuthenticatedDevice,
+    Query(query): Query<ConversationListQuery>,
 ) -> Result<Json<ConversationList>, AppError> {
     Ok(Json(ConversationList {
-        conversations: state.database.conversations(false).await?,
+        conversations: state.database.conversations(query.scope).await?,
     }))
 }
 
@@ -463,6 +477,25 @@ async fn abort_conversation(
 ) -> Result<StatusCode, AppError> {
     state.runtime.abort(id).await?;
     Ok(StatusCode::ACCEPTED)
+}
+
+async fn restore_conversation(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+    Path(id): Path<Uuid>,
+) -> Result<Json<luna_protocol::Conversation>, AppError> {
+    let timestamp = now()?;
+    let conversation = state.database.restore_conversation(id, &timestamp).await?;
+    state
+        .events
+        .append(
+            Some(id),
+            Some(id),
+            &ServerEvent::ConversationUpserted(conversation.clone()),
+            &timestamp,
+        )
+        .await?;
+    Ok(Json(conversation))
 }
 
 async fn archive_conversation(

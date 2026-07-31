@@ -18,6 +18,7 @@ fn documents_the_supported_http_surface() {
         "/v1/conversations/{id}/compact",
         "/v1/conversations/{id}/abort",
         "/v1/conversations/{id}/archive",
+        "/v1/conversations/{id}/restore",
         "/v1/attachments",
         "/v1/repositories/{id}/icon",
         "/v1/transcriptions",

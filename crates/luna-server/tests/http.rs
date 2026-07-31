@@ -6,8 +6,8 @@ use axum::{
 };
 use luna_protocol::{
     ApiError, AttachmentResponse, CompactConversationResponse, Conversation,
-    ConversationAgentState, ConversationMessages, ErrorCode, PairingCodeRequestResponse,
-    PairingExchangeResponse, SendMessageResponse,
+    ConversationAgentState, ConversationList, ConversationMessages, ErrorCode,
+    PairingCodeRequestResponse, PairingExchangeResponse, SendMessageResponse,
 };
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
@@ -454,6 +454,75 @@ async fn pairs_a_device_and_creates_a_conversation() {
     assert_eq!(bootstrap_response.status(), StatusCode::OK);
     let bootstrap: luna_protocol::Bootstrap = response_json(bootstrap_response).await;
     assert_eq!(bootstrap.conversations.len(), 1);
+
+    let archive_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/v1/conversations/{}/archive", conversation.id))
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("archive request"),
+        )
+        .await
+        .expect("archive response");
+    assert_eq!(archive_response.status(), StatusCode::NO_CONTENT);
+
+    let active_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/conversations")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("active list request"),
+        )
+        .await
+        .expect("active list response");
+    assert!(
+        response_json::<ConversationList>(active_response)
+            .await
+            .conversations
+            .is_empty()
+    );
+    let archived_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/conversations?scope=archived")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("archive list request"),
+        )
+        .await
+        .expect("archive list response");
+    let archived = response_json::<ConversationList>(archived_response).await;
+    assert_eq!(archived.conversations.len(), 1);
+    assert_eq!(archived.conversations[0].id, conversation.id);
+    assert!(archived.conversations[0].archived_at.is_some());
+
+    let restore_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/v1/conversations/{}/restore", conversation.id))
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("restore request"),
+        )
+        .await
+        .expect("restore response");
+    assert_eq!(restore_response.status(), StatusCode::OK);
+    let restored: Conversation = response_json(restore_response).await;
+    assert_eq!(restored.archived_at, None);
+    assert_eq!(restored.state, luna_protocol::SessionState::Stopped);
+
     built.runtime.shutdown().await;
 }
 

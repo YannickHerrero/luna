@@ -7,9 +7,9 @@ use crate::{
     AgentTask, AgentTaskList, AgentTaskListChanged, AgentTaskStatus, ApiError, Attachment,
     AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
     CompactConversationResponse, ContextUsage, Conversation, ConversationAgentState,
-    ConversationList, ConversationMessages, ConversationTitleUpdated, CreateConversationRequest,
-    Device, ErrorCode, ErrorResponse, Message, MessageCompleted, MessageDelta,
-    PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    ConversationList, ConversationMessages, ConversationScope, ConversationTitleUpdated,
+    CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message, MessageCompleted,
+    MessageDelta, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
     RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
     ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
     ThinkingLevel, TranscriptionResponse, UpdateConversationAgentRequest,
@@ -71,6 +71,7 @@ fn sync() {}
 #[utoipa::path(
     get,
     path = "/v1/conversations",
+    params(("scope" = Option<ConversationScope>, Query, description = "Active, archived, or all conversations")),
     responses((status = 200, body = ConversationList)),
     security(("deviceToken" = []))
 )]
@@ -182,6 +183,18 @@ fn conversation_archive() {}
 
 #[utoipa::path(
     post,
+    path = "/v1/conversations/{id}/restore",
+    params(("id" = uuid::Uuid, Path)),
+    responses(
+        (status = 200, body = Conversation),
+        (status = 404, body = ApiError)
+    ),
+    security(("deviceToken" = []))
+)]
+fn conversation_restore() {}
+
+#[utoipa::path(
+    post,
     path = "/v1/attachments",
     request_body(content = String, content_type = "multipart/form-data"),
     responses((status = 201, body = AttachmentResponse)),
@@ -246,6 +259,7 @@ fn transcriptions_create() {}
         conversation_compact,
         conversation_abort,
         conversation_archive,
+        conversation_restore,
         attachments_upload,
         attachment_content,
         attachment_thumbnail,
@@ -275,6 +289,7 @@ fn transcriptions_create() {}
         ConversationAgentState,
         ConversationList,
         ConversationMessages,
+        ConversationScope,
         ConversationTitleUpdated,
         CreateConversationRequest,
         Device,

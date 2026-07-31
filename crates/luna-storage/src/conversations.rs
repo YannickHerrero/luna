@@ -1,4 +1,6 @@
-use luna_protocol::{Conversation, Repository, RepositoryIcon, SessionState, TitleMode};
+use luna_protocol::{
+    Conversation, ConversationScope, Repository, RepositoryIcon, SessionState, TitleMode,
+};
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -100,12 +102,18 @@ impl Database {
 
     pub async fn conversations(
         &self,
-        include_archived: bool,
+        scope: ConversationScope,
     ) -> Result<Vec<Conversation>, StorageError> {
-        let query = if include_archived {
-            "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
-        } else {
-            "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c WHERE c.archived_at IS NULL ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
+        let query = match scope {
+            ConversationScope::Active => {
+                "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c WHERE c.archived_at IS NULL ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
+            }
+            ConversationScope::Archived => {
+                "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c WHERE c.archived_at IS NOT NULL ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
+            }
+            ConversationScope::All => {
+                "SELECT c.id, c.title, c.title_mode, c.state, c.preview, c.active_working_directory, (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_message_at, c.notification_target_device_id, c.unread_count, c.archived_at, c.created_at, c.updated_at, c.version FROM conversations c ORDER BY COALESCE(last_message_at, c.created_at) DESC, c.id DESC"
+            }
         };
         let rows = sqlx::query_as::<_, ConversationRow>(query)
             .fetch_all(self.pool())
@@ -265,6 +273,24 @@ impl Database {
         )
         .bind(title)
         .bind(updated_at)
+        .bind(id.to_string())
+        .execute(self.pool())
+        .await?;
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound);
+        }
+        self.conversation(id).await?.ok_or(StorageError::NotFound)
+    }
+
+    pub async fn restore_conversation(
+        &self,
+        id: Uuid,
+        restored_at: &str,
+    ) -> Result<Conversation, StorageError> {
+        let updated = sqlx::query(
+            "UPDATE conversations SET archived_at = NULL, state = 'stopped', updated_at = ?, version = version + 1 WHERE id = ? AND archived_at IS NOT NULL",
+        )
+        .bind(restored_at)
         .bind(id.to_string())
         .execute(self.pool())
         .await?;
