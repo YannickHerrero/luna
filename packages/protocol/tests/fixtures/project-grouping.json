@@ -1,0 +1,115 @@
+{
+  "cases": [
+    {
+      "name": "prefers the most specific repository containing the working directory",
+      "workingDirectory": "/Users/example/dev/luna/apps/ios/Sources",
+      "repositories": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "displayName": "luna",
+          "rootPath": "/Users/example/dev/luna",
+          "active": true,
+          "lastSeenAt": "2026-03-20T12:00:00Z"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000002",
+          "displayName": "ios",
+          "rootPath": "/Users/example/dev/luna/apps/ios",
+          "active": false,
+          "lastSeenAt": "2026-03-20T11:00:00Z"
+        }
+      ],
+      "expectedRepositoryId": "00000000-0000-0000-0000-000000000002"
+    },
+    {
+      "name": "matches complete path components rather than string prefixes",
+      "workingDirectory": "/Users/example/dev/lunatic",
+      "repositories": [
+        {
+          "id": "00000000-0000-0000-0000-000000000003",
+          "displayName": "luna",
+          "rootPath": "/Users/example/dev/luna",
+          "active": false,
+          "lastSeenAt": "2026-03-20T13:00:00Z"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000004",
+          "displayName": "fallback-active",
+          "rootPath": "/Users/example/dev/other",
+          "active": true,
+          "lastSeenAt": "2026-03-20T10:00:00Z"
+        }
+      ],
+      "expectedRepositoryId": "00000000-0000-0000-0000-000000000004"
+    },
+    {
+      "name": "prefers an active repository when no root contains the working directory",
+      "workingDirectory": "/tmp/work",
+      "repositories": [
+        {
+          "id": "00000000-0000-0000-0000-000000000005",
+          "displayName": "inactive-newer",
+          "rootPath": "/Users/example/dev/newer",
+          "active": false,
+          "lastSeenAt": "2026-03-20T14:00:00Z"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000006",
+          "displayName": "active-older",
+          "rootPath": "/Users/example/dev/older",
+          "active": true,
+          "lastSeenAt": "2026-03-20T09:00:00Z"
+        }
+      ],
+      "expectedRepositoryId": "00000000-0000-0000-0000-000000000006"
+    },
+    {
+      "name": "uses the most recently observed repository as the fallback",
+      "workingDirectory": "/tmp/work",
+      "repositories": [
+        {
+          "id": "00000000-0000-0000-0000-000000000007",
+          "displayName": "older",
+          "rootPath": "/Users/example/dev/older",
+          "active": false,
+          "lastSeenAt": "2026-03-20T08:00:00Z"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000008",
+          "displayName": "newer",
+          "rootPath": "/Users/example/dev/newer",
+          "active": false,
+          "lastSeenAt": "2026-03-20T15:00:00Z"
+        }
+      ],
+      "expectedRepositoryId": "00000000-0000-0000-0000-000000000008"
+    },
+    {
+      "name": "breaks equivalent fallback ties by repository identifier",
+      "workingDirectory": "/tmp/work",
+      "repositories": [
+        {
+          "id": "00000000-0000-0000-0000-000000000010",
+          "displayName": "second",
+          "rootPath": "/Users/example/dev/second",
+          "active": false,
+          "lastSeenAt": "2026-03-20T15:00:00Z"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000009",
+          "displayName": "first",
+          "rootPath": "/Users/example/dev/first",
+          "active": false,
+          "lastSeenAt": "2026-03-20T15:00:00Z"
+        }
+      ],
+      "expectedRepositoryId": "00000000-0000-0000-0000-000000000009"
+    },
+    {
+      "name": "returns no project when no repository is known",
+      "workingDirectory": "/Users/example",
+      "repositories": [],
+      "expectedRepositoryId": null
+    }
+  ]
+}

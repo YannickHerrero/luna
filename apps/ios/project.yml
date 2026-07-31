@@ -203,6 +203,8 @@ targets:
     platform: iOS
     sources:
       - path: LunaTests
+      - path: ../../packages/protocol/tests/fixtures/project-grouping.json
+        buildPhase: resources
     dependencies:
       - target: Luna
     settings:

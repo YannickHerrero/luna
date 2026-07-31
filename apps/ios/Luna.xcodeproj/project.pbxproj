@@ -56,6 +56,7 @@
 		AA1951FBBA7C1FD2541913D4 /* ConversationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 994F478C79239B9A8C3F52C0 /* ConversationState.swift */; };
 		ABA8D6972EE584D148484EDF /* LunaColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A68162DD0A4DA703F05A031 /* LunaColors.swift */; };
 		AD3445321C1D0415A74992A7 /* LunaIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63BC4C2BA97762545D5E26D /* LunaIcon.swift */; };
+		ADAA261DA97E6083EF38B36F /* ConversationProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222CFCA4902A56874DAE3523 /* ConversationProjectTests.swift */; };
 		B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */; };
 		C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */; };
 		C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */; };
@@ -74,6 +75,8 @@
 		F2136227F163FC7448EAAD28 /* LunaWatchStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AEDA02EB12B1DEC12CDB063 /* LunaWatchStatusWidget.swift */; };
 		F2E236D56FCB80F448B8D4DF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 20D38BD211CE005BF08DE098 /* PrivacyInfo.xcprivacy */; };
 		F4B98DDA68748E8F38FA9E74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C77C10BEEA3129002A168D6 /* Assets.xcassets */; };
+		FACE1E590A3A54F5629C9529 /* ConversationProjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = C038F07B22DC8671085BCF5D /* ConversationProjects.swift */; };
+		FE049D8823F1C86517DAC4B3 /* project-grouping.json in Resources */ = {isa = PBXBuildFile; fileRef = CD9AB1795257D60682E05372 /* project-grouping.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -178,6 +181,7 @@
 		1FBA06C0C3B81E8D0960DAF5 /* AgentControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentControlsView.swift; sourceTree = "<group>"; };
 		20D38BD211CE005BF08DE098 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		21AEA6A3038E726F4E543F0D /* Luna.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Luna.entitlements; sourceTree = "<group>"; };
+		222CFCA4902A56874DAE3523 /* ConversationProjectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationProjectTests.swift; sourceTree = "<group>"; };
 		2D02B47A7E4945E3F685C892 /* PairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingTests.swift; sourceTree = "<group>"; };
 		2EB9D6CF8BF32959F10A2920 /* LunaWatchHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchHomeView.swift; sourceTree = "<group>"; };
 		2EFBDDA32CABF3FA5402AF50 /* LunaWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchApp.swift; sourceTree = "<group>"; };
@@ -216,8 +220,10 @@
 		B08A9684DECB4871EE3082F2 /* LunaWatchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LunaWatchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB5BE7E52636B4529580B80B /* ConversationTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationTranscriptView.swift; sourceTree = "<group>"; };
 		BDF59CED60218ECEC6977138 /* LunaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTests.swift; sourceTree = "<group>"; };
+		C038F07B22DC8671085BCF5D /* ConversationProjects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationProjects.swift; sourceTree = "<group>"; };
 		C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlighter.swift; sourceTree = "<group>"; };
 		C207A2B06080F0309E8742D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CD9AB1795257D60682E05372 /* project-grouping.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "project-grouping.json"; sourceTree = "<group>"; };
 		CE46F5770EBA392116759178 /* LunaWatchWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchWidgets.swift; sourceTree = "<group>"; };
 		D399E4DA6B951325F78CD25C /* Luna.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Luna.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D52EB1E0C99044C5EA937635 /* AgentControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentControlsTests.swift; sourceTree = "<group>"; };
@@ -291,6 +297,15 @@
 			path = Persistence;
 			sourceTree = "<group>";
 		};
+		16F60E55C4ED3B866059AC6D /* fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				CD9AB1795257D60682E05372 /* project-grouping.json */,
+			);
+			name = fixtures;
+			path = ../../packages/protocol/tests/fixtures;
+			sourceTree = "<group>";
+		};
 		1A3736DE50E14A58C871E960 /* LunaWatchTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -348,6 +363,7 @@
 			children = (
 				D52EB1E0C99044C5EA937635 /* AgentControlsTests.swift */,
 				7541218330E7B427920F4074 /* ComposerTests.swift */,
+				222CFCA4902A56874DAE3523 /* ConversationProjectTests.swift */,
 				AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */,
 				302CDA3842D14DAA19FB466F /* ConversationStoreTests.swift */,
 				E33D93670D8849CD3E1276AE /* LunaRouteTests.swift */,
@@ -382,6 +398,7 @@
 		9BD8E5D0EE36D15B4983E639 /* Conversations */ = {
 			isa = PBXGroup;
 			children = (
+				C038F07B22DC8671085BCF5D /* ConversationProjects.swift */,
 				D7E74A437020C38E3448B41E /* ConversationShellView.swift */,
 				AF280810D22370DA77BDEC31 /* ConversationSidebar.swift */,
 			);
@@ -429,6 +446,7 @@
 			isa = PBXGroup;
 			children = (
 				2F0B3E06209EE85B5D06292B /* Config */,
+				16F60E55C4ED3B866059AC6D /* fixtures */,
 				CD6164EF533913AF3497943F /* Luna */,
 				561DF00A51072B22238E0036 /* LunaTests */,
 				9D8E91BF2481FEE4DE33F5E2 /* LunaUITests */,
@@ -636,6 +654,7 @@
 			buildConfigurationList = 85A80063A5A7EEAFAAE82D51 /* Build configuration list for PBXNativeTarget "LunaTests" */;
 			buildPhases = (
 				24D1A99036E659B4F039B354 /* Sources */,
+				301DE56105EBEC651BB5B23A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -752,6 +771,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		301DE56105EBEC651BB5B23A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FE049D8823F1C86517DAC4B3 /* project-grouping.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4A2ABC45C4892A4E7D2903AF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -806,6 +833,7 @@
 			files = (
 				C457C3B6B6A743B7D64EF1FE /* AgentControlsTests.swift in Sources */,
 				9FC002CF6EAE2CE8DA87219A /* ComposerTests.swift in Sources */,
+				ADAA261DA97E6083EF38B36F /* ConversationProjectTests.swift in Sources */,
 				C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */,
 				A0C4F0AE302272715C926DB9 /* ConversationStoreTests.swift in Sources */,
 				051F82E015B5FF2FE6AFDE26 /* LunaRouteTests.swift in Sources */,
@@ -831,6 +859,7 @@
 				C2F36A2D4F3DA6AED2E85243 /* CodeHighlighter.swift in Sources */,
 				1E319A77692B7DED7BEE0402 /* ComposerDraft.swift in Sources */,
 				A50707F0A0C4C4C9C011EFFB /* ConversationComposerView.swift in Sources */,
+				FACE1E590A3A54F5629C9529 /* ConversationProjects.swift in Sources */,
 				55B9BB28E50143DAD4976951 /* ConversationShellView.swift in Sources */,
 				08A524A97215FE0EEFE4FEB9 /* ConversationSidebar.swift in Sources */,
 				AA1951FBBA7C1FD2541913D4 /* ConversationState.swift in Sources */,
