@@ -2,12 +2,15 @@ default_platform(:ios)
 skip_docs
 
 require "fileutils"
+require "shellwords"
 
+REPO_ROOT = File.expand_path("..", __dir__).freeze
+BUILD_DIRECTORY = File.join(REPO_ROOT, "fastlane/build").freeze
 APP_IDENTIFIER = "com.yannickherrero.luna".freeze
 WIDGET_IDENTIFIER = "com.yannickherrero.luna.widgets".freeze
 WATCH_IDENTIFIER = "com.yannickherrero.luna.watchkitapp".freeze
 WATCH_WIDGET_IDENTIFIER = "com.yannickherrero.luna.watchkitapp.widgets".freeze
-PROJECT = "apps/ios/Luna.xcodeproj".freeze
+PROJECT = File.join(REPO_ROOT, "apps/ios/Luna.xcodeproj").freeze
 SCHEME = "Luna".freeze
 
 APP_PROFILE = "Luna App Store".freeze
@@ -103,7 +106,8 @@ platform :ios do
   lane :signing do
     api_key = connect_api_key
     ensure_bundle_ids
-    FileUtils.mkdir_p("fastlane/build/profiles")
+    profiles_directory = File.join(BUILD_DIRECTORY, "profiles")
+    FileUtils.mkdir_p(profiles_directory)
     BUNDLES.each do |identifier, _name, profile, filename|
       get_provisioning_profile(
         api_key: api_key,
@@ -111,7 +115,7 @@ platform :ios do
         provisioning_name: profile,
         ignore_profiles_with_different_name: true,
         force: ENV["FORCE_SIGNING_PROFILES"] == "1",
-        output_path: "fastlane/build/profiles",
+        output_path: profiles_directory,
         filename: filename
       )
     end
@@ -119,8 +123,9 @@ platform :ios do
 
   desc "Regenerate checked-in Apple assets and verify the repository remains clean"
   lane :generated do
-    sh("pnpm generate")
-    sh("cd apps/ios && xcodegen generate")
+    sh("cd #{REPO_ROOT.shellescape} && pnpm generate")
+    ios_directory = File.join(REPO_ROOT, "apps/ios")
+    sh("cd #{ios_directory.shellescape} && xcodegen generate")
     ensure_git_status_clean(show_uncommitted_changes: true)
   end
 
@@ -136,9 +141,9 @@ platform :ios do
       configuration: "Release",
       destination: "generic/platform=iOS",
       export_method: "app-store",
-      output_directory: "fastlane/build",
+      output_directory: BUILD_DIRECTORY,
       output_name: "Luna",
-      archive_path: "fastlane/build/Luna.xcarchive",
+      archive_path: File.join(BUILD_DIRECTORY, "Luna.xcarchive"),
       clean: true,
       xcargs: "#{SIGNING_ARGS} CURRENT_PROJECT_VERSION=#{build_number}",
       export_xcargs: SIGNING_ARGS,
@@ -162,7 +167,7 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       app_identifier: APP_IDENTIFIER,
-      ipa: "fastlane/build/Luna.ipa",
+      ipa: File.join(BUILD_DIRECTORY, "Luna.ipa"),
       changelog: ENV.fetch("TESTFLIGHT_CHANGELOG", "Initial Luna beta with Apple platform placeholders."),
       skip_submission: true,
       skip_waiting_for_build_processing: false,
