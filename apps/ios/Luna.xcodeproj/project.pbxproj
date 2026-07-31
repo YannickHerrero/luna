@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		009C4FA87B69845E549718C2 /* LunaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37224358526A57AC70F20BA0 /* LunaUITests.swift */; };
+		02524708F5CAA639246EC2A4 /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57DA3D0C9E7F119F8B76BDD /* MarkdownDocument.swift */; };
 		08A524A97215FE0EEFE4FEB9 /* ConversationSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF280810D22370DA77BDEC31 /* ConversationSidebar.swift */; };
 		0BA4C4EF3498F60D61A34FE0 /* LunaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF59CED60218ECEC6977138 /* LunaTests.swift */; };
 		17C99E4C508FB16C3508A883 /* MultipartForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3299407BD23BA1484448E336 /* MultipartForm.swift */; };
@@ -23,17 +24,21 @@
 		63C5177BA73E69FF55428E90 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */; };
 		703E3FA4F4A88D1F5BC6F6A9 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BE9D9ED57041FAB2589F3D /* APIClient.swift */; };
 		746DEBCC2CBCC91F89751784 /* AuthenticatedImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */; };
+		79FB38B90A7B1F45FBB430B1 /* MarkdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */; };
 		7BBF6590B1B934FAFDA8BC84 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E556359BF68F1642E3BA0FA5 /* AppModel.swift */; };
 		8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFD1B295E68E217F4E87326 /* LunaTheme.swift */; };
 		8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */; };
+		8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E615B4F62478DD81610EC904 /* MarkdownView.swift */; };
 		93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */; };
 		A0C4F0AE302272715C926DB9 /* ConversationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302CDA3842D14DAA19FB466F /* ConversationStoreTests.swift */; };
 		A0C990BCDF369F55ABBF2A4F /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500F918CCAAA34D0F020DA8B /* APIModels.swift */; };
+		A16D7BCEDFD1741F1FFEE6A4 /* ConversationTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB5BE7E52636B4529580B80B /* ConversationTranscriptView.swift */; };
 		AA1951FBBA7C1FD2541913D4 /* ConversationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 994F478C79239B9A8C3F52C0 /* ConversationState.swift */; };
 		AD3445321C1D0415A74992A7 /* LunaIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63BC4C2BA97762545D5E26D /* LunaIcon.swift */; };
 		B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */; };
 		C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */; };
 		C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */; };
+		C2F36A2D4F3DA6AED2E85243 /* CodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */; };
 		C57DD66DBB68DEAA4B849838 /* Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BBCE5382FCDBEC76F3E0884 /* Events.swift */; };
 		C68DA4A7E0EA7E8D80BA1CDA /* ServerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8489E32B1B544E45875F735D /* ServerConfiguration.swift */; };
 		C9B4CB2784C05A6A6CB1E3EA /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0695B7744D91951C5A34E305 /* ConversationStore.swift */; };
@@ -88,14 +93,19 @@
 		ACE6EE1E3B3B745AD07D2E75 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
 		AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStateTests.swift; sourceTree = "<group>"; };
 		AF280810D22370DA77BDEC31 /* ConversationSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSidebar.swift; sourceTree = "<group>"; };
+		BB5BE7E52636B4529580B80B /* ConversationTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationTranscriptView.swift; sourceTree = "<group>"; };
 		BDF59CED60218ECEC6977138 /* LunaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTests.swift; sourceTree = "<group>"; };
+		C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeHighlighter.swift; sourceTree = "<group>"; };
 		D399E4DA6B951325F78CD25C /* Luna.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Luna.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D57DA3D0C9E7F119F8B76BDD /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		D71B1EBDBBB361F97F8E020B /* LunaColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LunaColors.swift; path = "../../../../packages/design-tokens/generated/LunaColors.swift"; sourceTree = "<group>"; };
 		D7E74A437020C38E3448B41E /* ConversationShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationShellView.swift; sourceTree = "<group>"; };
 		D800357345CADB742046B83B /* LunaTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTimeTests.swift; sourceTree = "<group>"; };
 		D9BE9D9ED57041FAB2589F3D /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		E239F62A1C9244159CFDE4A6 /* LunaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LunaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E556359BF68F1642E3BA0FA5 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		E615B4F62478DD81610EC904 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
+		E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTests.swift; sourceTree = "<group>"; };
 		ECFD1B295E68E217F4E87326 /* LunaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTheme.swift; sourceTree = "<group>"; };
 		F35B1CB79E061E08CB29C3DF /* LunaSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaSurface.swift; sourceTree = "<group>"; };
 		F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingTests.swift; sourceTree = "<group>"; };
@@ -142,6 +152,7 @@
 			children = (
 				9BD8E5D0EE36D15B4983E639 /* Conversations */,
 				0E45821296C5093A41DB9EA0 /* Pairing */,
+				FA3179E92ACF1637BD27B8BC /* Transcript */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -165,6 +176,7 @@
 				302CDA3842D14DAA19FB466F /* ConversationStoreTests.swift */,
 				BDF59CED60218ECEC6977138 /* LunaTests.swift */,
 				D800357345CADB742046B83B /* LunaTimeTests.swift */,
+				E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */,
 				F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */,
 				2D02B47A7E4945E3F685C892 /* PairingTests.swift */,
 				FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */,
@@ -250,6 +262,17 @@
 				3BBCE5382FCDBEC76F3E0884 /* Events.swift */,
 			);
 			path = Protocol;
+			sourceTree = "<group>";
+		};
+		FA3179E92ACF1637BD27B8BC /* Transcript */ = {
+			isa = PBXGroup;
+			children = (
+				C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */,
+				BB5BE7E52636B4529580B80B /* ConversationTranscriptView.swift */,
+				D57DA3D0C9E7F119F8B76BDD /* MarkdownDocument.swift */,
+				E615B4F62478DD81610EC904 /* MarkdownView.swift */,
+			);
+			path = Transcript;
 			sourceTree = "<group>";
 		};
 		FE75757541EB4AB9E009A5DE /* DesignSystem */ = {
@@ -379,6 +402,7 @@
 				A0C4F0AE302272715C926DB9 /* ConversationStoreTests.swift in Sources */,
 				0BA4C4EF3498F60D61A34FE0 /* LunaTests.swift in Sources */,
 				60A4B863CF7D50182AF219DF /* LunaTimeTests.swift in Sources */,
+				79FB38B90A7B1F45FBB430B1 /* MarkdownTests.swift in Sources */,
 				B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */,
 				3DAE34D4A6DDAB4EE0140C5E /* PairingTests.swift in Sources */,
 				93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */,
@@ -394,10 +418,12 @@
 				7BBF6590B1B934FAFDA8BC84 /* AppModel.swift in Sources */,
 				746DEBCC2CBCC91F89751784 /* AuthenticatedImageLoader.swift in Sources */,
 				8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */,
+				C2F36A2D4F3DA6AED2E85243 /* CodeHighlighter.swift in Sources */,
 				55B9BB28E50143DAD4976951 /* ConversationShellView.swift in Sources */,
 				08A524A97215FE0EEFE4FEB9 /* ConversationSidebar.swift in Sources */,
 				AA1951FBBA7C1FD2541913D4 /* ConversationState.swift in Sources */,
 				C9B4CB2784C05A6A6CB1E3EA /* ConversationStore.swift in Sources */,
+				A16D7BCEDFD1741F1FFEE6A4 /* ConversationTranscriptView.swift in Sources */,
 				63C5177BA73E69FF55428E90 /* CredentialStore.swift in Sources */,
 				2B50F0AC09DE2B8DFF663CEB /* Entities.swift in Sources */,
 				DF2339629C6744C3E694E6D5 /* EventSource.swift in Sources */,
@@ -410,6 +436,8 @@
 				CDA4FBE97FDCE7142D786FE7 /* LunaSurface.swift in Sources */,
 				8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */,
 				1B8224EAE0A4611AF5D043FA /* LunaTime.swift in Sources */,
+				02524708F5CAA639246EC2A4 /* MarkdownDocument.swift in Sources */,
+				8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */,
 				17C99E4C508FB16C3508A883 /* MultipartForm.swift in Sources */,
 				45DB3855FB7B9F2F63A94E4B /* PairingView.swift in Sources */,
 				C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */,

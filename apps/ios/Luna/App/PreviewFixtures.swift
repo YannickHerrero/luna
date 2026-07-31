@@ -25,10 +25,12 @@ enum PreviewFixtures {
         conversation(
             id: 1,
             title: "Launch Luna",
-            state: .idle,
+            state: .working,
             preview: "Persistent Pi conversations are ready.",
             repository: "Luna",
             fallback: "☾",
+            activities: previewActivities,
+            taskList: previewTaskList,
             lastMessageAt: "2026-07-31T07:40:00Z"
         ),
         conversation(
@@ -88,7 +90,7 @@ enum PreviewFixtures {
                 role: .assistant,
                 status: .completed,
                 delivery: nil,
-                text: "# Luna is ready\n\nPersistent Pi conversations are enabled and ready to use.\n\n- Conversation persistence configured\n- History restoration verified\n- Project setup completed",
+                text: "# Luna is ready\n\nPersistent Pi conversations are enabled and **ready to use**.\n\n- [x] Conversation persistence configured\n- [x] History restoration verified\n- [ ] Visual acceptance in progress\n\n> Native and web clients share the same durable session.\n\n| Client | Status |\n| --- | --- |\n| iPhone | Ready |\n| iPad | Ready |\n\n```swift\nlet luna = ConversationStore()\nawait luna.connect()\n```",
                 attachments: [],
                 sentByDeviceId: nil,
                 ordinal: 2,
@@ -98,6 +100,60 @@ enum PreviewFixtures {
         ],
     ]
 
+    static let previewActivities = [
+        AgentActivity(
+            id: id(301),
+            sequence: 1,
+            summary: "Inspecting the native transcript",
+            createdAt: "2026-07-31T07:40:01Z",
+            updatedAt: "2026-07-31T07:40:01Z"
+        ),
+        AgentActivity(
+            id: id(302),
+            sequence: 2,
+            summary: "Verifying Markdown and task progress",
+            createdAt: "2026-07-31T07:40:02Z",
+            updatedAt: "2026-07-31T07:40:02Z"
+        ),
+    ]
+
+    static let previewTaskList = AgentTaskList(
+        id: id(401),
+        title: "Native client parity",
+        revision: 3,
+        tasks: [
+            AgentTask(
+                id: id(411),
+                sequence: 1,
+                text: "Build the adaptive conversation shell",
+                status: .completed,
+                note: "Verified on iPhone and iPad",
+                createdAt: "2026-07-31T07:30:00Z",
+                updatedAt: "2026-07-31T07:36:00Z"
+            ),
+            AgentTask(
+                id: id(412),
+                sequence: 2,
+                text: "Render Markdown and streaming activity",
+                status: .inProgress,
+                note: nil,
+                createdAt: "2026-07-31T07:36:00Z",
+                updatedAt: "2026-07-31T07:40:00Z"
+            ),
+            AgentTask(
+                id: id(413),
+                sequence: 3,
+                text: "Complete simulator acceptance",
+                status: .pending,
+                note: nil,
+                createdAt: "2026-07-31T07:36:00Z",
+                updatedAt: "2026-07-31T07:36:00Z"
+            ),
+        ],
+        createdAt: "2026-07-31T07:30:00Z",
+        updatedAt: "2026-07-31T07:40:00Z"
+    )
+
     private static func conversation(
         id value: Int,
         title: String,
@@ -105,6 +161,8 @@ enum PreviewFixtures {
         preview: String,
         repository: String,
         fallback: String,
+        activities: [AgentActivity] = [],
+        taskList: AgentTaskList? = nil,
         lastMessageAt: String
     ) -> Conversation {
         let repositoryId = id(value + 20)
@@ -132,8 +190,8 @@ enum PreviewFixtures {
                     lastSeenAt: lastMessageAt
                 ),
             ],
-            activities: [],
-            taskList: nil,
+            activities: activities,
+            taskList: taskList,
             lastMessageAt: lastMessageAt,
             notificationTargetDeviceId: id(90),
             unreadCount: 0,

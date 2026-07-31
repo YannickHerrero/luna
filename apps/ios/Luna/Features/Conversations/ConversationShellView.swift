@@ -43,7 +43,10 @@ struct ConversationShellView: View {
                 ConversationPanel(
                     conversation: conversation,
                     messages: store.selectedMessages,
+                    imageLoader: store.imageLoader,
+                    canLoadEarlier: store.canLoadEarlier,
                     compact: true,
+                    onLoadEarlier: { await store.loadEarlierMessages() },
                     onBack: store.showConversationList
                 )
             } else {
@@ -64,7 +67,10 @@ struct ConversationShellView: View {
                     ConversationPanel(
                         conversation: conversation,
                         messages: store.selectedMessages,
+                        imageLoader: store.imageLoader,
+                        canLoadEarlier: store.canLoadEarlier,
                         compact: false,
+                        onLoadEarlier: { await store.loadEarlierMessages() },
                         onBack: store.showConversationList
                     )
                 } else {
@@ -125,7 +131,10 @@ struct ConversationShellView: View {
 private struct ConversationPanel: View {
     let conversation: Conversation
     let messages: [Message]
+    let imageLoader: AuthenticatedImageLoader
+    let canLoadEarlier: Bool
     let compact: Bool
+    let onLoadEarlier: () async -> Void
     let onBack: () -> Void
 
     @Environment(\.lunaPalette) private var palette
@@ -133,23 +142,13 @@ private struct ConversationPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Group {
-                if messages.isEmpty {
-                    conversationEmpty
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(messages) { message in
-                                Text(message.text)
-                                    .font(LunaFont.body(14))
-                                    .foregroundStyle(palette.foreground)
-                                    .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
-                            }
-                        }
-                        .padding(24)
-                    }
-                }
-            }
+            ConversationTranscriptView(
+                conversation: conversation,
+                messages: messages,
+                imageLoader: imageLoader,
+                canLoadEarlier: canLoadEarlier,
+                onLoadEarlier: onLoadEarlier
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             composerPlaceholder
         }
@@ -214,25 +213,6 @@ private struct ConversationPanel: View {
             Capsule().stroke(palette.border, lineWidth: 1)
         }
         .accessibilityLabel(stateLabel(conversation.state))
-    }
-
-    private var conversationEmpty: some View {
-        VStack(spacing: 0) {
-            LunaMoonMark()
-            Text("What should we work on?")
-                .font(LunaFont.display(compact ? 28 : 42, weight: .bold))
-                .tracking(-1.2)
-                .foregroundStyle(palette.foreground)
-                .padding(.top, 13)
-            Text("Luna starts every conversation at your home directory and follows Pi across repositories.")
-                .font(LunaFont.body(14))
-                .foregroundStyle(palette.muted)
-                .multilineTextAlignment(.center)
-                .lineSpacing(5)
-                .frame(maxWidth: 520)
-                .padding(.top, 8)
-        }
-        .padding(30)
     }
 
     private var composerPlaceholder: some View {
