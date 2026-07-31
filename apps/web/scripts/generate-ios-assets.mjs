@@ -28,6 +28,7 @@ import sharp from 'sharp'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const assetCatalog = resolve(webRoot, '../ios/Luna/Resources/Assets.xcassets')
+const watchAssetCatalog = resolve(webRoot, '../ios/LunaWatch/Resources/Assets.xcassets')
 
 const icons = {
   Archive,
@@ -89,6 +90,22 @@ await sharp(resolve(webRoot, 'assets/app-icon.png'))
   .toFile(resolve(appIconSet, 'AppIcon.png'))
 await writeJSON(resolve(appIconSet, 'Contents.json'), {
   images: [{ filename: 'AppIcon.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }],
+  info: { author: 'xcode', version: 1 },
+})
+
+await rm(watchAssetCatalog, { recursive: true, force: true })
+await mkdir(watchAssetCatalog, { recursive: true })
+await writeJSON(resolve(watchAssetCatalog, 'Contents.json'), {
+  info: { author: 'xcode', version: 1 },
+})
+const watchAppIconSet = resolve(watchAssetCatalog, 'AppIcon.appiconset')
+await mkdir(watchAppIconSet, { recursive: true })
+await sharp(resolve(webRoot, 'assets/app-icon.png'))
+  .resize(1024, 1024)
+  .png()
+  .toFile(resolve(watchAppIconSet, 'AppIcon.png'))
+await writeJSON(resolve(watchAppIconSet, 'Contents.json'), {
+  images: [{ filename: 'AppIcon.png', idiom: 'universal', platform: 'watchos', size: '1024x1024' }],
   info: { author: 'xcode', version: 1 },
 })
 

@@ -15,48 +15,6 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EDEBD772AE9343A01D9935A3"
-               BuildableName = "Luna.app"
-               BlueprintName = "Luna"
-               ReferencedContainer = "container:Luna.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E154FFDE9FAFF378939D603A"
-               BuildableName = "LunaTests.xctest"
-               BlueprintName = "LunaTests"
-               ReferencedContainer = "container:Luna.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6097A6542593C1955CC546D4"
-               BuildableName = "LunaUITests.xctest"
-               BlueprintName = "LunaUITests"
-               ReferencedContainer = "container:Luna.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "59C9ADA3ED60F4DD6C8D46A6"
                BuildableName = "LunaWatch.app"
                BlueprintName = "LunaWatch"
@@ -65,15 +23,29 @@
          </BuildActionEntry>
          <BuildActionEntry
             buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F05E1BF236A9829FBD21CB64"
-               BuildableName = "LunaWidgets.appex"
-               BlueprintName = "LunaWidgets"
+               BlueprintIdentifier = "975C31D17CA2F12EFDECA012"
+               BuildableName = "LunaWatchTests.xctest"
+               BlueprintName = "LunaWatchTests"
+               ReferencedContainer = "container:Luna.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "488F45A5C5F4C0FD25342146"
+               BuildableName = "LunaWatchUITests.xctest"
+               BlueprintName = "LunaWatchUITests"
                ReferencedContainer = "container:Luna.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -89,21 +61,21 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EDEBD772AE9343A01D9935A3"
-            BuildableName = "Luna.app"
-            BlueprintName = "Luna"
+            BlueprintIdentifier = "59C9ADA3ED60F4DD6C8D46A6"
+            BuildableName = "LunaWatch.app"
+            BlueprintName = "LunaWatch"
             ReferencedContainer = "container:Luna.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
          <TestableReference
             skipped = "NO"
-            parallelizable = "YES">
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E154FFDE9FAFF378939D603A"
-               BuildableName = "LunaTests.xctest"
-               BlueprintName = "LunaTests"
+               BlueprintIdentifier = "975C31D17CA2F12EFDECA012"
+               BuildableName = "LunaWatchTests.xctest"
+               BlueprintName = "LunaWatchTests"
                ReferencedContainer = "container:Luna.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -112,9 +84,9 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6097A6542593C1955CC546D4"
-               BuildableName = "LunaUITests.xctest"
-               BlueprintName = "LunaUITests"
+               BlueprintIdentifier = "488F45A5C5F4C0FD25342146"
+               BuildableName = "LunaWatchUITests.xctest"
+               BlueprintName = "LunaWatchUITests"
                ReferencedContainer = "container:Luna.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -136,9 +108,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EDEBD772AE9343A01D9935A3"
-            BuildableName = "Luna.app"
-            BlueprintName = "Luna"
+            BlueprintIdentifier = "59C9ADA3ED60F4DD6C8D46A6"
+            BuildableName = "LunaWatch.app"
+            BlueprintName = "LunaWatch"
             ReferencedContainer = "container:Luna.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -155,9 +127,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EDEBD772AE9343A01D9935A3"
-            BuildableName = "Luna.app"
-            BlueprintName = "Luna"
+            BlueprintIdentifier = "59C9ADA3ED60F4DD6C8D46A6"
+            BuildableName = "LunaWatch.app"
+            BlueprintName = "LunaWatch"
             ReferencedContainer = "container:Luna.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
