@@ -51,6 +51,7 @@ struct ConversationTranscriptView: View {
                     contentHeight = height
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
             .onGeometryChange(for: CGFloat.self) { geometry in
                 geometry.size.height
             } action: { height in

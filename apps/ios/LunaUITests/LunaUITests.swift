@@ -210,6 +210,27 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testScrollingTranscriptDismissesKeyboard() {
+        let application = XCUIApplication()
+        application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
+        application.launch()
+
+        let editor = application.textViews["Steer Pi"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        editor.typeText("Keep this draft")
+        let keyboard = application.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+
+        let transcript = application.descendants(matching: .any)["message-transcript"]
+        XCTAssertTrue(transcript.waitForExistence(timeout: 5))
+        transcript.swipeDown()
+
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(editor.value as? String, "Keep this draft")
+    }
+
+    @MainActor
     func testConversationSupportsLeadingEdgeSwipeBack() {
         let application = XCUIApplication()
         application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]
