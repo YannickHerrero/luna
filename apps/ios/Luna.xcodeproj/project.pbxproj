@@ -702,9 +702,6 @@
 						ProvisioningStyle = Automatic;
 						TestTargetID = 59C9ADA3ED60F4DD6C8D46A6;
 					};
-					59C9ADA3ED60F4DD6C8D46A6 = {
-						ProvisioningStyle = Automatic;
-					};
 					6097A6542593C1955CC546D4 = {
 						ProvisioningStyle = Automatic;
 						TestTargetID = EDEBD772AE9343A01D9935A3;
@@ -712,18 +709,11 @@
 					975C31D17CA2F12EFDECA012 = {
 						ProvisioningStyle = Automatic;
 					};
-					A34920B9952DE8C8AB616E46 = {
-						ProvisioningStyle = Automatic;
-					};
 					E154FFDE9FAFF378939D603A = {
 						ProvisioningStyle = Automatic;
 					};
 					EDEBD772AE9343A01D9935A3 = {
-						ProvisioningStyle = Automatic;
 						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1]]";
-					};
-					F05E1BF236A9829FBD21CB64 = {
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -1051,6 +1041,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1059,6 +1051,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yannickherrero.luna.widgets;
 				PRODUCT_NAME = LunaWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "Luna Widgets App Store";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1250,9 +1243,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWatch/Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yannickherrero.luna.watchkitapp;
 				PRODUCT_NAME = LunaWatch;
+				PROVISIONING_PROFILE_SPECIFIER = "Luna Watch App Store";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -1322,7 +1318,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_ENTITLEMENTS = Luna/Resources/Luna.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = Luna/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1330,6 +1327,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yannickherrero.luna;
 				PRODUCT_NAME = Luna;
+				PROVISIONING_PROFILE_SPECIFIER = "Luna App Store";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1355,6 +1353,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = LunaWatchWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1363,6 +1363,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yannickherrero.luna.watchkitapp.widgets;
 				PRODUCT_NAME = LunaWatchWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "Luna Watch Widgets App Store";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;

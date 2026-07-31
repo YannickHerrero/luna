@@ -1,0 +1,178 @@
+default_platform(:ios)
+skip_docs
+
+require "fileutils"
+
+APP_IDENTIFIER = "com.yannickherrero.luna".freeze
+WIDGET_IDENTIFIER = "com.yannickherrero.luna.widgets".freeze
+WATCH_IDENTIFIER = "com.yannickherrero.luna.watchkitapp".freeze
+WATCH_WIDGET_IDENTIFIER = "com.yannickherrero.luna.watchkitapp.widgets".freeze
+PROJECT = "apps/ios/Luna.xcodeproj".freeze
+SCHEME = "Luna".freeze
+
+APP_PROFILE = "Luna App Store".freeze
+WIDGET_PROFILE = "Luna Widgets App Store".freeze
+WATCH_PROFILE = "Luna Watch App Store".freeze
+WATCH_WIDGET_PROFILE = "Luna Watch Widgets App Store".freeze
+
+KEY_ID = ENV.fetch("ASC_KEY_ID")
+ISSUER_ID = ENV.fetch("ASC_ISSUER_ID")
+KEY_PATH = File.expand_path(ENV["ASC_KEY_PATH"].to_s.empty? ? "~/.appstoreconnect/private_keys/AuthKey_#{KEY_ID}.p8" : ENV.fetch("ASC_KEY_PATH"))
+TEAM_ID = ENV.fetch("APPLE_TEAM_ID")
+SIGNING_ARGS = "DEVELOPMENT_TEAM='#{TEAM_ID}'".freeze
+
+BUNDLES = [
+  [APP_IDENTIFIER, "Luna", APP_PROFILE, "Luna.mobileprovision"],
+  [WIDGET_IDENTIFIER, "Luna Widgets", WIDGET_PROFILE, "LunaWidgets.mobileprovision"],
+  [WATCH_IDENTIFIER, "Luna Watch", WATCH_PROFILE, "LunaWatch.mobileprovision"],
+  [WATCH_WIDGET_IDENTIFIER, "Luna Watch Widgets", WATCH_WIDGET_PROFILE, "LunaWatchWidgets.mobileprovision"]
+].freeze
+
+platform :ios do
+  private_lane :connect_api_key do
+    UI.user_error!("Missing App Store Connect API key at #{KEY_PATH}") unless File.file?(KEY_PATH)
+    app_store_connect_api_key(
+      key_id: KEY_ID,
+      issuer_id: ISSUER_ID,
+      key_filepath: KEY_PATH,
+      duration: 1200
+    )
+  end
+
+  private_lane :install_connect_token do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: KEY_ID,
+      issuer_id: ISSUER_ID,
+      filepath: KEY_PATH
+    )
+  end
+
+  private_lane :ensure_bundle_ids do
+    install_connect_token
+    BUNDLES.each do |identifier, name, _profile, _filename|
+      bundle = Spaceship::ConnectAPI::BundleId.find(identifier)
+      if bundle.nil?
+        UI.message("Registering bundle ID #{identifier}")
+        bundle = Spaceship::ConnectAPI::BundleId.create(
+          name: name,
+          identifier: identifier,
+          platform: "IOS"
+        )
+      end
+
+      next unless identifier == APP_IDENTIFIER
+
+      push_type = Spaceship::ConnectAPI::BundleIdCapability::Type::PUSH_NOTIFICATIONS
+      unless bundle.get_capabilities.any? { |capability| capability.is_type?(push_type) }
+        bundle.create_capability(push_type)
+        UI.success("Enabled Push Notifications for #{APP_IDENTIFIER}")
+      end
+    end
+  end
+
+  private_lane :ensure_app_record do
+    install_connect_token
+    next unless Spaceship::ConnectAPI::App.find(APP_IDENTIFIER).nil?
+
+    UI.message("Creating the App Store Connect record for #{APP_IDENTIFIER}")
+    Spaceship::ConnectAPI::App.create(
+      name: "Luna",
+      version_string: "1.0.0",
+      sku: "luna-ios",
+      primary_locale: "en-US",
+      bundle_id: APP_IDENTIFIER,
+      platforms: ["IOS"]
+    )
+    UI.success("Created the Luna App Store Connect record")
+  rescue => error
+    UI.user_error!(<<~MESSAGE)
+      App Store Connect could not create the Luna app record automatically: #{error.message}
+      Create it once at https://appstoreconnect.apple.com/apps with name Luna,
+      primary language English (U.S.), bundle ID #{APP_IDENTIFIER}, and SKU luna-ios.
+    MESSAGE
+  end
+
+  desc "Register Luna bundle IDs, Push Notifications, and the App Store Connect record"
+  lane :bootstrap do
+    connect_api_key
+    ensure_bundle_ids
+    ensure_app_record
+  end
+
+  desc "Create or download App Store provisioning profiles for every embedded target"
+  lane :signing do
+    api_key = connect_api_key
+    ensure_bundle_ids
+    FileUtils.mkdir_p("fastlane/build/profiles")
+    BUNDLES.each do |identifier, _name, profile, filename|
+      get_provisioning_profile(
+        api_key: api_key,
+        app_identifier: identifier,
+        provisioning_name: profile,
+        ignore_profiles_with_different_name: true,
+        force: ENV["FORCE_SIGNING_PROFILES"] == "1",
+        output_path: "fastlane/build/profiles",
+        filename: filename
+      )
+    end
+  end
+
+  desc "Regenerate checked-in Apple assets and verify the repository remains clean"
+  lane :generated do
+    sh("pnpm generate")
+    sh("cd apps/ios && xcodegen generate")
+    ensure_git_status_clean(show_uncommitted_changes: true)
+  end
+
+  desc "Archive and export the signed iPhone, iPad, widget, and Watch application"
+  lane :build do
+    bootstrap
+    signing
+    generated
+    build_number = Time.now.utc.strftime("%Y%m%d%H%M")
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      destination: "generic/platform=iOS",
+      export_method: "app-store",
+      output_directory: "fastlane/build",
+      output_name: "Luna",
+      archive_path: "fastlane/build/Luna.xcarchive",
+      clean: true,
+      xcargs: "#{SIGNING_ARGS} CURRENT_PROJECT_VERSION=#{build_number}",
+      export_xcargs: SIGNING_ARGS,
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: TEAM_ID,
+        provisioningProfiles: {
+          APP_IDENTIFIER => APP_PROFILE,
+          WIDGET_IDENTIFIER => WIDGET_PROFILE,
+          WATCH_IDENTIFIER => WATCH_PROFILE,
+          WATCH_WIDGET_IDENTIFIER => WATCH_WIDGET_PROFILE
+        }
+      }
+    )
+  end
+
+  desc "Upload the exported IPA to internal TestFlight and wait for processing"
+  lane :upload do
+    api_key = connect_api_key
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      ipa: "fastlane/build/Luna.ipa",
+      changelog: ENV.fetch("TESTFLIGHT_CHANGELOG", "Initial Luna beta with Apple platform placeholders."),
+      skip_submission: true,
+      skip_waiting_for_build_processing: false,
+      distribute_external: false
+    )
+  end
+
+  desc "Build and upload Luna to internal TestFlight"
+  lane :beta do
+    build
+    upload
+  end
+end
