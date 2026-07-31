@@ -156,7 +156,7 @@ test.afterAll(async () => {
 })
 
 test('pairs, streams, restores, themes, and archives a conversation', async ({ page }) => {
-  test.setTimeout(45_000)
+  test.setTimeout(60_000)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Pair with Luna' })).toBeVisible()
@@ -261,6 +261,75 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   expect(composerBounds).not.toBeNull()
   expect(composerBounds?.x).toBeGreaterThanOrEqual(16)
   expect(375 - (composerBounds?.x ?? 0) - (composerBounds?.width ?? 0)).toBeGreaterThanOrEqual(16)
+  const mobileComposerLayout = await composer.evaluate((element) => {
+    const prompt = element.querySelector('textarea')
+    if (!(prompt instanceof HTMLTextAreaElement)) return undefined
+    const labels = ['Agent settings', 'Attach image', 'Take photo', 'Transcribe voice', 'Send']
+    const bounds = element.getBoundingClientRect()
+    const promptBounds = prompt.getBoundingClientRect()
+    const controls = Array.from(element.querySelectorAll<HTMLButtonElement>('button'))
+      .filter((button) => labels.includes(button.getAttribute('aria-label') ?? ''))
+      .map((button) => {
+        const buttonBounds = button.getBoundingClientRect()
+        return {
+          label: button.getAttribute('aria-label'),
+          bottom: buttonBounds.bottom,
+          left: buttonBounds.left,
+          right: buttonBounds.right,
+          top: buttonBounds.top,
+        }
+      })
+    return {
+      composer: { left: bounds.left, right: bounds.right },
+      controls,
+      prompt: {
+        bottom: promptBounds.bottom,
+        left: promptBounds.left,
+        right: promptBounds.right,
+      },
+    }
+  })
+  expect(mobileComposerLayout).toBeDefined()
+  expect(mobileComposerLayout?.controls).toHaveLength(5)
+  const mobileSettings = mobileComposerLayout?.controls.find(
+    (control) => control.label === 'Agent settings',
+  )
+  const mobileSend = mobileComposerLayout?.controls.find((control) => control.label === 'Send')
+  expect(
+    Math.abs(
+      (mobileSettings?.left ?? Number.POSITIVE_INFINITY) -
+        (mobileComposerLayout?.composer.left ?? 0) -
+        8,
+    ),
+  ).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(
+      (mobileComposerLayout?.composer.right ?? 0) -
+        8 -
+        (mobileSend?.right ?? Number.NEGATIVE_INFINITY),
+    ),
+  ).toBeLessThanOrEqual(1)
+  expect(
+    Math.max(...(mobileComposerLayout?.controls.map((control) => control.top) ?? [])) -
+      Math.min(...(mobileComposerLayout?.controls.map((control) => control.top) ?? [])),
+  ).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(
+      (mobileComposerLayout?.prompt.left ?? Number.POSITIVE_INFINITY) -
+        (mobileComposerLayout?.composer.left ?? 0) -
+        8,
+    ),
+  ).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(
+      (mobileComposerLayout?.composer.right ?? 0) -
+        8 -
+        (mobileComposerLayout?.prompt.right ?? Number.NEGATIVE_INFINITY),
+    ),
+  ).toBeLessThanOrEqual(1)
+  expect(mobileComposerLayout?.prompt.bottom).toBeLessThanOrEqual(
+    Math.min(...(mobileComposerLayout?.controls.map((control) => control.top) ?? [])) + 1,
+  )
   await expectConversationInViewport(page)
 
   const rootOverflow = await page.evaluate(() => ({
@@ -367,7 +436,7 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
     scrollWidth: document.documentElement.scrollWidth,
     elementBounds: Array.from(
       document.querySelectorAll(
-        '.conversation-header, .message-scroll, .message-row, .message-stack, .message-bubble, .markdown pre, .task-progress, .composer-wrap, .composer',
+        '.conversation-header, .message-scroll, .message-row, .message-stack, .message-bubble, .markdown pre, .task-progress, .composer-wrap, .composer, .composer-actions, .composer textarea',
       ),
     ).map((element) => {
       const bounds = element.getBoundingClientRect()
@@ -414,8 +483,38 @@ test('pairs, streams, restores, themes, and archives a conversation', async ({ p
   expect(desktopDialogBounds?.y).toBeGreaterThan(40)
   await page.keyboard.press('Escape')
   await expect(agentDialog).toBeHidden()
-  await expect(page.getByPlaceholder('Steer Pi…')).toBeVisible()
-  await page.getByPlaceholder('Steer Pi…').fill('Focus on browser acceptance')
+  const desktopPrompt = page.getByPlaceholder('Steer Pi…')
+  await expect(desktopPrompt).toBeVisible()
+  const desktopComposerLayout = await composer.evaluate((element) => {
+    const prompt = element.querySelector('textarea')
+    if (!(prompt instanceof HTMLTextAreaElement)) return undefined
+    const promptBounds = prompt.getBoundingClientRect()
+    return {
+      controls: Array.from(element.querySelectorAll<HTMLButtonElement>('button'))
+        .map((button) => {
+          const bounds = button.getBoundingClientRect()
+          return {
+            bottom: bounds.bottom,
+            label: button.getAttribute('aria-label'),
+            visible: bounds.width > 0 && bounds.height > 0,
+          }
+        })
+        .filter((control) => control.visible),
+      promptBottom: promptBounds.bottom,
+    }
+  })
+  expect(desktopComposerLayout?.controls.map((control) => control.label)).toEqual([
+    'Agent settings',
+    'Attach image',
+    'Interrupt Pi',
+    'Send',
+  ])
+  for (const control of desktopComposerLayout?.controls ?? []) {
+    expect(
+      Math.abs(control.bottom - (desktopComposerLayout?.promptBottom ?? 0)),
+    ).toBeLessThanOrEqual(1)
+  }
+  await desktopPrompt.fill('Focus on browser acceptance')
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('Working response from Pi after steering')).toBeVisible()
   await expect(taskProgress.locator('.task-progress-count')).toHaveText('2/2')

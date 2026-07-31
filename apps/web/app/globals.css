@@ -905,6 +905,10 @@ textarea:focus-visible {
   box-shadow: 0 16px 40px color-mix(in srgb, var(--luna-foreground) 8%, transparent);
 }
 
+.composer-actions {
+  display: contents;
+}
+
 .composer textarea {
   min-width: 0;
   height: 36px;
@@ -1385,6 +1389,35 @@ textarea:focus-visible {
   .composer-wrap {
     padding-right: calc(16px + env(safe-area-inset-right));
     padding-left: calc(16px + env(safe-area-inset-left));
+  }
+
+  .composer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+  }
+
+  .composer-actions {
+    display: flex;
+    grid-column: 1;
+    grid-row: 2;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .composer-actions-leading {
+    justify-self: start;
+  }
+
+  .composer-actions-trailing {
+    justify-self: end;
+  }
+
+  .composer textarea {
+    width: 100%;
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .agent-dialog {

@@ -897,21 +897,23 @@ function Composer({
         </div>
       )}
       <div className="composer">
-        <AgentControls conversationId={conversation.id} busy={busy} onError={onError} />
-        <button
-          className="icon-button"
-          aria-label="Attach image"
-          onClick={() => fileInput.current?.click()}
-        >
-          <Paperclip size={18} />
-        </button>
-        <button
-          className="icon-button camera-action"
-          aria-label="Take photo"
-          onClick={() => cameraInput.current?.click()}
-        >
-          <Camera size={18} />
-        </button>
+        <div className="composer-actions composer-actions-leading">
+          <AgentControls conversationId={conversation.id} busy={busy} onError={onError} />
+          <button
+            className="icon-button"
+            aria-label="Attach image"
+            onClick={() => fileInput.current?.click()}
+          >
+            <Paperclip size={18} />
+          </button>
+          <button
+            className="icon-button camera-action"
+            aria-label="Take photo"
+            onClick={() => cameraInput.current?.click()}
+          >
+            <Camera size={18} />
+          </button>
+        </div>
         <textarea
           ref={textarea}
           value={text}
@@ -930,31 +932,33 @@ function Composer({
             }
           }}
         />
-        {busy ? (
+        <div className="composer-actions composer-actions-trailing">
+          {busy ? (
+            <button
+              className="icon-button stop-action"
+              aria-label="Interrupt Pi"
+              onClick={() => void onStop()}
+            >
+              <CircleStop size={19} />
+            </button>
+          ) : (
+            <button
+              className={`icon-button ${recording ? 'recording' : ''}`}
+              aria-label={recording ? 'Stop recording' : 'Transcribe voice'}
+              onClick={() => void toggleRecording()}
+            >
+              <Mic size={18} />
+            </button>
+          )}
           <button
-            className="icon-button stop-action"
-            aria-label="Interrupt Pi"
-            onClick={() => void onStop()}
+            className="send-button"
+            aria-label="Send"
+            disabled={sending}
+            onClick={() => void sendMessage()}
           >
-            <CircleStop size={19} />
+            {sending ? <span className="button-spinner" /> : <Send size={17} />}
           </button>
-        ) : (
-          <button
-            className={`icon-button ${recording ? 'recording' : ''}`}
-            aria-label={recording ? 'Stop recording' : 'Transcribe voice'}
-            onClick={() => void toggleRecording()}
-          >
-            <Mic size={18} />
-          </button>
-        )}
-        <button
-          className="send-button"
-          aria-label="Send"
-          disabled={sending}
-          onClick={() => void sendMessage()}
-        >
-          {sending ? <span className="button-spinner" /> : <Send size={17} />}
-        </button>
+        </div>
         <input
           ref={fileInput}
           hidden
