@@ -18,11 +18,13 @@ final class ConversationStore {
 
     @ObservationIgnored private let client: APIClient
     @ObservationIgnored private let eventSource: any EventSource
+    @ObservationIgnored let imageLoader: AuthenticatedImageLoader
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
 
     init(client: APIClient, bootstrap: Bootstrap, eventSource: any EventSource) {
         self.client = client
         self.eventSource = eventSource
+        imageLoader = AuthenticatedImageLoader(client: client)
         var state = LunaClientState()
         state.install(bootstrap)
         self.state = state
@@ -53,6 +55,10 @@ final class ConversationStore {
     func resumeRealtime() {
         stopRealtime()
         startRealtime()
+    }
+
+    func showConversationList() {
+        state.select(nil)
     }
 
     func selectConversation(_ id: UUID?) async {
