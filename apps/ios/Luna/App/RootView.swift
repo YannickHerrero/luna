@@ -23,7 +23,11 @@ struct RootView: View {
             return
         }
 #endif
-        _model = State(initialValue: AppModel())
+        _model = State(
+            initialValue: AppModel(
+                notificationCoordinator: NotificationCoordinator.shared
+            )
+        )
     }
 
     var body: some View {
@@ -53,7 +57,10 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, next in
             if next == .active {
-                Task { await model.refreshOpenAIWeeklyUsage() }
+                Task {
+                    await model.refreshOpenAIWeeklyUsage()
+                    await model.refreshNotificationRegistration()
+                }
             }
         }
         .onOpenURL { url in

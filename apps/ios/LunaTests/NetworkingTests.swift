@@ -67,6 +67,50 @@ struct NetworkingTests {
     }
 
     @Test
+    func registersAndDeletesAPNsTokensWithAuthenticatedMethods() async throws {
+        let credentials = MemoryCredentialStore()
+        await credentials.setToken("native-token", for: server)
+        let deviceID = UUID()
+        let transport = RecordingTransport(
+            data: Data(
+                """
+                {"id":"\(deviceID.uuidString)","name":"iPhone","platform":"ios","notificationsEnabled":true,"createdAt":"2026-03-20T12:00:00Z","lastSeenAt":"2026-03-20T12:00:00Z"}
+                """.utf8
+            )
+        )
+        let client = APIClient(baseURL: server, credentials: credentials, transport: transport)
+        let token = String(repeating: "a", count: 64)
+
+        let registered: Device = try await client.put(
+            "/v1/devices/me/apns",
+            body: UpsertApnsRegistrationRequest(
+                token: token,
+                environment: .sandbox,
+                topic: "com.yannickherrero.luna",
+                appVersion: "1.0"
+            )
+        )
+        let putRequest = try #require(await transport.lastRequest())
+        #expect(registered.id == deviceID)
+        #expect(putRequest.httpMethod == "PUT")
+        #expect(putRequest.value(forHTTPHeaderField: "Authorization") == "Bearer native-token")
+        let putBody = try #require(putRequest.httpBody)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: putBody) as? [String: Any]
+        )
+        #expect(object["token"] as? String == token)
+        #expect(object["environment"] as? String == "sandbox")
+        #expect(object["topic"] as? String == "com.yannickherrero.luna")
+
+        let disabled: Device = try await client.delete("/v1/devices/me/apns")
+        let deleteRequest = try #require(await transport.lastRequest())
+        #expect(disabled.id == deviceID)
+        #expect(deleteRequest.httpMethod == "DELETE")
+        #expect(deleteRequest.httpBody == nil)
+        #expect(deleteRequest.value(forHTTPHeaderField: "Authorization") == "Bearer native-token")
+    }
+
+    @Test
     func leavesPairingRequestsUnauthenticated() async throws {
         let transport = RecordingTransport(
             status: 202,

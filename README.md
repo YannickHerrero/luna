@@ -132,9 +132,10 @@ See [`docs/deployment.md`](docs/deployment.md) for build, backup, Citadel, Tails
 - Bounded request, image decode, and event-retention limits
 - Ephemeral transcription proxying without audio persistence
 - Sanitized account-level weekly usage without copying Codex credentials to clients
+- Device-targeted, idempotent APNs delivery without logging tokens or message content
 - Security headers, immutable hashed assets, and no-cache app entry points
 - No Funnel configuration or raw terminal transport
 
 ## Current scope
 
-Luna V1 provides the complete server, PWA, and universal native iPhone/iPad client. The first Apple archive also reserves an iOS widget, an embedded Watch companion, and Watch accessory widgets with explicit placeholder copy. APNs registration and provider delivery are intentionally deferred; Push capability, device targeting, and stable conversation deep links are already preserved for that work.
+Luna V1 provides the server, PWA, universal native iPhone/iPad client, A2/B2 iOS widgets, Watch companion, and C3 Smart Stack widget. Device-targeted APNs registration and provider delivery preserve initiating-device ownership across steering and route notification taps through stable conversation deep links. Signed physical-device delivery and distribution provisioning remain release-stage verification.

@@ -39,6 +39,7 @@ final class AppModel {
     @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
     @ObservationIgnored private let activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher
     @ObservationIgnored private let openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher
+    @ObservationIgnored private let notificationCoordinator: any NotificationCoordinating
 
     init(
         configuration: ServerConfiguration = ServerConfiguration(),
@@ -47,7 +48,8 @@ final class AppModel {
         eventSource: any EventSource = URLSessionEventSource(),
         draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence(),
         activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher? = nil,
-        openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher? = nil
+        openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher? = nil,
+        notificationCoordinator: any NotificationCoordinating = NoopNotificationCoordinator.shared
     ) {
         self.configuration = configuration
         self.credentials = credentials
@@ -60,6 +62,7 @@ final class AppModel {
             })
         self.openAIUsageSnapshotPublisher =
             openAIUsageSnapshotPublisher ?? OpenAIUsageSnapshotPublisher()
+        self.notificationCoordinator = notificationCoordinator
     }
 
     var client: APIClient {
@@ -124,6 +127,36 @@ final class AppModel {
         await start()
     }
 
+    func refreshNotificationRegistration() async {
+        guard phase == .ready else { return }
+        await notificationCoordinator.refreshRegistration()
+    }
+
+    func registerAPNsToken(
+        _ token: String,
+        environment: ApnsEnvironment,
+        topic: String,
+        appVersion: String?
+    ) async throws -> Device {
+        let device: Device = try await client.put(
+            "/v1/devices/me/apns",
+            body: UpsertApnsRegistrationRequest(
+                token: token,
+                environment: environment,
+                topic: topic,
+                appVersion: appVersion
+            )
+        )
+        updateBootstrapDevice(device)
+        return device
+    }
+
+    func disableAPNsRegistration() async throws -> Device {
+        let device: Device = try await client.delete("/v1/devices/me/apns")
+        updateBootstrapDevice(device)
+        return device
+    }
+
     func refreshOpenAIWeeklyUsage() async {
         guard phase == .ready else { return }
         do {
@@ -164,6 +197,7 @@ final class AppModel {
         )
         phase = .ready
         errorMessage = nil
+        notificationCoordinator.appDidBecomeReady(self)
     }
 
     private func apply(_ route: LunaRoute) async {
@@ -181,6 +215,16 @@ final class AppModel {
             }
             await store.selectConversation(id)
         }
+    }
+
+    private func updateBootstrapDevice(_ device: Device) {
+        guard let bootstrap else { return }
+        self.bootstrap = Bootstrap(
+            protocolVersion: bootstrap.protocolVersion,
+            cursor: bootstrap.cursor,
+            device: device,
+            conversations: bootstrap.conversations
+        )
     }
 
     private func validateProtocol(_ bootstrap: Bootstrap) throws {

@@ -26,9 +26,11 @@ struct URLSessionHTTPTransport: HTTPTransport, @unchecked Sendable {
 }
 
 enum HTTPMethod: String, Sendable {
+    case delete = "DELETE"
     case get = "GET"
-    case post = "POST"
     case patch = "PATCH"
+    case post = "POST"
+    case put = "PUT"
 }
 
 enum APIClientError: Error, Equatable, Sendable {
@@ -110,6 +112,30 @@ struct APIClient: Sendable {
             contentType: "application/json",
             authenticated: authenticated
         )
+        return try await execute(request, as: responseType)
+    }
+
+    func put<Body: Encodable & Sendable, Response: Decodable & Sendable>(
+        _ path: String,
+        body: Body,
+        as responseType: Response.Type = Response.self
+    ) async throws -> Response {
+        let data = try JSONEncoder().encode(body)
+        let request = try await makeRequest(
+            path: path,
+            method: .put,
+            body: data,
+            contentType: "application/json",
+            authenticated: true
+        )
+        return try await execute(request, as: responseType)
+    }
+
+    func delete<Response: Decodable & Sendable>(
+        _ path: String,
+        as responseType: Response.Type = Response.self
+    ) async throws -> Response {
+        let request = try await makeRequest(path: path, method: .delete, authenticated: true)
         return try await execute(request, as: responseType)
     }
 

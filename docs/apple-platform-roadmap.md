@@ -1,6 +1,6 @@
 # Apple platform delivery and expansion seams
 
-Luna’s first TestFlight archive intentionally reserves the native products that will later carry notifications and glanceable conversation state. The placeholders establish stable bundle identifiers and packaging without copying credentials or presenting unfinished permission prompts.
+Luna’s Apple targets carry device-targeted notifications and sanitized glanceable conversation state while preserving stable bundle identifiers and strict credential boundaries.
 
 ## Shipping targets
 
@@ -15,16 +15,16 @@ The main app recognizes `luna://home` and `luna://conversation/<UUID>`. Widgets 
 
 ## Notification implementation boundary
 
-The main App ID reserves Push Notifications, but the app does not request authorization or register for remote notifications yet. The next notification phase must be a coordinated server, storage, protocol, and client change:
+The notification flow is coordinated across protocol, storage, server runtime, and the authenticated iOS app:
 
-1. Add authenticated APNs registration and deletion routes tied to the paired device.
-2. Store environment, topic, token metadata, last registration time, and delivery disablement without logging raw tokens.
-3. Register only after explicit user authorization and update `notificationsEnabled` from authoritative server state.
-4. Deliver conversation-completion notifications only to the conversation’s notification target.
-5. Put the conversation UUID in the payload and route taps through `LunaRoute`.
-6. Handle APNs feedback, token rotation, retries, idempotency, and provider-key failure without affecting conversation execution.
+1. Authenticated registration and deletion routes tie one active APNs environment/topic/token to the paired native device without returning or logging the token.
+2. Every accepted non-shell agent cycle durably records its causal device owner. Accepted steering transfers ownership atomically; web ownership clears the target instead of falling back to another device.
+3. Completion, failure, and crash paths create at most one durable delivery per cycle. Voluntary interruption suppresses delivery. Bounded retries survive pending-delivery restart recovery, and invalid-token feedback disables the affected registration.
+4. The app requests explicit system authorization after bootstrap, registers on authorization and token rotation, disables registration after denial, and retries transient registration failures on foreground activation.
+5. Payloads contain a bounded conversation title, generic status copy, conversation UUID, and stable `luna://conversation/<UUID>` route—never complete messages, credentials, account identifiers, tokens, or repository paths.
+6. Notification taps flow through `LunaRoute`; foreground presentation is suppressed only when that same conversation is already selected.
 
-Do not add or reuse an APNs provider `.p8` key before that design is implemented and approved. Provider credentials belong outside the repository at a documented restrictive path.
+Provider credentials remain outside the repository at the restrictive location documented in the deployment runbook. Production APNs delivery and provisioning changes require an explicitly approved release stage and signed physical-device verification.
 
 ## Widget and Watch snapshot boundary
 

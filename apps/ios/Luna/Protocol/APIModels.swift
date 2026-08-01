@@ -81,6 +81,18 @@ struct CompactConversationResponse: Codable, Equatable, Sendable {
     let estimatedTokensAfter: UInt64
 }
 
+enum ApnsEnvironment: String, Codable, Sendable {
+    case sandbox
+    case production
+}
+
+struct UpsertApnsRegistrationRequest: Codable, Equatable, Sendable {
+    let token: String
+    let environment: ApnsEnvironment
+    let topic: String
+    let appVersion: String?
+}
+
 struct PairingExchangeRequest: Codable, Equatable, Sendable {
     let code: String
     let deviceName: String

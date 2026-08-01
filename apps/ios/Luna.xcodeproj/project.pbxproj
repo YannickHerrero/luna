@@ -24,6 +24,7 @@
 		1E319A77692B7DED7BEE0402 /* ComposerDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77EA033D26FA403D3E29B40 /* ComposerDraft.swift */; };
 		1EDBABC3AF8F07E011EA4672 /* LunaWatchWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE46F5770EBA392116759178 /* LunaWatchWidgets.swift */; };
 		2B50F0AC09DE2B8DFF663CEB /* Entities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10DD83F26A896CBD3D7BB2BC /* Entities.swift */; };
+		2CB6D6424C3A661FA88C8EBB /* NotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEBC6FA60C4B8A4E85D42AA /* NotificationCoordinator.swift */; };
 		356813AC6678D04EAAD76EE6 /* ActiveAgentSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C1CD8EA4E21A6E473A2295 /* ActiveAgentSnapshotPublisher.swift */; };
 		35ED7821BC15259781BA8F87 /* LunaWatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB9D6CF8BF32959F10A2920 /* LunaWatchHomeView.swift */; };
 		3B0E15F02AAE51D48DC72EE5 /* LunaActiveAgentsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6D3245D093FD94CF3058BF /* LunaActiveAgentsWidget.swift */; };
@@ -52,6 +53,7 @@
 		8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFD1B295E68E217F4E87326 /* LunaTheme.swift */; };
 		8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */; };
 		8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E615B4F62478DD81610EC904 /* MarkdownView.swift */; };
+		91612A0BAEC41A7A47B73EFE /* NotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5937BAFFDA3D0A23B0628D22 /* NotificationTests.swift */; };
 		93186B874405CD2E87DD6D74 /* OpenAIWeeklyUsageWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F614FF2902017E8F64F66046 /* OpenAIWeeklyUsageWidgetView.swift */; };
 		93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */; };
 		960D617D2DD0D4E429DB97EB /* LunaColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A68162DD0A4DA703F05A031 /* LunaColors.swift */; };
@@ -194,6 +196,7 @@
 		13CA74F7C0A7A7CF504DA963 /* LunaOpenAIWeeklyUsageWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaOpenAIWeeklyUsageWidget.swift; sourceTree = "<group>"; };
 		163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedImageLoader.swift; sourceTree = "<group>"; };
+		1AEBC6FA60C4B8A4E85D42AA /* NotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCoordinator.swift; sourceTree = "<group>"; };
 		1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
 		1C4E86961E12819FF660F840 /* LunaRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaRoute.swift; sourceTree = "<group>"; };
 		1FBA06C0C3B81E8D0960DAF5 /* AgentControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentControlsView.swift; sourceTree = "<group>"; };
@@ -220,6 +223,7 @@
 		500F918CCAAA34D0F020DA8B /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		50AF1EC1B60EFEEA69DE151C /* LunaIconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaIconButton.swift; sourceTree = "<group>"; };
 		55E9D38C4309E382E7B42369 /* LunaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LunaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5937BAFFDA3D0A23B0628D22 /* NotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationTests.swift; sourceTree = "<group>"; };
 		6182A2AE19BFA87434618CF9 /* LunaWatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchTests.swift; sourceTree = "<group>"; };
 		6D0BD429F1A21CC066B7E0C0 /* ConversationComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationComposerView.swift; sourceTree = "<group>"; };
 		70D33DAD43BEE33EFF1D99AB /* WatchSnapshotTransmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotTransmitter.swift; sourceTree = "<group>"; };
@@ -386,6 +390,7 @@
 				E556359BF68F1642E3BA0FA5 /* AppModel.swift */,
 				446892BB5B365737EE00315F /* LunaApp.swift */,
 				1C4E86961E12819FF660F840 /* LunaRoute.swift */,
+				1AEBC6FA60C4B8A4E85D42AA /* NotificationCoordinator.swift */,
 				4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */,
 				0EBD08A622DC05B5D6C4BA28 /* RootView.swift */,
 				8489E32B1B544E45875F735D /* ServerConfiguration.swift */,
@@ -414,6 +419,7 @@
 				D800357345CADB742046B83B /* LunaTimeTests.swift */,
 				E9A36CC818E30F432A856BF7 /* MarkdownTests.swift */,
 				F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */,
+				5937BAFFDA3D0A23B0628D22 /* NotificationTests.swift */,
 				2D02B47A7E4945E3F685C892 /* PairingTests.swift */,
 				FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */,
 				163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */,
@@ -955,6 +961,7 @@
 				60A4B863CF7D50182AF219DF /* LunaTimeTests.swift in Sources */,
 				79FB38B90A7B1F45FBB430B1 /* MarkdownTests.swift in Sources */,
 				B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */,
+				91612A0BAEC41A7A47B73EFE /* NotificationTests.swift in Sources */,
 				3DAE34D4A6DDAB4EE0140C5E /* PairingTests.swift in Sources */,
 				93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */,
 				5788E0F8B62B883A886ABE62 /* SnapshotTests.swift in Sources */,
@@ -1000,6 +1007,7 @@
 				8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */,
 				17C99E4C508FB16C3508A883 /* MultipartForm.swift in Sources */,
 				E565027D51984EC95E5ACB47 /* NativeComposerInputs.swift in Sources */,
+				2CB6D6424C3A661FA88C8EBB /* NotificationCoordinator.swift in Sources */,
 				BB339632BCCA8D0BEBE7B1FD /* OpenAIUsageSnapshotPublisher.swift in Sources */,
 				C4AB73CB2C3EECD44F09786D /* OpenAIWeeklyUsageWidgetView.swift in Sources */,
 				45DB3855FB7B9F2F63A94E4B /* PairingView.swift in Sources */,

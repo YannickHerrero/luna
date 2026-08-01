@@ -139,6 +139,15 @@ struct ConversationStateTests {
         #expect(state.selectedConversation?.taskList == list)
         #expect(state.selectedConversation?.activeWorkingDirectory == "/tmp/luna")
         #expect(state.selectedConversation?.notificationTargetDeviceId == uuid(99))
+
+        state.apply(
+            envelope(
+                id: 10,
+                conversationId: active.id,
+                event: .notificationTargetChanged(NotificationTargetChanged(deviceId: nil))
+            )
+        )
+        #expect(state.selectedConversation?.notificationTargetDeviceId == nil)
     }
 
     @Test

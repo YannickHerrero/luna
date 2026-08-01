@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct LunaApp: App {
+    @UIApplicationDelegateAdaptor(LunaApplicationDelegate.self) private var appDelegate
     @AppStorage("luna-theme") private var storedTheme = LunaTheme.latte.rawValue
 
     init() {

@@ -55,7 +55,7 @@ struct ConversationTitleUpdated: Decodable, Equatable, Sendable {
 }
 
 struct NotificationTargetChanged: Decodable, Equatable, Sendable {
-    let deviceId: UUID
+    let deviceId: UUID?
 }
 
 struct ServerWelcome: Decodable, Equatable, Sendable {
