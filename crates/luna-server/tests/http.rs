@@ -1374,4 +1374,19 @@ async fn graceful_shutdown_persists_interrupted_conversation_state() {
         messages[0].status,
         luna_protocol::MessageStatus::Interrupted
     );
+
+    let restarted = app::build(config(directory.path()))
+        .await
+        .expect("restarted app");
+    assert_eq!(
+        restarted
+            .database
+            .conversation(conversation_id)
+            .await
+            .expect("restarted conversation")
+            .expect("present after restart")
+            .state,
+        luna_protocol::SessionState::Interrupted
+    );
+    restarted.runtime.shutdown().await;
 }
