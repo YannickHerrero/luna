@@ -163,10 +163,7 @@ export const RepositoriesUpdatedEventSchema = envelope(
 export const AttachmentUpdatedEventSchema = envelope('attachment.updated', AttachmentSchema)
 export const NotificationTargetChangedEventSchema = envelope(
   'notification_target.changed',
-  Type.Object(
-    { deviceId: Type.Union([IdSchema, Type.Null()]) },
-    { additionalProperties: false },
-  ),
+  Type.Object({ deviceId: Type.Union([IdSchema, Type.Null()]) }, { additionalProperties: false }),
 )
 export const SyncResetRequiredEventSchema = envelope(
   'sync.reset_required',

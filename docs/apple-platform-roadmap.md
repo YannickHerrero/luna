@@ -4,14 +4,14 @@ Luna’s Apple targets carry device-targeted notifications and sanitized glancea
 
 ## Shipping targets
 
-| Product         | Bundle identifier                             | Initial behavior                                        |
-| --------------- | --------------------------------------------- | ------------------------------------------------------- |
-| iPhone/iPad app | `com.yannickherrero.luna`                     | Complete authenticated Luna client                      |
-| iOS widgets     | `com.yannickherrero.luna.widgets`             | A2 Active Agents and B2 account weekly usage             |
-| Watch companion | `com.yannickherrero.luna.watchkitapp`         | Validates and displays WatchConnectivity snapshots       |
-| Watch widget    | `com.yannickherrero.luna.watchkitapp.widgets` | C3 Work pulse Smart Stack status                         |
+| Product         | Bundle identifier                             | Initial behavior                                   |
+| --------------- | --------------------------------------------- | -------------------------------------------------- |
+| iPhone/iPad app | `com.yannickherrero.luna`                     | Complete authenticated Luna client                 |
+| iOS widgets     | `com.yannickherrero.luna.widgets`             | A2 Active Agents and B2 account weekly usage       |
+| Watch companion | `com.yannickherrero.luna.watchkitapp`         | Validates and displays WatchConnectivity snapshots |
+| Watch widget    | `com.yannickherrero.luna.watchkitapp.widgets` | C3 Work pulse Smart Stack status                   |
 
-The main app recognizes `luna://home` and `luna://conversation/<UUID>`. Widgets and future APNs payload handling must reuse these routes rather than creating parallel navigation state.
+The main app recognizes `luna://home` and `luna://conversation/<UUID>`. Widgets and APNs payload handling reuse these routes rather than creating parallel navigation state.
 
 ## Notification implementation boundary
 
