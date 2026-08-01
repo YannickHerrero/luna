@@ -8,6 +8,7 @@ mod events;
 mod extract;
 mod maintenance;
 mod media;
+mod notifications;
 mod openai_usage;
 mod routes;
 mod runtime;

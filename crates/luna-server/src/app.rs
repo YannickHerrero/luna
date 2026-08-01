@@ -20,8 +20,8 @@ use tower_http::{
 
 use crate::{
     auth::AuthService, config::Config, error::AppError, events::EventHub, maintenance::Maintenance,
-    openai_usage::OpenAiUsageService, routes, runtime::ConversationRuntime, state::AppState,
-    transcription::TranscriptionService,
+    notifications::NotificationService, openai_usage::OpenAiUsageService, routes,
+    runtime::ConversationRuntime, state::AppState, transcription::TranscriptionService,
 };
 
 pub struct BuiltApp {
@@ -72,6 +72,25 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         config.attachment_retention_days,
     );
     let events = EventHub::new(database.clone());
+    let notifications = Arc::new(
+        NotificationService::from_apns_config(
+            database.clone(),
+            config.apns_key_path.clone(),
+            config.apns_key_id.clone(),
+            config.apns_team_id.clone(),
+        )
+        .map_err(|_| AppError::DependencyUnavailable("APNs provider configuration".into()))?,
+    );
+    notifications.recover_pending().await?;
+    for conversation_id in database.orphaned_active_agent_cycle_conversations().await? {
+        notifications
+            .complete_cycle(
+                conversation_id,
+                None,
+                luna_storage::AgentCycleOutcome::Attention,
+            )
+            .await?;
+    }
     let runtime = Arc::new(ConversationRuntime::new(
         SessionRuntimeConfig {
             pi_executable: config.pi_executable.clone(),
@@ -85,6 +104,7 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         config.attachment_directory.clone(),
         config.repository_icon_directory.clone(),
         config.title_model.clone(),
+        notifications,
     ));
     let transcription = TranscriptionService::new(
         config.transcription_api_key.clone(),

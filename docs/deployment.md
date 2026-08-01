@@ -38,6 +38,20 @@ weekly window from the local Codex login, caches it for five minutes by default,
 account identifiers or Codex credentials. The non-secret local development file `.luna.local.json` may be copied from
 `.luna.local.example.json`; it is ignored by Git.
 
+APNs delivery is disabled unless `LUNA_APNS_KEY_PATH`, `LUNA_APNS_KEY_ID`, and
+`LUNA_APNS_TEAM_ID` are all configured. Keep the provider key in the documented external
+credential directory rather than in `server.env`:
+
+```sh
+install -d -m 700 ~/.config/luna/credentials
+install -m 600 /secure/source/AuthKey_KEYID.p8 \
+  ~/.config/luna/credentials/AuthKey_KEYID.p8
+```
+
+Set `LUNA_APNS_TOPIC=com.yannickherrero.luna`; the server rejects registrations for any other
+topic. It also rejects an APNs key file with group or other permissions. Never print device
+tokens or key contents in deployment logs.
+
 Default state is under `~/Library/Application Support/Luna Server`:
 
 - `luna.sqlite` — normalized client state and sync events

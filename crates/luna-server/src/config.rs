@@ -25,6 +25,10 @@ pub struct Config {
     pub pi_bridge_path: PathBuf,
     pub codex_executable: PathBuf,
     pub openai_usage_cache_seconds: u64,
+    pub apns_key_path: Option<PathBuf>,
+    pub apns_key_id: Option<String>,
+    pub apns_team_id: Option<String>,
+    pub apns_topic: Option<String>,
     pub title_model: String,
     pub event_retention_days: u32,
     pub attachment_retention_days: u32,
@@ -131,6 +135,14 @@ impl Config {
             ),
             codex_executable: env_path("LUNA_CODEX_EXECUTABLE", PathBuf::from("codex")),
             openai_usage_cache_seconds,
+            apns_key_path: env::var("LUNA_APNS_KEY_PATH")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| expand_home(&value))
+                .transpose()?,
+            apns_key_id: nonempty_env("LUNA_APNS_KEY_ID"),
+            apns_team_id: nonempty_env("LUNA_APNS_TEAM_ID"),
+            apns_topic: nonempty_env("LUNA_APNS_TOPIC"),
             title_model: env::var("LUNA_TITLE_MODEL")
                 .unwrap_or_else(|_| "openai-codex/gpt-5.6-luna".into()),
             event_retention_days: retention,
@@ -149,6 +161,10 @@ impl Config {
                 .unwrap_or_else(|_| "https://api.openai.com/v1".into()),
         })
     }
+}
+
+fn nonempty_env(name: &str) -> Option<String> {
+    env::var(name).ok().filter(|value| !value.trim().is_empty())
 }
 
 fn env_path(name: &str, fallback: PathBuf) -> PathBuf {

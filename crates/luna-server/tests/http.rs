@@ -6,7 +6,7 @@ use axum::{
 };
 use luna_protocol::{
     ApiError, AttachmentResponse, CompactConversationResponse, Conversation,
-    ConversationAgentState, ConversationList, ConversationMessages, ErrorCode,
+    ConversationAgentState, ConversationList, ConversationMessages, Device, ErrorCode,
     OpenAiUsageAvailability, OpenAiWeeklyUsage, PairingCodeRequestResponse,
     PairingExchangeResponse, SendMessageResponse,
 };
@@ -158,6 +158,10 @@ process.stdin.on('data', chunk => {
         pi_bridge_path: directory.join("bridge.ts"),
         codex_executable,
         openai_usage_cache_seconds: 300,
+        apns_key_path: None,
+        apns_key_id: None,
+        apns_team_id: None,
+        apns_topic: None,
         title_model: "openai-codex/gpt-5.6-luna".into(),
         event_retention_days: 30,
         attachment_retention_days: 30,
@@ -296,6 +300,128 @@ async fn returns_cached_sanitized_weekly_usage_to_authenticated_devices() {
     let invocations =
         fs::read_to_string(directory.path().join("codex-invocations")).expect("Codex invocations");
     assert_eq!(invocations.lines().count(), 1);
+    built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn manages_authenticated_apns_registration_without_echoing_tokens() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let token = "a".repeat(64);
+
+    let unauthorized = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/v1/devices/me/apns")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "token": token,
+                        "environment": "sandbox",
+                        "topic": "com.yannickherrero.luna"
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("unauthorized response");
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+    let pairing_response = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Notification iPhone",
+                        "platform": "ios"
+                    })
+                    .to_string(),
+                ))
+                .expect("pairing request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(pairing_response).await;
+
+    let invalid = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/v1/devices/me/apns")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(
+                    serde_json::json!({
+                        "token": "not-a-token",
+                        "environment": "sandbox",
+                        "topic": "com.yannickherrero.luna"
+                    })
+                    .to_string(),
+                ))
+                .expect("invalid request"),
+        )
+        .await
+        .expect("invalid response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+
+    let registered = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/v1/devices/me/apns")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::from(
+                    serde_json::json!({
+                        "token": token,
+                        "environment": "sandbox",
+                        "topic": "com.yannickherrero.luna",
+                        "appVersion": "1.0"
+                    })
+                    .to_string(),
+                ))
+                .expect("registration request"),
+        )
+        .await
+        .expect("registration response");
+    assert_eq!(registered.status(), StatusCode::OK);
+    let registered_body = to_bytes(registered.into_body(), 1_000_000)
+        .await
+        .expect("registration body");
+    assert!(!String::from_utf8_lossy(&registered_body).contains(&token));
+    let device: Device = serde_json::from_slice(&registered_body).expect("registered device");
+    assert!(device.notifications_enabled);
+
+    let disabled = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/v1/devices/me/apns")
+                .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                .body(Body::empty())
+                .expect("delete request"),
+        )
+        .await
+        .expect("delete response");
+    assert_eq!(disabled.status(), StatusCode::OK);
+    let device: Device = response_json(disabled).await;
+    assert!(!device.notifications_enabled);
     built.runtime.shutdown().await;
 }
 

@@ -19,14 +19,17 @@ use luna_protocol::{
     RepositoriesUpdated, ServerEvent, SessionState, SteeringQueueChanged, ThinkingLevel,
     UpdateConversationAgentRequest, WorkspaceUpdated,
 };
-use luna_storage::{ConversationRuntimeRecord, Database, RepositoryObservation};
+use luna_storage::{AgentCycleOutcome, ConversationRuntimeRecord, Database, RepositoryObservation};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::{auth::now, error::AppError, events::EventHub, title::TitleGenerator};
+use crate::{
+    auth::now, error::AppError, events::EventHub, notifications::NotificationService,
+    title::TitleGenerator,
+};
 
 pub struct ConversationRuntime {
     supervisor: SessionSupervisor,
@@ -35,6 +38,7 @@ pub struct ConversationRuntime {
     attachment_directory: PathBuf,
     repository_icon_directory: PathBuf,
     title_generator: TitleGenerator,
+    notifications: Arc<NotificationService>,
     title_jobs: Mutex<HashSet<Uuid>>,
     pumps: Mutex<HashSet<Uuid>>,
     stopping: Mutex<HashSet<Uuid>>,
@@ -50,6 +54,7 @@ impl ConversationRuntime {
         attachment_directory: PathBuf,
         repository_icon_directory: PathBuf,
         title_model: String,
+        notifications: Arc<NotificationService>,
     ) -> Self {
         let title_generator = TitleGenerator::new(
             config.pi_executable.clone(),
@@ -63,6 +68,7 @@ impl ConversationRuntime {
             attachment_directory,
             repository_icon_directory,
             title_generator,
+            notifications,
             title_jobs: Mutex::new(HashSet::new()),
             pumps: Mutex::new(HashSet::new()),
             stopping: Mutex::new(HashSet::new()),
@@ -152,6 +158,10 @@ impl ConversationRuntime {
                     Some("pi_dispatch_failed"),
                     &timestamp,
                 )
+                .await;
+            let _ = self
+                .notifications
+                .complete_cycle(conversation_id, None, AgentCycleOutcome::Attention)
                 .await;
             let _ = self.set_state(conversation_id, SessionState::Error).await;
         }
@@ -274,6 +284,9 @@ impl ConversationRuntime {
         session.process.abort_retry().await?;
         session.process.abort_bash().await?;
         session.abort().await?;
+        self.database
+            .interrupt_active_agent_cycle(conversation_id, &now()?)
+            .await?;
         self.set_state(conversation_id, SessionState::Interrupted)
             .await?;
         Ok(())
@@ -411,6 +424,14 @@ impl ConversationRuntime {
                         let intentional = self.shutting_down.load(Ordering::Acquire)
                             || self.stopping.lock().await.remove(&conversation_id);
                         if !intentional {
+                            let _ = self
+                                .notifications
+                                .complete_cycle(
+                                    conversation_id,
+                                    None,
+                                    AgentCycleOutcome::Attention,
+                                )
+                                .await;
                             let _ = self.set_state(conversation_id, SessionState::Crashed).await;
                         }
                         break;
@@ -526,7 +547,8 @@ impl ConversationRuntime {
                 }
                 NormalizedPiEvent::AgentSettled => {
                     *activity = None;
-                    if let Some(message_id) = assistant_message.take() {
+                    let completed_message_id = assistant_message.take();
+                    if let Some(message_id) = completed_message_id {
                         let event = self
                             .database
                             .complete_message(conversation_id, message_id, &now()?)
@@ -547,6 +569,13 @@ impl ConversationRuntime {
                                 phase: ActivityPhase::Thinking,
                             }),
                             &now()?,
+                        )
+                        .await?;
+                    self.notifications
+                        .complete_cycle(
+                            conversation_id,
+                            completed_message_id,
+                            AgentCycleOutcome::Ready,
                         )
                         .await?;
                     self.set_state(conversation_id, SessionState::Idle).await?;

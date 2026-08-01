@@ -6,18 +6,19 @@ use axum::{
     },
     http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use futures_util::{SinkExt, StreamExt};
 use luna_protocol::{
     ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
     CompactConversationResponse, ConversationAgentState, ConversationList, ConversationMessages,
-    ConversationScope, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
+    ConversationScope, CreateConversationRequest, Device, ErrorCode, Message, MessageDelivery,
     OpenAiWeeklyUsage, PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest,
     PairingExchangeResponse, SendMessageRequest, SendMessageResponse, ServerEvent,
     ServerEventEnvelope, SessionState, SyncResponse, UpdateConversationAgentRequest,
-    UpdateConversationRequest,
+    UpdateConversationRequest, UpsertApnsRegistrationRequest,
 };
+use luna_storage::NewApnsRegistration;
 use serde::Deserialize;
 use tracing::warn;
 use uuid::Uuid;
@@ -39,6 +40,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/pairing/exchange", post(pair))
         .route("/v1/bootstrap", get(bootstrap))
         .route("/v1/account/openai-usage", get(openai_weekly_usage))
+        .route(
+            "/v1/devices/me/apns",
+            put(upsert_apns_registration).delete(disable_apns_registration),
+        )
         .route("/v1/sync", get(sync))
         .route("/v1/events", get(events_socket))
         .route(
@@ -212,6 +217,61 @@ async fn openai_weekly_usage(
     AuthenticatedDevice(_device): AuthenticatedDevice,
 ) -> Json<OpenAiWeeklyUsage> {
     Json(state.openai_usage.get().await)
+}
+
+async fn upsert_apns_registration(
+    State(state): State<AppState>,
+    AuthenticatedDevice(mut device): AuthenticatedDevice,
+    Json(request): Json<UpsertApnsRegistrationRequest>,
+) -> Result<Json<Device>, AppError> {
+    let topic = request.topic.trim();
+    let expected_topic = state
+        .config
+        .apns_topic
+        .as_deref()
+        .unwrap_or("com.yannickherrero.luna");
+    if topic != expected_topic
+        || !(64..=200).contains(&request.token.len())
+        || !request
+            .token
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+        || request
+            .app_version
+            .as_ref()
+            .is_some_and(|version| version.trim().is_empty() || version.len() > 80)
+    {
+        return Err(AppError::InvalidRequest(
+            "The APNs registration is invalid.".into(),
+        ));
+    }
+    let registered_at = now()?;
+    state
+        .database
+        .upsert_apns_registration(NewApnsRegistration {
+            device_id: device.id,
+            token: &request.token,
+            environment: request.environment,
+            topic,
+            app_version: request.app_version.as_deref(),
+            registered_at: &registered_at,
+        })
+        .await?;
+    device.notifications_enabled = true;
+    Ok(Json(device))
+}
+
+async fn disable_apns_registration(
+    State(state): State<AppState>,
+    AuthenticatedDevice(mut device): AuthenticatedDevice,
+) -> Result<Json<Device>, AppError> {
+    let disabled_at = now()?;
+    state
+        .database
+        .disable_apns_for_device(device.id, &disabled_at)
+        .await?;
+    device.notifications_enabled = false;
+    Ok(Json(device))
 }
 
 #[derive(Deserialize, Default)]
