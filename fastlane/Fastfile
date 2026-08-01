@@ -125,7 +125,7 @@ platform :ios do
   lane :generated do
     sh("cd #{REPO_ROOT.shellescape} && pnpm generate")
     ios_directory = File.join(REPO_ROOT, "apps/ios")
-    sh("cd #{ios_directory.shellescape} && xcodegen generate")
+    sh("cd #{ios_directory.shellescape} && SWIFT_DETERMINISTIC_HASHING=1 xcodegen generate")
     ensure_git_status_clean(show_uncommitted_changes: true)
   end
 
