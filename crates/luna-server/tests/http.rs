@@ -576,8 +576,12 @@ async fn pairs_a_device_and_creates_a_conversation() {
     );
 
     let mut completed_messages = messages;
-    for _ in 0..40 {
-        if completed_messages.messages.len() >= 2 {
+    for _ in 0..400 {
+        if completed_messages
+            .messages
+            .get(1)
+            .is_some_and(|message| message.status == luna_protocol::MessageStatus::Completed)
+        {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -1030,7 +1034,7 @@ async fn executes_bang_messages_through_the_pi_session() {
     );
 
     let mut messages = None;
-    for _ in 0..40 {
+    for _ in 0..400 {
         let response = built
             .router
             .clone()
@@ -1044,7 +1048,11 @@ async fn executes_bang_messages_through_the_pi_session() {
             .await
             .expect("messages response");
         let current: ConversationMessages = response_json(response).await;
-        if current.messages.len() == 2 {
+        if current
+            .messages
+            .get(1)
+            .is_some_and(|message| message.status == luna_protocol::MessageStatus::Completed)
+        {
             messages = Some(current);
             break;
         }
