@@ -178,14 +178,48 @@ impl Database {
             created_at: accepted_at.into(),
             updated_at: accepted_at.into(),
         };
-        sqlx::query(
-            "UPDATE conversations SET notification_target_device_id = ?, updated_at = ?, version = version + 1 WHERE id = ?",
-        )
-        .bind(device_id.to_string())
-        .bind(accepted_at)
-        .bind(conversation_id.to_string())
-        .execute(&mut *transaction)
-        .await?;
+        let notification_target = if delivery == MessageDelivery::Bash {
+            None
+        } else {
+            let platform: String = sqlx::query_scalar("SELECT platform FROM devices WHERE id = ?")
+                .bind(device_id.to_string())
+                .fetch_one(&mut *transaction)
+                .await?;
+            let target = matches!(platform.as_str(), "ios" | "ipados").then_some(device_id);
+            let active_cycle: Option<String> = sqlx::query_scalar(
+                "SELECT id FROM agent_cycles WHERE conversation_id = ? AND state = 'active'",
+            )
+            .bind(conversation_id.to_string())
+            .fetch_optional(&mut *transaction)
+            .await?;
+            let cycle_id = active_cycle.unwrap_or_else(|| dispatch_id.to_string());
+            sqlx::query(
+                "INSERT INTO agent_cycles (id, conversation_id, started_by_message_id, last_interaction_message_id, target_device_id, state, started_at, updated_at, completed_at) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, NULL) ON CONFLICT(id) DO UPDATE SET last_interaction_message_id = excluded.last_interaction_message_id, target_device_id = excluded.target_device_id, updated_at = excluded.updated_at",
+            )
+            .bind(&cycle_id)
+            .bind(conversation_id.to_string())
+            .bind(message_id.to_string())
+            .bind(message_id.to_string())
+            .bind(target.map(|id| id.to_string()))
+            .bind(accepted_at)
+            .bind(accepted_at)
+            .execute(&mut *transaction)
+            .await?;
+            sqlx::query("UPDATE dispatches SET cycle_id = ? WHERE id = ?")
+                .bind(cycle_id)
+                .bind(dispatch_id.to_string())
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query(
+                "UPDATE conversations SET notification_target_device_id = ?, updated_at = ?, version = version + 1 WHERE id = ?",
+            )
+            .bind(target.map(|id| id.to_string()))
+            .bind(accepted_at)
+            .bind(conversation_id.to_string())
+            .execute(&mut *transaction)
+            .await?;
+            Some(target)
+        };
         let message_event = insert_event(
             &mut transaction,
             conversation_id,
@@ -194,23 +228,28 @@ impl Database {
             accepted_at,
         )
         .await?;
-        let target_event = insert_event(
-            &mut transaction,
-            conversation_id,
-            conversation_id,
-            &ServerEvent::NotificationTargetChanged(luna_protocol::NotificationTargetChanged {
-                device_id,
-            }),
-            accepted_at,
-        )
-        .await?;
+        let mut events = vec![message_event];
+        if let Some(target) = notification_target {
+            events.push(
+                insert_event(
+                    &mut transaction,
+                    conversation_id,
+                    conversation_id,
+                    &ServerEvent::NotificationTargetChanged(
+                        luna_protocol::NotificationTargetChanged { device_id: target },
+                    ),
+                    accepted_at,
+                )
+                .await?,
+            );
+        }
         transaction.commit().await?;
         Ok(AcceptedDispatch {
             dispatch_id,
             message,
             created: true,
             dispatch_required: true,
-            events: vec![message_event, target_event],
+            events,
         })
     }
 

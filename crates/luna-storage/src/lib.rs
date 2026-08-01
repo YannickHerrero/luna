@@ -8,6 +8,7 @@ mod database;
 mod error;
 mod events;
 mod messages;
+mod notifications;
 mod repositories;
 mod task_lists;
 
@@ -17,6 +18,9 @@ pub use conversations::ConversationRuntimeRecord;
 pub use database::Database;
 pub use error::StorageError;
 pub use messages::{AcceptedDispatch, NewUserMessage};
+pub use notifications::{
+    AgentCycleOutcome, ApnsRegistration, NewApnsRegistration, PendingNotificationDelivery,
+};
 pub use repositories::{RepositoryIconFile, RepositoryObservation, RepositoryObservationResult};
 
 pub const SQLITE_APPLICATION_ID: i32 = 0x4C55_4E41;
