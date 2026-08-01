@@ -3,6 +3,8 @@ import Foundation
 enum LunaAppGroup {
     static let identifier = "group.com.yannickherrero.luna"
     static let activeAgentsWidgetKind = "LunaActiveAgentsWidget"
+    static let watchActiveAgentsWidgetKind = "LunaWatchActiveAgentsWidget"
+    static let watchActiveAgentsContextKey = "activeAgentsSnapshotV1"
 }
 
 enum AgentSnapshotState: String, Codable, CaseIterable, Sendable {
@@ -125,9 +127,17 @@ struct ActiveAgentSnapshot: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+enum ActiveAgentsSnapshotFreshness: Equatable, Sendable {
+    case current
+    case stale
+    case unavailable
+}
+
 struct ActiveAgentsSnapshot: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
     static let maximumAgentCount = 8
+    static let staleAfter: TimeInterval = 15 * 60
+    static let unavailableAfter: TimeInterval = 24 * 60 * 60
 
     let schemaVersion: Int
     let generatedAt: Date
@@ -149,6 +159,13 @@ struct ActiveAgentsSnapshot: Codable, Equatable, Sendable {
         )
     }
 
+    func freshness(at date: Date) -> ActiveAgentsSnapshotFreshness {
+        let age = max(0, date.timeIntervalSince(generatedAt))
+        if age > Self.unavailableAfter { return .unavailable }
+        if age > Self.staleAfter { return .stale }
+        return .current
+    }
+
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case generatedAt
@@ -159,6 +176,25 @@ struct ActiveAgentsSnapshot: Codable, Equatable, Sendable {
 enum LunaSnapshotStoreError: Error, Equatable {
     case appGroupUnavailable
     case unsupportedSchemaVersion
+}
+
+enum LunaSnapshotCodec {
+    static func encodeActiveAgents(_ snapshot: ActiveAgentsSnapshot) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(snapshot)
+    }
+
+    static func decodeActiveAgents(_ data: Data) throws -> ActiveAgentsSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let snapshot = try decoder.decode(ActiveAgentsSnapshot.self, from: data)
+        guard snapshot.schemaVersion == ActiveAgentsSnapshot.currentSchemaVersion else {
+            throw LunaSnapshotStoreError.unsupportedSchemaVersion
+        }
+        return snapshot
+    }
 }
 
 struct LunaSnapshotStore {
@@ -181,22 +217,13 @@ struct LunaSnapshotStore {
 
     func writeActiveAgents(_ snapshot: ActiveAgentsSnapshot) throws {
         let url = try snapshotURL(fileName: Self.activeAgentsFileName, createDirectory: true)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.sortedKeys]
-        try encoder.encode(snapshot).write(to: url, options: .atomic)
+        try LunaSnapshotCodec.encodeActiveAgents(snapshot).write(to: url, options: .atomic)
     }
 
     func readActiveAgents() throws -> ActiveAgentsSnapshot? {
         let url = try snapshotURL(fileName: Self.activeAgentsFileName, createDirectory: false)
         guard fileManager.fileExists(atPath: url.path) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let snapshot = try decoder.decode(ActiveAgentsSnapshot.self, from: Data(contentsOf: url))
-        guard snapshot.schemaVersion == ActiveAgentsSnapshot.currentSchemaVersion else {
-            throw LunaSnapshotStoreError.unsupportedSchemaVersion
-        }
-        return snapshot
+        return try LunaSnapshotCodec.decodeActiveAgents(Data(contentsOf: url))
     }
 
     private func snapshotURL(fileName: String, createDirectory: Bool) throws -> URL {

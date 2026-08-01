@@ -13,6 +13,7 @@
 		051F82E015B5FF2FE6AFDE26 /* LunaRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33D93670D8849CD3E1276AE /* LunaRouteTests.swift */; };
 		08A524A97215FE0EEFE4FEB9 /* ConversationSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF280810D22370DA77BDEC31 /* ConversationSidebar.swift */; };
 		0BA4C4EF3498F60D61A34FE0 /* LunaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF59CED60218ECEC6977138 /* LunaTests.swift */; };
+		0F5D86D8DE3769ACD4CA9765 /* LunaWatchStatusWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F653247BADE2D7A149AF14D /* LunaWatchStatusWidgetView.swift */; };
 		136EC6551C940EF3D07D8B9C /* LunaWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = F923379C216B30833E06A3D7 /* LunaWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		155FCF274D69E02401F3A457 /* AgentControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FBA06C0C3B81E8D0960DAF5 /* AgentControlsView.swift */; };
 		15B46187F8C8BD0A4EE86CFC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E96B7E7A06DF89787C80559D /* Assets.xcassets */; };
@@ -35,9 +36,11 @@
 		56F7F3D8D5376ECA09ECCCC4 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
 		5788E0F8B62B883A886ABE62 /* SnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */; };
 		5B7FE1C6748EBD559735CF83 /* LunaWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 742807A2B95FB9969E766059 /* LunaWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5FE6F8E7443764205D598DC0 /* LunaWatchStatusWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F653247BADE2D7A149AF14D /* LunaWatchStatusWidgetView.swift */; };
 		60A4B863CF7D50182AF219DF /* LunaTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D800357345CADB742046B83B /* LunaTimeTests.swift */; };
 		63C5177BA73E69FF55428E90 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */; };
 		660DADFB2FB33F3B7EB18E89 /* LunaRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4E86961E12819FF660F840 /* LunaRoute.swift */; };
+		676A52A126183610351AE2A3 /* WatchSnapshotTransmitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D33DAD43BEE33EFF1D99AB /* WatchSnapshotTransmitter.swift */; };
 		6FD0E3416058955C97B1E47B /* LunaWatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6182A2AE19BFA87434618CF9 /* LunaWatchTests.swift */; };
 		703E3FA4F4A88D1F5BC6F6A9 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BE9D9ED57041FAB2589F3D /* APIClient.swift */; };
 		746DEBCC2CBCC91F89751784 /* AuthenticatedImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */; };
@@ -61,6 +64,7 @@
 		ABA8D6972EE584D148484EDF /* LunaColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A68162DD0A4DA703F05A031 /* LunaColors.swift */; };
 		AD3445321C1D0415A74992A7 /* LunaIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63BC4C2BA97762545D5E26D /* LunaIcon.swift */; };
 		ADAA261DA97E6083EF38B36F /* ConversationProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222CFCA4902A56874DAE3523 /* ConversationProjectTests.swift */; };
+		B99CF26BC392563D2FC2C9EA /* WatchSnapshotReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF2045279740F035BC65FAD /* WatchSnapshotReceiver.swift */; };
 		B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */; };
 		C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */; };
 		C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */; };
@@ -201,6 +205,8 @@
 		39D79A5020F9E11215648BD2 /* LunaTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTime.swift; sourceTree = "<group>"; };
 		3AEDA02EB12B1DEC12CDB063 /* LunaWatchStatusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchStatusWidget.swift; sourceTree = "<group>"; };
 		3BBCE5382FCDBEC76F3E0884 /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
+		3EF2045279740F035BC65FAD /* WatchSnapshotReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotReceiver.swift; sourceTree = "<group>"; };
+		3F653247BADE2D7A149AF14D /* LunaWatchStatusWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchStatusWidgetView.swift; sourceTree = "<group>"; };
 		446892BB5B365737EE00315F /* LunaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaApp.swift; sourceTree = "<group>"; };
 		494275FBF9232216D6DD62DD /* LunaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LunaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B6D3245D093FD94CF3058BF /* LunaActiveAgentsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaActiveAgentsWidget.swift; sourceTree = "<group>"; };
@@ -210,6 +216,7 @@
 		55E9D38C4309E382E7B42369 /* LunaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LunaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6182A2AE19BFA87434618CF9 /* LunaWatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchTests.swift; sourceTree = "<group>"; };
 		6D0BD429F1A21CC066B7E0C0 /* ConversationComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationComposerView.swift; sourceTree = "<group>"; };
+		70D33DAD43BEE33EFF1D99AB /* WatchSnapshotTransmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotTransmitter.swift; sourceTree = "<group>"; };
 		7361076F67DAD7EF6080ACFE /* VoiceRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorder.swift; sourceTree = "<group>"; };
 		736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedImageView.swift; sourceTree = "<group>"; };
 		742807A2B95FB9969E766059 /* LunaWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LunaWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -326,6 +333,14 @@
 			path = LunaWatchTests;
 			sourceTree = "<group>";
 		};
+		2218A71D9EDD2151BA22B1DD /* WatchWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				C636611FDD43DDA8F9983229 /* LunaWatchWidgetShared */,
+			);
+			name = WatchWidgets;
+			sourceTree = "<group>";
+		};
 		24173FDC55FCE192977D2E1A /* Features */ = {
 			isa = PBXGroup;
 			children = (
@@ -353,6 +368,7 @@
 				2EFBDDA32CABF3FA5402AF50 /* LunaWatchApp.swift */,
 				2EB9D6CF8BF32959F10A2920 /* LunaWatchHomeView.swift */,
 				8DAE61F0C3D58868A23A7F79 /* PrivacyInfo.xcprivacy */,
+				3EF2045279740F035BC65FAD /* WatchSnapshotReceiver.swift */,
 			);
 			path = LunaWatch;
 			sourceTree = "<group>";
@@ -411,6 +427,7 @@
 			children = (
 				FC4C763FEE21B5F16F0D0345 /* DesignSystem */,
 				E2A238B1009FF3661DFB840D /* Snapshots */,
+				2218A71D9EDD2151BA22B1DD /* WatchWidgets */,
 				617FC73790311FCFD3AA7CC2 /* Widgets */,
 			);
 			name = Shared;
@@ -422,6 +439,14 @@
 				3DEF33D5528725350601CB11 /* Snapshots */,
 			);
 			path = LunaShared;
+			sourceTree = "<group>";
+		};
+		797FBD8D0EEA8974D789E50D /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				70D33DAD43BEE33EFF1D99AB /* WatchSnapshotTransmitter.swift */,
+			);
+			path = Watch;
 			sourceTree = "<group>";
 		};
 		89DFEFE6E6D861A253918395 /* LunaWidgetShared */ = {
@@ -528,6 +553,14 @@
 			path = State;
 			sourceTree = "<group>";
 		};
+		C636611FDD43DDA8F9983229 /* LunaWatchWidgetShared */ = {
+			isa = PBXGroup;
+			children = (
+				3F653247BADE2D7A149AF14D /* LunaWatchStatusWidgetView.swift */,
+			);
+			path = LunaWatchWidgetShared;
+			sourceTree = "<group>";
+		};
 		C9508A0F1F880C7E5892D091 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -555,6 +588,7 @@
 				E756513B71C6D3794F7C07C9 /* Protocol */,
 				12971DFAF428E4EFE9F84F7E /* Resources */,
 				C3BC8C717F081C2E00C316BF /* State */,
+				797FBD8D0EEA8974D789E50D /* Watch */,
 			);
 			path = Luna;
 			sourceTree = "<group>";
@@ -881,6 +915,8 @@
 				F40F4A80E28055A8624659F6 /* LunaSnapshot.swift in Sources */,
 				A58E3C292E2426AEF670B6D4 /* LunaWatchApp.swift in Sources */,
 				35ED7821BC15259781BA8F87 /* LunaWatchHomeView.swift in Sources */,
+				0F5D86D8DE3769ACD4CA9765 /* LunaWatchStatusWidgetView.swift in Sources */,
+				B99CF26BC392563D2FC2C9EA /* WatchSnapshotReceiver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -890,6 +926,7 @@
 			files = (
 				8915E1DF9F78B3FC4A72D507 /* LunaSnapshot.swift in Sources */,
 				F2136227F163FC7448EAAD28 /* LunaWatchStatusWidget.swift in Sources */,
+				5FE6F8E7443764205D598DC0 /* LunaWatchStatusWidgetView.swift in Sources */,
 				1EDBABC3AF8F07E011EA4672 /* LunaWatchWidgets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -958,6 +995,7 @@
 				3EA48570E5A5D7725E448D37 /* RootView.swift in Sources */,
 				C68DA4A7E0EA7E8D80BA1CDA /* ServerConfiguration.swift in Sources */,
 				EA2B1C71A210199090456930 /* VoiceRecorder.swift in Sources */,
+				676A52A126183610351AE2A3 /* WatchSnapshotTransmitter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

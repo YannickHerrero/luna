@@ -87,8 +87,8 @@ The iOS UI suite includes deterministic pairing and ready-state fixtures, popula
 - `LunaTests`: protocol, networking, state, Markdown, composer, pairing, and control tests
 - `LunaUITests`: end-to-end native fixture and accessibility acceptance tests
 - `LunaWidgets`: A2 Activity field widget for current iPhone/iPad agents
-- `LunaWatch`: embedded watchOS companion placeholder and tests
-- `LunaWatchWidgets`: watchOS accessory widget placeholders
+- `LunaWatch`: WatchConnectivity-backed companion status and tests
+- `LunaWatchWidgets`: C3 Work pulse Smart Stack widget
 
 ## Physical devices, signing, and notifications
 
@@ -96,7 +96,7 @@ Simulator builds do not require signing. For physical-device signing, copy `Conf
 
 The main app reserves the Push Notifications entitlement, stable `luna://home` and `luna://conversation/<UUID>` routes, and the server’s existing notification-target state. Notification permission, APNs token registration, and provider delivery remain intentionally deferred. Do not add or reuse an APNs provider `.p8` key until the server registration and delivery routes are designed and approved.
 
-The app, widget, Watch app, and Watch widget declare `group.com.yannickherrero.luna` and compile the same versioned, allowlisted active-agent snapshot store. Widget publication and WatchConnectivity are separate layers; device credentials remain in the iOS Keychain and are never represented in snapshot models or copied to extensions or the Watch. Physical-device and distribution signing require associating the App Group with every participating App ID and regenerating profiles during an explicitly approved release stage.
+The app, widget, Watch app, and Watch widget declare `group.com.yannickherrero.luna` and compile the same versioned, allowlisted active-agent snapshot store. The iPhone sends only that encoded snapshot through WatchConnectivity application context; the Watch validates and persists it before reloading the C3 Smart Stack widget. Device credentials remain in the iOS Keychain and are never represented in snapshot models or copied to extensions or the Watch. Physical-device and distribution signing require associating the App Group with every participating App ID and regenerating profiles during an explicitly approved release stage.
 
 ## TestFlight
 

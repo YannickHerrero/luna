@@ -142,6 +142,8 @@ targets:
           - LunaWatch.entitlements
       - path: LunaShared
         group: Shared/Snapshots
+      - path: LunaWatchWidgetShared
+        group: Shared/WatchWidgets
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     dependencies:
@@ -152,6 +154,10 @@ targets:
         CFBundleDisplayName: Luna
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: com.yannickherrero.luna.watch
+            CFBundleURLSchemes:
+              - luna-watch
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.yannickherrero.luna
     settings:
@@ -183,6 +189,8 @@ targets:
           - LunaWatchWidgets.entitlements
       - path: LunaShared
         group: Shared/Snapshots
+      - path: LunaWatchWidgetShared
+        group: Shared/WatchWidgets
     info:
       path: LunaWatchWidgets/Info.plist
       properties:

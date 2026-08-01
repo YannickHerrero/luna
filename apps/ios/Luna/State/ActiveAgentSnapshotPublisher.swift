@@ -11,16 +11,19 @@ final class ActiveAgentSnapshotPublisher {
     }
 
     private let store: LunaSnapshotStore
+    private let snapshotDidChange: (ActiveAgentsSnapshot) -> Void
     private let reloadTimelines: () -> Void
     private var lastPublishedContent: [AgentContent]?
 
     init(
         store: LunaSnapshotStore = LunaSnapshotStore(),
+        snapshotDidChange: @escaping (ActiveAgentsSnapshot) -> Void = { _ in },
         reloadTimelines: @escaping () -> Void = {
             WidgetCenter.shared.reloadTimelines(ofKind: LunaAppGroup.activeAgentsWidgetKind)
         }
     ) {
         self.store = store
+        self.snapshotDidChange = snapshotDidChange
         self.reloadTimelines = reloadTimelines
     }
 
@@ -37,8 +40,10 @@ final class ActiveAgentSnapshotPublisher {
             )
         }
         do {
-            try store.writeActiveAgents(ActiveAgentsSnapshot(generatedAt: date, agents: agents))
+            let snapshot = ActiveAgentsSnapshot(generatedAt: date, agents: agents)
+            try store.writeActiveAgents(snapshot)
             lastPublishedContent = content
+            snapshotDidChange(snapshot)
             reloadTimelines()
         } catch {
             // Snapshot publication must never interrupt the authenticated app experience.

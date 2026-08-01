@@ -1,67 +1,57 @@
 import SwiftUI
 import WidgetKit
 
-struct LunaWatchWidgetEntry: TimelineEntry {
-    let date: Date
-}
-
 struct LunaWatchWidgetProvider: TimelineProvider {
+    private let store = LunaSnapshotStore()
+
     func placeholder(in context: Context) -> LunaWatchWidgetEntry {
-        LunaWatchWidgetEntry(date: .now)
+        .placeholder()
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (LunaWatchWidgetEntry) -> Void) {
-        completion(LunaWatchWidgetEntry(date: .now))
+    func getSnapshot(
+        in context: Context,
+        completion: @escaping (LunaWatchWidgetEntry) -> Void
+    ) {
+        completion(context.isPreview ? .placeholder() : entry(at: .now))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<LunaWatchWidgetEntry>) -> Void) {
-        completion(Timeline(entries: [LunaWatchWidgetEntry(date: .now)], policy: .never))
+    func getTimeline(
+        in context: Context,
+        completion: @escaping (Timeline<LunaWatchWidgetEntry>) -> Void
+    ) {
+        let date = Date.now
+        completion(
+            Timeline(
+                entries: [entry(at: date)],
+                policy: .after(date.addingTimeInterval(15 * 60))
+            )
+        )
+    }
+
+    private func entry(at date: Date) -> LunaWatchWidgetEntry {
+        LunaWatchWidgetEntry(date: date, snapshot: try? store.readActiveAgents())
     }
 }
 
 struct LunaWatchStatusWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "LunaWatchStatusWidget", provider: LunaWatchWidgetProvider()) { entry in
+        StaticConfiguration(
+            kind: LunaAppGroup.watchActiveAgentsWidgetKind,
+            provider: LunaWatchWidgetProvider()
+        ) { entry in
             LunaWatchStatusView(entry: entry)
                 .containerBackground(for: .widget) { Color.clear }
+                .widgetURL(URL(string: "luna-watch://status"))
         }
-        .configurationDisplayName("Luna status")
-        .description("Keep Luna close. Live conversation status is coming soon.")
-        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
+        .configurationDisplayName("Active Agents")
+        .description("Pin Luna's current work in your Smart Stack.")
+        .supportedFamilies([.accessoryRectangular])
     }
 }
 
-private struct LunaWatchStatusView: View {
-    let entry: LunaWatchWidgetEntry
-    @Environment(\.widgetFamily) private var family
 
-    var body: some View {
-        switch family {
-        case .accessoryCircular:
-            ZStack {
-                AccessoryWidgetBackground()
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .widgetAccentable()
-            }
-            .accessibilityLabel("Luna companion")
-        case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 2) {
-                Label("Luna", systemImage: "moon.stars.fill")
-                    .font(.headline)
-                    .widgetAccentable()
-                Text("Companion ready")
-                    .font(.caption)
-                Text("Live status soon")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
-        case .accessoryInline:
-            Label("Luna · Companion ready", systemImage: "moon.stars.fill")
-        default:
-            Image(systemName: "moon.stars.fill")
-                .widgetAccentable()
-        }
-    }
+#Preview("C3 Work pulse", as: .accessoryRectangular) {
+    LunaWatchStatusWidget()
+} timeline: {
+    LunaWatchWidgetEntry.placeholder()
 }

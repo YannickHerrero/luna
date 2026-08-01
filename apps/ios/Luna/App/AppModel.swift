@@ -51,8 +51,10 @@ final class AppModel {
         self.transport = transport
         self.eventSource = eventSource
         self.draftPersistence = draftPersistence
-        self.activeAgentSnapshotPublisher =
-            activeAgentSnapshotPublisher ?? ActiveAgentSnapshotPublisher()
+        self.activeAgentSnapshotPublisher = activeAgentSnapshotPublisher
+            ?? ActiveAgentSnapshotPublisher(snapshotDidChange: { snapshot in
+                WatchSnapshotTransmitter.shared.send(snapshot)
+            })
     }
 
     var client: APIClient {

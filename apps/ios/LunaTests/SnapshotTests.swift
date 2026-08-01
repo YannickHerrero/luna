@@ -112,9 +112,12 @@ struct SnapshotTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = LunaSnapshotStore(directoryURL: directory)
         var reloadCount = 0
-        let publisher = ActiveAgentSnapshotPublisher(store: store) {
-            reloadCount += 1
-        }
+        var transmittedSnapshot: ActiveAgentsSnapshot?
+        let publisher = ActiveAgentSnapshotPublisher(
+            store: store,
+            snapshotDidChange: { transmittedSnapshot = $0 },
+            reloadTimelines: { reloadCount += 1 }
+        )
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         var working = snapshotConversation(id: 1, state: .working)
         working.activities = [
@@ -140,6 +143,7 @@ struct SnapshotTests {
         let snapshot = try #require(try store.readActiveAgents())
         #expect(snapshot.agents.map(\.id) == [working.id, snapshotUUID(4)])
         #expect(snapshot.agents.first?.activity == "Reviewing files")
+        #expect(transmittedSnapshot == snapshot)
         let serialized = try String(
             contentsOf: directory.appending(path: "active-agents-v1.json"),
             encoding: .utf8

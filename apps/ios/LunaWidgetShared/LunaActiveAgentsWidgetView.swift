@@ -271,16 +271,15 @@ struct LunaWidgetBackground: View {
 }
 
 extension LunaWidgetEntry {
-    static let staleAfter: TimeInterval = 15 * 60
-    static let unavailableAfter: TimeInterval = 24 * 60 * 60
-
     var age: TimeInterval {
         guard let snapshot else { return .infinity }
         return max(0, date.timeIntervalSince(snapshot.generatedAt))
     }
 
-    var isStale: Bool { age > Self.staleAfter && age <= Self.unavailableAfter }
-    var isUnavailable: Bool { snapshot == nil || age > Self.unavailableAfter }
+    var isStale: Bool { snapshot?.freshness(at: date) == .stale }
+    var isUnavailable: Bool {
+        snapshot == nil || snapshot?.freshness(at: date) == .unavailable
+    }
     var agents: [ActiveAgentSnapshot] { isUnavailable ? [] : snapshot?.agents ?? [] }
 
     var orbitValue: String {
