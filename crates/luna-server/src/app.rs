@@ -20,7 +20,8 @@ use tower_http::{
 
 use crate::{
     auth::AuthService, config::Config, error::AppError, events::EventHub, maintenance::Maintenance,
-    routes, runtime::ConversationRuntime, state::AppState, transcription::TranscriptionService,
+    openai_usage::OpenAiUsageService, routes, runtime::ConversationRuntime, state::AppState,
+    transcription::TranscriptionService,
 };
 
 pub struct BuiltApp {
@@ -90,12 +91,18 @@ pub async fn build(config: Config) -> Result<BuiltApp, AppError> {
         config.transcription_base_url.clone(),
         config.transcription_model.clone(),
     )?;
+    let openai_usage = OpenAiUsageService::new(
+        config.codex_executable.clone(),
+        Duration::from_secs(config.openai_usage_cache_seconds),
+        Duration::from_secs(10),
+    );
     let state = AppState::new(
         config,
         database.clone(),
         events,
         runtime.clone(),
         transcription,
+        openai_usage,
     );
     let pairing_code = AuthService::new(database.clone())
         .create_pairing_code()

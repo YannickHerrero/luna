@@ -19,7 +19,8 @@ pnpm build
 
 `pnpm build` exports the PWA to `apps/web/out` and builds
 `target/release/luna-server`. Citadel starts only that release binary; Node is used by the Pi
-subprocess and at build time, not as a second web service.
+subprocess and at build time, not as a second web service. The server invokes the locally
+authenticated `codex app-server` on demand to collect the general account weekly limit.
 
 ## Private configuration
 
@@ -32,7 +33,9 @@ $EDITOR ~/.config/luna/server.env
 ```
 
 Keep API keys only in this external file. Luna refuses to load it if group or other permissions
-are present. The non-secret local development file `.luna.local.json` may be copied from
+are present. Codex account usage does not require another key: Luna reads only the sanitized
+weekly window from the local Codex login, caches it for five minutes by default, and never returns
+account identifiers or Codex credentials. The non-secret local development file `.luna.local.json` may be copied from
 `.luna.local.example.json`; it is ignored by Git.
 
 Default state is under `~/Library/Application Support/Luna Server`:

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use luna_storage::Database;
 
 use crate::{
-    auth::AuthService, config::Config, events::EventHub, runtime::ConversationRuntime,
-    transcription::TranscriptionService,
+    auth::AuthService, config::Config, events::EventHub, openai_usage::OpenAiUsageService,
+    runtime::ConversationRuntime, transcription::TranscriptionService,
 };
 
 #[derive(Clone)]
@@ -15,6 +15,7 @@ pub struct AppState {
     pub events: EventHub,
     pub runtime: Arc<ConversationRuntime>,
     pub transcription: TranscriptionService,
+    pub openai_usage: OpenAiUsageService,
 }
 
 impl AppState {
@@ -25,6 +26,7 @@ impl AppState {
         events: EventHub,
         runtime: Arc<ConversationRuntime>,
         transcription: TranscriptionService,
+        openai_usage: OpenAiUsageService,
     ) -> Self {
         let auth = AuthService::new(database.clone());
         Self {
@@ -34,6 +36,7 @@ impl AppState {
             events,
             runtime,
             transcription,
+            openai_usage,
         }
     }
 }

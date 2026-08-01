@@ -131,6 +131,7 @@ See [`docs/deployment.md`](docs/deployment.md) for build, backup, Citadel, Tails
 - Authenticated private attachment and icon routes
 - Bounded request, image decode, and event-retention limits
 - Ephemeral transcription proxying without audio persistence
+- Sanitized account-level weekly usage without copying Codex credentials to clients
 - Security headers, immutable hashed assets, and no-cache app entry points
 - No Funnel configuration or raw terminal transport
 

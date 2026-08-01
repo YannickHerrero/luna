@@ -23,6 +23,8 @@ pub struct Config {
     pub web_directory: PathBuf,
     pub pi_executable: PathBuf,
     pub pi_bridge_path: PathBuf,
+    pub codex_executable: PathBuf,
+    pub openai_usage_cache_seconds: u64,
     pub title_model: String,
     pub event_retention_days: u32,
     pub attachment_retention_days: u32,
@@ -95,6 +97,7 @@ impl Config {
         let port = parse_u16("LUNA_PORT", local.port.unwrap_or(9870))?;
         let retention = parse_u32("LUNA_EVENT_RETENTION_DAYS", 30)?;
         let attachment_retention = parse_u32("LUNA_ATTACHMENT_RETENTION_DAYS", 30)?;
+        let openai_usage_cache_seconds = parse_u64("LUNA_OPENAI_USAGE_CACHE_SECONDS", 300)?;
         let public_origin = env::var("LUNA_PUBLIC_ORIGIN").ok().or(local.public_origin);
 
         Ok(Self {
@@ -126,6 +129,8 @@ impl Config {
                 "LUNA_PI_BRIDGE",
                 root.join("integrations/pi/luna-bridge.ts"),
             ),
+            codex_executable: env_path("LUNA_CODEX_EXECUTABLE", PathBuf::from("codex")),
+            openai_usage_cache_seconds,
             title_model: env::var("LUNA_TITLE_MODEL")
                 .unwrap_or_else(|_| "openai-codex/gpt-5.6-luna".into()),
             event_retention_days: retention,
@@ -170,6 +175,15 @@ fn parse_u16(name: &str, fallback: u16) -> Result<u16, ConfigError> {
 }
 
 fn parse_u32(name: &str, fallback: u32) -> Result<u32, ConfigError> {
+    match env::var(name) {
+        Ok(value) => value
+            .parse()
+            .map_err(|_| ConfigError::InvalidInteger(name.into())),
+        Err(_) => Ok(fallback),
+    }
+}
+
+fn parse_u64(name: &str, fallback: u64) -> Result<u64, ConfigError> {
     match env::var(name) {
         Ok(value) => value
             .parse()

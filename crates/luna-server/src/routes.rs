@@ -13,9 +13,10 @@ use luna_protocol::{
     ApiError, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
     CompactConversationResponse, ConversationAgentState, ConversationList, ConversationMessages,
     ConversationScope, CreateConversationRequest, ErrorCode, Message, MessageDelivery,
-    PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
-    SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope, SessionState,
-    SyncResponse, UpdateConversationAgentRequest, UpdateConversationRequest,
+    OpenAiWeeklyUsage, PROTOCOL_VERSION, PairingCodeRequestResponse, PairingExchangeRequest,
+    PairingExchangeResponse, SendMessageRequest, SendMessageResponse, ServerEvent,
+    ServerEventEnvelope, SessionState, SyncResponse, UpdateConversationAgentRequest,
+    UpdateConversationRequest,
 };
 use serde::Deserialize;
 use tracing::warn;
@@ -37,6 +38,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/pairing/request", post(request_pairing_code))
         .route("/v1/pairing/exchange", post(pair))
         .route("/v1/bootstrap", get(bootstrap))
+        .route("/v1/account/openai-usage", get(openai_weekly_usage))
         .route("/v1/sync", get(sync))
         .route("/v1/events", get(events_socket))
         .route(
@@ -203,6 +205,13 @@ async fn bootstrap(
             .conversations(ConversationScope::Active)
             .await?,
     }))
+}
+
+async fn openai_weekly_usage(
+    State(state): State<AppState>,
+    AuthenticatedDevice(_device): AuthenticatedDevice,
+) -> Json<OpenAiWeeklyUsage> {
+    Json(state.openai_usage.get().await)
 }
 
 #[derive(Deserialize, Default)]

@@ -7,7 +7,8 @@ use axum::{
 use luna_protocol::{
     ApiError, AttachmentResponse, CompactConversationResponse, Conversation,
     ConversationAgentState, ConversationList, ConversationMessages, ErrorCode,
-    PairingCodeRequestResponse, PairingExchangeResponse, SendMessageResponse,
+    OpenAiUsageAvailability, OpenAiWeeklyUsage, PairingCodeRequestResponse,
+    PairingExchangeResponse, SendMessageResponse,
 };
 use luna_server::{app, config::Config};
 use tower::ServiceExt;
@@ -91,6 +92,30 @@ process.stdin.on('end', () => process.exit(0))
 "#,
     )
     .expect("fake Pi");
+    let codex_executable = directory.join("fake-codex");
+    fs::write(
+        &codex_executable,
+        r#"#!/usr/bin/env node
+if (process.argv[2] !== 'app-server') process.exit(2)
+const fs = require('node:fs')
+fs.appendFileSync(__dirname + '/codex-invocations', '1\n')
+let input = ''
+process.stdin.on('data', chunk => {
+  input += chunk.toString('utf8')
+  while (input.includes('\n')) {
+    const index = input.indexOf('\n')
+    const request = JSON.parse(input.slice(0, index))
+    input = input.slice(index + 1)
+    if (request.id === 1) {
+      console.log(JSON.stringify({id:1,result:{}}))
+    } else if (request.id === 2 && request.method === 'account/rateLimits/read') {
+      console.log(JSON.stringify({id:2,result:{rateLimits:{limitId:'codex',primary:{usedPercent:63,resetsAt:1900000000,windowDurationMins:10080}}}}))
+    }
+  }
+})
+"#,
+    )
+    .expect("fake Codex");
     fs::create_dir_all(directory.join("repository/.git")).expect("fake repository");
     fs::write(directory.join("repository/file.txt"), "repository file").expect("repository file");
     let mut repository_icon = Vec::new();
@@ -109,11 +134,11 @@ process.stdin.on('end', () => process.exit(0))
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut permissions = fs::metadata(&pi_executable)
-            .expect("metadata")
-            .permissions();
-        permissions.set_mode(0o700);
-        fs::set_permissions(&pi_executable, permissions).expect("permissions");
+        for executable in [&pi_executable, &codex_executable] {
+            let mut permissions = fs::metadata(executable).expect("metadata").permissions();
+            permissions.set_mode(0o700);
+            fs::set_permissions(executable, permissions).expect("permissions");
+        }
     }
     Config {
         bind_host: "127.0.0.1".into(),
@@ -131,6 +156,8 @@ process.stdin.on('end', () => process.exit(0))
         web_directory: directory.join("web"),
         pi_executable,
         pi_bridge_path: directory.join("bridge.ts"),
+        codex_executable,
+        openai_usage_cache_seconds: 300,
         title_model: "openai-codex/gpt-5.6-luna".into(),
         event_retention_days: 30,
         attachment_retention_days: 30,
@@ -198,6 +225,77 @@ async fn requests_a_new_pairing_code_without_exposing_it() {
     let error: ApiError = response_json(stale).await;
     assert_eq!(error.code, ErrorCode::InvalidRequest);
     assert!(error.message.contains("invalid, expired, or already used"));
+    built.runtime.shutdown().await;
+}
+
+#[tokio::test]
+async fn returns_cached_sanitized_weekly_usage_to_authenticated_devices() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+
+    let unauthorized = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/account/openai-usage")
+                .body(Body::empty())
+                .expect("usage request"),
+        )
+        .await
+        .expect("unauthorized usage response");
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+    let paired = built
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/pairing/exchange")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "code": built.pairing_code,
+                        "deviceName": "Usage widget",
+                        "platform": "ios"
+                    })
+                    .to_string(),
+                ))
+                .expect("pairing request"),
+        )
+        .await
+        .expect("pairing response");
+    let paired: PairingExchangeResponse = response_json(paired).await;
+
+    for _ in 0..2 {
+        let response = built
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/account/openai-usage")
+                    .header(header::AUTHORIZATION, format!("Bearer {}", paired.token))
+                    .body(Body::empty())
+                    .expect("usage request"),
+            )
+            .await
+            .expect("usage response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let usage: OpenAiWeeklyUsage = response_json(response).await;
+        assert_eq!(usage.availability, OpenAiUsageAvailability::Available);
+        assert_eq!(usage.used_percent, Some(63));
+        assert!(usage.resets_at.is_some());
+        assert!(usage.collected_at.is_some());
+        let serialized = serde_json::to_value(usage).expect("usage JSON");
+        assert_eq!(
+            serialized.as_object().expect("usage object").keys().count(),
+            4
+        );
+    }
+    let invocations =
+        fs::read_to_string(directory.path().join("codex-invocations")).expect("Codex invocations");
+    assert_eq!(invocations.lines().count(), 1);
     built.runtime.shutdown().await;
 }
 
