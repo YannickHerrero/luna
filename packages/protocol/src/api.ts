@@ -83,6 +83,23 @@ export const CompactConversationResponseSchema = Type.Object(
 )
 export type CompactConversationResponse = Static<typeof CompactConversationResponseSchema>
 
+export const ApnsEnvironmentSchema = Type.Union([
+  Type.Literal('sandbox'),
+  Type.Literal('production'),
+])
+export type ApnsEnvironment = Static<typeof ApnsEnvironmentSchema>
+
+export const UpsertApnsRegistrationRequestSchema = Type.Object(
+  {
+    token: Type.String({ minLength: 64, maxLength: 200, pattern: '^[0-9a-fA-F]+$' }),
+    environment: ApnsEnvironmentSchema,
+    topic: Type.String({ minLength: 1, maxLength: 255 }),
+    appVersion: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
+  },
+  { additionalProperties: false },
+)
+export type UpsertApnsRegistrationRequest = Static<typeof UpsertApnsRegistrationRequestSchema>
+
 export const PairingExchangeRequestSchema = Type.Object(
   {
     code: Type.String({ minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }),

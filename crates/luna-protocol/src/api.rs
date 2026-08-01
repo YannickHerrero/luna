@@ -88,6 +88,25 @@ pub struct CompactConversationResponse {
     pub estimated_tokens_after: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ApnsEnvironment {
+    Sandbox,
+    Production,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertApnsRegistrationRequest {
+    #[schemars(length(min = 64, max = 200), regex(pattern = r"^[0-9a-fA-F]+$"))]
+    #[schema(min_length = 64, max_length = 200, pattern = r"^[0-9a-fA-F]+$")]
+    pub token: String,
+    pub environment: ApnsEnvironment,
+    pub topic: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_version: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingExchangeRequest {

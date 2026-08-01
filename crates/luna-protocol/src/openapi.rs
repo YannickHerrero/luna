@@ -4,8 +4,8 @@ use utoipa::OpenApi;
 
 use crate::{
     AgentActivitiesReset, AgentActivity, AgentActivityChanged, AgentModel, AgentModelSelection,
-    AgentTask, AgentTaskList, AgentTaskListChanged, AgentTaskStatus, ApiError, Attachment,
-    AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
+    AgentTask, AgentTaskList, AgentTaskListChanged, AgentTaskStatus, ApiError, ApnsEnvironment,
+    Attachment, AttachmentResponse, Bootstrap, ClientCommand, CommandAccepted, CommandRejected,
     CompactConversationResponse, ContextUsage, Conversation, ConversationAgentState,
     ConversationList, ConversationMessages, ConversationScope, ConversationTitleUpdated,
     CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message, MessageCompleted,
@@ -13,7 +13,8 @@ use crate::{
     PairingExchangeRequest, PairingExchangeResponse, RepositoriesUpdated, Repository,
     RepositoryIcon, SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope,
     SessionState, SteeringQueueChanged, SyncResponse, ThinkingLevel, TranscriptionResponse,
-    UpdateConversationAgentRequest, UpdateConversationRequest, WorkspaceUpdated,
+    UpdateConversationAgentRequest, UpdateConversationRequest, UpsertApnsRegistrationRequest,
+    WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -66,6 +67,28 @@ fn bootstrap() {}
     security(("deviceToken" = []))
 )]
 fn openai_weekly_usage() {}
+
+#[utoipa::path(
+    put,
+    path = "/v1/devices/me/apns",
+    request_body = UpsertApnsRegistrationRequest,
+    responses(
+        (status = 200, body = Device),
+        (status = 400, body = ApiError),
+        (status = 401, body = ApiError),
+        (status = 409, body = ApiError)
+    ),
+    security(("deviceToken" = []))
+)]
+fn apns_registration_upsert() {}
+
+#[utoipa::path(
+    delete,
+    path = "/v1/devices/me/apns",
+    responses((status = 200, body = Device), (status = 401, body = ApiError)),
+    security(("deviceToken" = []))
+)]
+fn apns_registration_delete() {}
 
 #[utoipa::path(
     get,
@@ -256,6 +279,8 @@ fn transcriptions_create() {}
         pairing_exchange,
         bootstrap,
         openai_weekly_usage,
+        apns_registration_upsert,
+        apns_registration_delete,
         sync,
         conversations_list,
         conversations_create,
@@ -285,6 +310,7 @@ fn transcriptions_create() {}
         AgentTaskList,
         AgentTaskListChanged,
         AgentTaskStatus,
+        ApnsEnvironment,
         ApiError,
         Attachment,
         AttachmentResponse,
@@ -326,6 +352,7 @@ fn transcriptions_create() {}
         TranscriptionResponse,
         UpdateConversationAgentRequest,
         UpdateConversationRequest,
+        UpsertApnsRegistrationRequest,
         WorkspaceUpdated
     )),
     modifiers(&SecurityAddon)

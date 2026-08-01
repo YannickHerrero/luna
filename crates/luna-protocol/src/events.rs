@@ -152,7 +152,7 @@ pub struct ConversationTitleUpdated {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationTargetChanged {
-    pub device_id: Uuid,
+    pub device_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, ToSchema)]

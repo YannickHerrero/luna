@@ -666,6 +666,100 @@
         ]
       }
     },
+    "/v1/devices/me/apns": {
+      "put": {
+        "tags": [],
+        "operationId": "apns_registration_upsert",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertApnsRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "apns_registration_delete",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      }
+    },
     "/v1/health/live": {
       "get": {
         "tags": [],
@@ -1036,6 +1130,10 @@
             "type": "boolean"
           }
         }
+      },
+      "ApnsEnvironment": {
+        "type": "string",
+        "enum": ["sandbox", "production"]
       },
       "Attachment": {
         "type": "object",
@@ -1713,10 +1811,9 @@
       },
       "NotificationTargetChanged": {
         "type": "object",
-        "required": ["deviceId"],
         "properties": {
           "deviceId": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "uuid"
           }
         }
@@ -2341,6 +2438,27 @@
           },
           "title": {
             "type": ["string", "null"]
+          }
+        }
+      },
+      "UpsertApnsRegistrationRequest": {
+        "type": "object",
+        "required": ["token", "environment", "topic"],
+        "properties": {
+          "appVersion": {
+            "type": ["string", "null"]
+          },
+          "environment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 64,
+            "pattern": "^[0-9a-fA-F]+$"
+          },
+          "topic": {
+            "type": "string"
           }
         }
       },
