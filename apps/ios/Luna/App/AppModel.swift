@@ -36,19 +36,23 @@ final class AppModel {
     @ObservationIgnored private let transport: any HTTPTransport
     @ObservationIgnored private let eventSource: any EventSource
     @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
+    @ObservationIgnored private let activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher
 
     init(
         configuration: ServerConfiguration = ServerConfiguration(),
         credentials: any CredentialStore = KeychainCredentialStore.shared,
         transport: any HTTPTransport = URLSessionHTTPTransport(),
         eventSource: any EventSource = URLSessionEventSource(),
-        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence()
+        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence(),
+        activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher? = nil
     ) {
         self.configuration = configuration
         self.credentials = credentials
         self.transport = transport
         self.eventSource = eventSource
         self.draftPersistence = draftPersistence
+        self.activeAgentSnapshotPublisher =
+            activeAgentSnapshotPublisher ?? ActiveAgentSnapshotPublisher()
     }
 
     var client: APIClient {
@@ -126,7 +130,8 @@ final class AppModel {
             client: client,
             bootstrap: bootstrap,
             eventSource: eventSource,
-            draftPersistence: draftPersistence
+            draftPersistence: draftPersistence,
+            activeAgentSnapshotPublisher: activeAgentSnapshotPublisher
         )
         phase = .ready
         errorMessage = nil

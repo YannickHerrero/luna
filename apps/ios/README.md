@@ -86,7 +86,7 @@ The iOS UI suite includes deterministic pairing and ready-state fixtures, popula
 - `LunaShared/Snapshots`: versioned, allowlisted App Group snapshot models and storage
 - `LunaTests`: protocol, networking, state, Markdown, composer, pairing, and control tests
 - `LunaUITests`: end-to-end native fixture and accessibility acceptance tests
-- `LunaWidgets`: iPhone/iPad Home Screen widget placeholder
+- `LunaWidgets`: A2 Activity field widget for current iPhone/iPad agents
 - `LunaWatch`: embedded watchOS companion placeholder and tests
 - `LunaWatchWidgets`: watchOS accessory widget placeholders
 

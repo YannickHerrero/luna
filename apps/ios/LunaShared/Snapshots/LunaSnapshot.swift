@@ -2,6 +2,7 @@ import Foundation
 
 enum LunaAppGroup {
     static let identifier = "group.com.yannickherrero.luna"
+    static let activeAgentsWidgetKind = "LunaActiveAgentsWidget"
 }
 
 enum AgentSnapshotState: String, Codable, CaseIterable, Sendable {
@@ -84,8 +85,43 @@ struct ActiveAgentSnapshot: Codable, Equatable, Identifiable, Sendable {
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        guard !cleaned.isEmpty else { return fallback }
-        return String(cleaned.prefix(maximumLength))
+        let redacted = redactSensitiveWords(in: cleaned)
+        guard !redacted.isEmpty else { return fallback }
+        return String(redacted.prefix(maximumLength))
+    }
+
+    private static func redactSensitiveWords(in value: String) -> String {
+        let sensitiveLabels = [
+            "bearer", "credential", "password", "secret", "token", "api-key", "api_key",
+        ]
+        let sensitivePrefixes = [
+            "bearer-", "bearer_", "ghp_", "github_pat_", "password=", "secret=", "sk-",
+            "sk_", "token=",
+        ]
+        var redactNext = false
+        return value.split(separator: " ").map { substring in
+            if redactNext {
+                redactNext = false
+                return "•••"
+            }
+            let word = String(substring)
+            let normalized = word
+                .trimmingCharacters(in: .punctuationCharacters)
+                .lowercased()
+            if word.contains("/")
+                || word.contains("\\")
+                || word.contains("://")
+                || sensitivePrefixes.contains(where: { normalized.hasPrefix($0) })
+            {
+                return "•••"
+            }
+            if sensitiveLabels.contains(normalized) {
+                redactNext = true
+                return "•••"
+            }
+            return word
+        }
+        .joined(separator: " ")
     }
 }
 

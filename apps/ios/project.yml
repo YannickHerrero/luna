@@ -39,6 +39,8 @@ targets:
       - path: Luna
       - path: LunaShared
         group: Shared/Snapshots
+      - path: LunaWidgetShared
+        group: Shared/Widgets
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     dependencies:
@@ -101,6 +103,8 @@ targets:
           - LunaWidgets.entitlements
       - path: LunaShared
         group: Shared/Snapshots
+      - path: LunaWidgetShared
+        group: Shared/Widgets
       - path: ../../packages/design-tokens/generated/LunaColors.swift
         group: Shared/DesignSystem/Generated
     info:

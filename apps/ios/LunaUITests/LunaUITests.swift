@@ -272,6 +272,24 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testActiveAgentsWidgetLayoutsRender() {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-widget-preview", "-luna-theme", "latte",
+        ]
+        application.launch()
+
+        XCTAssertTrue(
+            application.descendants(matching: .any)["active-agents-widget-preview"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(application.staticTexts["A2 · Activity field"].exists)
+        XCTAssertTrue(application.staticTexts["Prepare release notes"].exists)
+        XCTAssertTrue(application.staticTexts["AGENTS IN MOTION"].exists)
+        XCTAssertTrue(application.staticTexts["Reviewing files"].exists)
+    }
+
+    @MainActor
     func testConversationSupportsLeadingEdgeSwipeBack() {
         let application = XCUIApplication()
         application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]

@@ -28,21 +28,25 @@ final class ConversationStore {
     @ObservationIgnored private let eventSource: any EventSource
     @ObservationIgnored let imageLoader: AuthenticatedImageLoader
     @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
+    @ObservationIgnored private let activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher?
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
 
     init(
         client: APIClient,
         bootstrap: Bootstrap,
         eventSource: any EventSource,
-        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence()
+        draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence(),
+        activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher? = nil
     ) {
         self.client = client
         self.eventSource = eventSource
         self.draftPersistence = draftPersistence
+        self.activeAgentSnapshotPublisher = activeAgentSnapshotPublisher
         imageLoader = AuthenticatedImageLoader(client: client)
         var state = LunaClientState()
         state.install(bootstrap)
         self.state = state
+        publishActiveAgents()
     }
 
     var conversations: [Conversation] { state.conversations }
@@ -137,6 +141,7 @@ final class ConversationStore {
             state.upsertConversation(conversation)
             state.select(conversation.id)
             state.messages[conversation.id] = []
+            publishActiveAgents()
         } catch {
             errorMessage = message(from: error)
         }
@@ -156,11 +161,13 @@ final class ConversationStore {
         } else {
             state.upsertConversation(conversation)
         }
+        publishActiveAgents()
     }
 
     func archiveConversation(_ conversationId: UUID) async throws {
         try await client.postVoid("/v1/conversations/\(conversationId.uuidString)/archive")
         state.removeConversation(conversationId)
+        publishActiveAgents()
         composerDrafts.removeValue(forKey: conversationId)
         draftPersistence.setText("", for: conversationId)
     }
@@ -172,6 +179,7 @@ final class ConversationStore {
         )
         archivedConversations.removeAll { $0.id == conversationId }
         state.upsertConversation(conversation)
+        publishActiveAgents()
         listScope = .active
         state.select(conversation.id)
         return conversation
@@ -301,6 +309,9 @@ final class ConversationStore {
             }
         }
         state.apply(event)
+        if eventAffectsActiveAgentSnapshot(event.event) {
+            publishActiveAgents()
+        }
     }
 
     func consumeEventsOnce() async throws {
@@ -361,6 +372,7 @@ final class ConversationStore {
             )
         }
         state.install(bootstrap)
+        publishActiveAgents()
         archivedConversations = []
         listScope = .active
     }
@@ -385,6 +397,23 @@ final class ConversationStore {
             state.setMessages(response, for: conversationId)
         } catch {
             errorMessage = message(from: error)
+        }
+    }
+
+    private func publishActiveAgents() {
+        activeAgentSnapshotPublisher?.publish(conversations: state.conversations)
+    }
+
+    private func eventAffectsActiveAgentSnapshot(_ event: ServerEvent) -> Bool {
+        switch event {
+        case .conversationUpserted,
+             .conversationTitleUpdated,
+             .sessionStateChanged,
+             .agentActivitiesReset,
+             .agentActivityUpserted:
+            true
+        default:
+            false
         }
     }
 

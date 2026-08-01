@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG
+import WidgetKit
+#endif
 
 struct RootView: View {
     @State private var model: AppModel
@@ -24,18 +27,15 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            switch model.phase {
-            case .loading:
-                LoadingView()
-            case .pairing:
-                PairingView(model: model)
-            case .ready:
-                if let store = model.conversationStore {
-                    ConversationShellView(store: store)
-                } else {
-                    LoadingView()
-                }
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-widget-preview") {
+                ActiveAgentsWidgetPreviewGallery()
+            } else {
+                rootContent
             }
+#else
+            rootContent
+#endif
         }
         .task {
             if model.phase == .loading {
@@ -51,7 +51,74 @@ struct RootView: View {
             Task { await model.open(url) }
         }
     }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        switch model.phase {
+        case .loading:
+            LoadingView()
+        case .pairing:
+            PairingView(model: model)
+        case .ready:
+            if let store = model.conversationStore {
+                ConversationShellView(store: store)
+            } else {
+                LoadingView()
+            }
+        }
+    }
 }
+
+#if DEBUG
+private struct ActiveAgentsWidgetPreviewGallery: View {
+    private let entry = LunaWidgetEntry.placeholder()
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var background: Color {
+        colorScheme == .dark ? LunaColors.Mocha.background : LunaColors.Latte.background
+    }
+
+    private var foreground: Color {
+        colorScheme == .dark ? LunaColors.Mocha.foreground : LunaColors.Latte.foreground
+    }
+
+    private var border: Color {
+        colorScheme == .dark ? LunaColors.Mocha.border : LunaColors.Latte.border
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                Text("A2 · Activity field")
+                    .font(.system(.largeTitle, design: .serif, weight: .semibold))
+                    .foregroundStyle(foreground)
+                widgetCard(family: .systemSmall, width: 170, height: 170)
+                widgetCard(family: .systemMedium, width: 345, height: 170)
+            }
+            .padding(24)
+        }
+        .background(background)
+        .accessibilityIdentifier("active-agents-widget-preview")
+    }
+
+    private func widgetCard(
+        family: WidgetFamily,
+        width: CGFloat,
+        height: CGFloat
+    ) -> some View {
+        LunaActiveAgentsWidgetView(entry: entry, family: family)
+            .padding(16)
+            .frame(width: width, height: height)
+            .background(LunaWidgetBackground())
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(border, lineWidth: 1)
+            }
+            .shadow(color: foreground.opacity(0.08), radius: 18, y: 10)
+    }
+}
+#endif
 
 private struct LoadingView: View {
     @Environment(\.lunaPalette) private var palette

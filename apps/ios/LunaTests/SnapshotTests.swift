@@ -16,6 +16,16 @@ struct SnapshotTests {
         #expect(snapshot.title == "Ship Luna")
         #expect(snapshot.activity?.count == ActiveAgentSnapshot.maximumActivityLength)
 
+        let redacted = ActiveAgentSnapshot(
+            id: UUID(),
+            title: "Review /Users/private/repository with token secret-value",
+            state: .working,
+            activity: "Open https://private.example/repository using sk-private-value",
+            updatedAt: snapshot.updatedAt
+        )
+        #expect(redacted.title == "Review ••• with ••• •••")
+        #expect(redacted.activity == "Open ••• using •••")
+
         let manyAgents = Array(repeating: snapshot, count: 10)
         #expect(
             ActiveAgentsSnapshot(generatedAt: snapshot.updatedAt, agents: manyAgents).agents.count
@@ -59,6 +69,92 @@ struct SnapshotTests {
     }
 
     @Test
+    func widgetDistinguishesCurrentStaleAndUnavailableSnapshots() {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let agent = ActiveAgentSnapshot(
+            id: snapshotUUID(1),
+            title: "Current work",
+            state: .working,
+            activity: "Running checks",
+            updatedAt: date
+        )
+        let current = LunaWidgetEntry(
+            date: date,
+            snapshot: ActiveAgentsSnapshot(generatedAt: date, agents: [agent])
+        )
+        let stale = LunaWidgetEntry(
+            date: date,
+            snapshot: ActiveAgentsSnapshot(
+                generatedAt: date.addingTimeInterval(-30 * 60),
+                agents: [agent]
+            )
+        )
+        let unavailable = LunaWidgetEntry(
+            date: date,
+            snapshot: ActiveAgentsSnapshot(
+                generatedAt: date.addingTimeInterval(-25 * 60 * 60),
+                agents: [agent]
+            )
+        )
+
+        #expect(!current.isStale)
+        #expect(current.agents == [agent])
+        #expect(stale.isStale)
+        #expect(stale.agents == [agent])
+        #expect(unavailable.isUnavailable)
+        #expect(unavailable.agents.isEmpty)
+    }
+
+    @Test @MainActor
+    func publishesOnlyActiveAgentsWithoutLeakingRawActivity() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LunaSnapshotStore(directoryURL: directory)
+        var reloadCount = 0
+        let publisher = ActiveAgentSnapshotPublisher(store: store) {
+            reloadCount += 1
+        }
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        var working = snapshotConversation(id: 1, state: .working)
+        working.activities = [
+            AgentActivity(
+                id: UUID(),
+                sequence: 1,
+                summary: "Review /Users/private/repository with bearer-token-secret",
+                createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: "2026-01-01T00:00:00Z"
+            ),
+        ]
+
+        publisher.publish(
+            conversations: [
+                working,
+                snapshotConversation(id: 2, state: .idle),
+                snapshotConversation(id: 3, state: .creating),
+                snapshotConversation(id: 4, state: .compacting),
+            ],
+            at: date
+        )
+
+        let snapshot = try #require(try store.readActiveAgents())
+        #expect(snapshot.agents.map(\.id) == [working.id, snapshotUUID(4)])
+        #expect(snapshot.agents.first?.activity == "Reviewing files")
+        let serialized = try String(
+            contentsOf: directory.appending(path: "active-agents-v1.json"),
+            encoding: .utf8
+        )
+        #expect(!serialized.contains("/Users/private"))
+        #expect(!serialized.contains("bearer-token-secret"))
+        #expect(reloadCount == 1)
+
+        publisher.publish(conversations: [working], at: date.addingTimeInterval(60))
+        #expect(reloadCount == 2)
+        publisher.publish(conversations: [working], at: date.addingTimeInterval(120))
+        #expect(reloadCount == 2)
+    }
+
+    @Test
     func rejectsUnknownSnapshotVersions() throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -76,4 +172,29 @@ struct SnapshotTests {
             try store.readActiveAgents()
         }
     }
+}
+
+private func snapshotConversation(id: Int, state: SessionState) -> Conversation {
+    Conversation(
+        id: snapshotUUID(id),
+        title: "Conversation \(id)",
+        titleMode: .automatic,
+        state: state,
+        preview: "",
+        activeWorkingDirectory: "",
+        repositories: [],
+        activities: [],
+        taskList: nil,
+        lastMessageAt: nil,
+        notificationTargetDeviceId: nil,
+        unreadCount: 0,
+        archivedAt: nil,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+        version: 1
+    )
+}
+
+private func snapshotUUID(_ value: Int) -> UUID {
+    UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", value))!
 }
