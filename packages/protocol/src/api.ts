@@ -1,5 +1,11 @@
 import { Type, type Static } from 'typebox'
-import { ApiErrorSchema, CursorSchema, IdSchema, NonEmptyTextSchema } from './common.js'
+import {
+  ApiErrorSchema,
+  CursorSchema,
+  DateTimeSchema,
+  IdSchema,
+  NonEmptyTextSchema,
+} from './common.js'
 import {
   AttachmentSchema,
   BootstrapSchema,
@@ -133,6 +139,24 @@ export const SendMessageResponseSchema = Type.Object(
 )
 export type SendMessageResponse = Static<typeof SendMessageResponseSchema>
 
+export const OpenAiUsageAvailabilitySchema = Type.Union([
+  Type.Literal('available'),
+  Type.Literal('stale'),
+  Type.Literal('unavailable'),
+])
+export type OpenAiUsageAvailability = Static<typeof OpenAiUsageAvailabilitySchema>
+
+export const OpenAiWeeklyUsageSchema = Type.Object(
+  {
+    availability: OpenAiUsageAvailabilitySchema,
+    usedPercent: Type.Optional(Type.Integer({ minimum: 0, maximum: 100 })),
+    resetsAt: Type.Optional(DateTimeSchema),
+    collectedAt: Type.Optional(DateTimeSchema),
+  },
+  { additionalProperties: false },
+)
+export type OpenAiWeeklyUsage = Static<typeof OpenAiWeeklyUsageSchema>
+
 export const ConversationMessagesSchema = Type.Object(
   {
     messages: Type.Array(MessageSchema),
@@ -170,6 +194,7 @@ export const ApiResponseSchemas = {
   ConversationMessages: ConversationMessagesSchema,
   ConversationAgentState: ConversationAgentStateSchema,
   CompactConversationResponse: CompactConversationResponseSchema,
+  OpenAiWeeklyUsage: OpenAiWeeklyUsageSchema,
   AttachmentResponse: AttachmentResponseSchema,
   TranscriptionResponse: TranscriptionResponseSchema,
   Bootstrap: BootstrapSchema,

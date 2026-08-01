@@ -9,11 +9,11 @@ use crate::{
     CompactConversationResponse, ContextUsage, Conversation, ConversationAgentState,
     ConversationList, ConversationMessages, ConversationScope, ConversationTitleUpdated,
     CreateConversationRequest, Device, ErrorCode, ErrorResponse, Message, MessageCompleted,
-    MessageDelta, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
-    RepositoriesUpdated, Repository, RepositoryIcon, SendMessageRequest, SendMessageResponse,
-    ServerEvent, ServerEventEnvelope, SessionState, SteeringQueueChanged, SyncResponse,
-    ThinkingLevel, TranscriptionResponse, UpdateConversationAgentRequest,
-    UpdateConversationRequest, WorkspaceUpdated,
+    MessageDelta, OpenAiUsageAvailability, OpenAiWeeklyUsage, PairingCodeRequestResponse,
+    PairingExchangeRequest, PairingExchangeResponse, RepositoriesUpdated, Repository,
+    RepositoryIcon, SendMessageRequest, SendMessageResponse, ServerEvent, ServerEventEnvelope,
+    SessionState, SteeringQueueChanged, SyncResponse, ThinkingLevel, TranscriptionResponse,
+    UpdateConversationAgentRequest, UpdateConversationRequest, WorkspaceUpdated,
 };
 
 #[utoipa::path(
@@ -58,6 +58,14 @@ fn pairing_exchange() {}
     security(("deviceToken" = []))
 )]
 fn bootstrap() {}
+
+#[utoipa::path(
+    get,
+    path = "/v1/account/openai-usage",
+    responses((status = 200, body = OpenAiWeeklyUsage), (status = 401, body = ApiError)),
+    security(("deviceToken" = []))
+)]
+fn openai_weekly_usage() {}
 
 #[utoipa::path(
     get,
@@ -247,6 +255,7 @@ fn transcriptions_create() {}
         pairing_request,
         pairing_exchange,
         bootstrap,
+        openai_weekly_usage,
         sync,
         conversations_list,
         conversations_create,
@@ -298,6 +307,8 @@ fn transcriptions_create() {}
         Message,
         MessageCompleted,
         MessageDelta,
+        OpenAiUsageAvailability,
+        OpenAiWeeklyUsage,
         PairingCodeRequestResponse,
         PairingExchangeRequest,
         PairingExchangeResponse,

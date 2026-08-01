@@ -10,6 +10,39 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/v1/account/openai-usage": {
+      "get": {
+        "tags": [],
+        "operationId": "openai_weekly_usage",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiWeeklyUsage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ]
+      }
+    },
     "/v1/attachments": {
       "post": {
         "tags": [],
@@ -1685,6 +1718,31 @@
           "deviceId": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "OpenAiUsageAvailability": {
+        "type": "string",
+        "enum": ["available", "stale", "unavailable"]
+      },
+      "OpenAiWeeklyUsage": {
+        "type": "object",
+        "required": ["availability"],
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/OpenAiUsageAvailability"
+          },
+          "collectedAt": {
+            "type": ["string", "null"]
+          },
+          "resetsAt": {
+            "type": ["string", "null"]
+          },
+          "usedPercent": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 0
           }
         }
       },

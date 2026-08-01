@@ -172,6 +172,28 @@ pub enum ConversationScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum OpenAiUsageAvailability {
+    Available,
+    Stale,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenAiWeeklyUsage {
+    pub availability: OpenAiUsageAvailability,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(range(min = 0, max = 100))]
+    #[schema(minimum = 0, maximum = 100)]
+    pub used_percent: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resets_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collected_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationList {
     pub conversations: Vec<Conversation>,

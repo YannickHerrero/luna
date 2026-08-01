@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+  '/v1/account/openai-usage': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['openai_weekly_usage']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/attachments': {
     parameters: {
       query?: never
@@ -589,6 +605,15 @@ export interface components {
       /** Format: uuid */
       deviceId: string
     }
+    /** @enum {string} */
+    OpenAiUsageAvailability: 'available' | 'stale' | 'unavailable'
+    OpenAiWeeklyUsage: {
+      availability: components['schemas']['OpenAiUsageAvailability']
+      collectedAt?: string | null
+      resetsAt?: string | null
+      /** Format: int32 */
+      usedPercent?: number | null
+    }
     PairingCodeRequestResponse: {
       expiresAt: string
     }
@@ -820,6 +845,33 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  openai_weekly_usage: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OpenAiWeeklyUsage']
+        }
+      }
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
   attachments_upload: {
     parameters: {
       query?: never
