@@ -120,6 +120,19 @@ struct ConversationMessages: Codable, Equatable, Sendable {
     let nextBeforeOrdinal: Int64?
 }
 
+enum OpenAiUsageAvailability: String, Codable, Sendable {
+    case available
+    case stale
+    case unavailable
+}
+
+struct OpenAiWeeklyUsage: Codable, Equatable, Sendable {
+    let availability: OpenAiUsageAvailability
+    let usedPercent: Int?
+    let resetsAt: LunaTimestamp?
+    let collectedAt: LunaTimestamp?
+}
+
 struct TranscriptionResponse: Codable, Equatable, Sendable {
     let text: String
 }

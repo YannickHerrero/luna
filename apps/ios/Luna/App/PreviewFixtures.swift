@@ -357,6 +357,16 @@ private actor FixtureHTTPTransport: HTTPTransport {
                     estimatedTokensAfter: 12_000
                 )
             )
+        } else if request.url?.path == "/v1/account/openai-usage" {
+            let format = Date.ISO8601FormatStyle()
+            data = try JSONEncoder().encode(
+                OpenAiWeeklyUsage(
+                    availability: .available,
+                    usedPercent: 63,
+                    resetsAt: format.format(Date.now.addingTimeInterval(3 * 24 * 60 * 60)),
+                    collectedAt: format.format(Date.now.addingTimeInterval(-12 * 60))
+                )
+            )
         } else if request.url?.path == "/v1/conversations",
                   request.url?.query == "scope=archived"
         {

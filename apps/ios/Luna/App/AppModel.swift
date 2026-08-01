@@ -27,6 +27,7 @@ final class AppModel {
     private(set) var phase = AppPhase.loading
     private(set) var bootstrap: Bootstrap?
     private(set) var conversationStore: ConversationStore?
+    private(set) var openAiWeeklyUsage: OpenAiWeeklyUsage?
     var errorMessage: String?
 
     @ObservationIgnored private var pendingRoute: LunaRoute?
@@ -37,6 +38,7 @@ final class AppModel {
     @ObservationIgnored private let eventSource: any EventSource
     @ObservationIgnored private let draftPersistence: ComposerDraftPersistence
     @ObservationIgnored private let activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher
+    @ObservationIgnored private let openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher
 
     init(
         configuration: ServerConfiguration = ServerConfiguration(),
@@ -44,7 +46,8 @@ final class AppModel {
         transport: any HTTPTransport = URLSessionHTTPTransport(),
         eventSource: any EventSource = URLSessionEventSource(),
         draftPersistence: ComposerDraftPersistence = ComposerDraftPersistence(),
-        activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher? = nil
+        activeAgentSnapshotPublisher: ActiveAgentSnapshotPublisher? = nil,
+        openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher? = nil
     ) {
         self.configuration = configuration
         self.credentials = credentials
@@ -55,6 +58,8 @@ final class AppModel {
             ?? ActiveAgentSnapshotPublisher(snapshotDidChange: { snapshot in
                 WatchSnapshotTransmitter.shared.send(snapshot)
             })
+        self.openAIUsageSnapshotPublisher =
+            openAIUsageSnapshotPublisher ?? OpenAIUsageSnapshotPublisher()
     }
 
     var client: APIClient {
@@ -107,7 +112,29 @@ final class AppModel {
         try configuration.update(input)
         bootstrap = nil
         conversationStore = nil
+        openAiWeeklyUsage = nil
+        openAIUsageSnapshotPublisher.publish(
+            OpenAiWeeklyUsage(
+                availability: .unavailable,
+                usedPercent: nil,
+                resetsAt: nil,
+                collectedAt: nil
+            )
+        )
         await start()
+    }
+
+    func refreshOpenAIWeeklyUsage() async {
+        guard phase == .ready else { return }
+        do {
+            let usage: OpenAiWeeklyUsage = try await client.get(
+                "/v1/account/openai-usage"
+            )
+            openAiWeeklyUsage = usage
+            openAIUsageSnapshotPublisher.publish(usage)
+        } catch {
+            // Keep the last valid snapshot so its age can become stale naturally.
+        }
     }
 
     func open(_ url: URL) async {

@@ -86,7 +86,7 @@ struct LunaWatchStatusView: View {
 }
 
 extension LunaWatchWidgetEntry {
-    var freshness: ActiveAgentsSnapshotFreshness {
+    var freshness: LunaSnapshotFreshness {
         snapshot?.freshness(at: date) ?? .unavailable
     }
 

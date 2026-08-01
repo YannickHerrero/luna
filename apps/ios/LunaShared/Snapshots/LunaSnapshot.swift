@@ -5,6 +5,7 @@ enum LunaAppGroup {
     static let activeAgentsWidgetKind = "LunaActiveAgentsWidget"
     static let watchActiveAgentsWidgetKind = "LunaWatchActiveAgentsWidget"
     static let watchActiveAgentsContextKey = "activeAgentsSnapshotV1"
+    static let openAIWeeklyUsageWidgetKind = "LunaOpenAIWeeklyUsageWidget"
 }
 
 enum AgentSnapshotState: String, Codable, CaseIterable, Sendable {
@@ -127,7 +128,7 @@ struct ActiveAgentSnapshot: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-enum ActiveAgentsSnapshotFreshness: Equatable, Sendable {
+enum LunaSnapshotFreshness: Equatable, Sendable {
     case current
     case stale
     case unavailable
@@ -159,7 +160,7 @@ struct ActiveAgentsSnapshot: Codable, Equatable, Sendable {
         )
     }
 
-    func freshness(at date: Date) -> ActiveAgentsSnapshotFreshness {
+    func freshness(at date: Date) -> LunaSnapshotFreshness {
         let age = max(0, date.timeIntervalSince(generatedAt))
         if age > Self.unavailableAfter { return .unavailable }
         if age > Self.staleAfter { return .stale }
@@ -170,6 +171,82 @@ struct ActiveAgentsSnapshot: Codable, Equatable, Sendable {
         case schemaVersion
         case generatedAt
         case agents
+    }
+}
+
+enum OpenAIUsageSnapshotAvailability: String, Codable, Sendable {
+    case available
+    case stale
+    case unavailable
+}
+
+struct OpenAIWeeklyUsageSnapshot: Codable, Equatable, Sendable {
+    static let currentSchemaVersion = 1
+    static let staleAfter: TimeInterval = 15 * 60
+    static let unavailableAfter: TimeInterval = 24 * 60 * 60
+
+    let schemaVersion: Int
+    let availability: OpenAIUsageSnapshotAvailability
+    let usedPercent: Int?
+    let resetsAt: Date?
+    let collectedAt: Date?
+
+    init(
+        availability: OpenAIUsageSnapshotAvailability,
+        usedPercent: Int?,
+        resetsAt: Date?,
+        collectedAt: Date?
+    ) {
+        schemaVersion = Self.currentSchemaVersion
+        if availability != .unavailable,
+           let usedPercent,
+           (0...100).contains(usedPercent),
+           let resetsAt,
+           let collectedAt
+        {
+            self.availability = availability
+            self.usedPercent = usedPercent
+            self.resetsAt = resetsAt
+            self.collectedAt = collectedAt
+        } else {
+            self.availability = .unavailable
+            self.usedPercent = nil
+            self.resetsAt = nil
+            self.collectedAt = nil
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw LunaSnapshotStoreError.unsupportedSchemaVersion
+        }
+        self.init(
+            availability: try values.decode(
+                OpenAIUsageSnapshotAvailability.self,
+                forKey: .availability
+            ),
+            usedPercent: try values.decodeIfPresent(Int.self, forKey: .usedPercent),
+            resetsAt: try values.decodeIfPresent(Date.self, forKey: .resetsAt),
+            collectedAt: try values.decodeIfPresent(Date.self, forKey: .collectedAt)
+        )
+    }
+
+    func freshness(at date: Date) -> LunaSnapshotFreshness {
+        guard availability != .unavailable, let collectedAt else { return .unavailable }
+        let age = max(0, date.timeIntervalSince(collectedAt))
+        if age > Self.unavailableAfter { return .unavailable }
+        if availability == .stale || age > Self.staleAfter { return .stale }
+        return .current
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case availability
+        case usedPercent
+        case resetsAt
+        case collectedAt
     }
 }
 
@@ -195,10 +272,24 @@ enum LunaSnapshotCodec {
         }
         return snapshot
     }
+
+    static func encodeOpenAIWeeklyUsage(_ snapshot: OpenAIWeeklyUsageSnapshot) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(snapshot)
+    }
+
+    static func decodeOpenAIWeeklyUsage(_ data: Data) throws -> OpenAIWeeklyUsageSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(OpenAIWeeklyUsageSnapshot.self, from: data)
+    }
 }
 
 struct LunaSnapshotStore {
     private static let activeAgentsFileName = "active-agents-v1.json"
+    private static let openAIWeeklyUsageFileName = "openai-weekly-usage-v1.json"
 
     private let directoryURL: URL?
     private let fileManager: FileManager
@@ -224,6 +315,23 @@ struct LunaSnapshotStore {
         let url = try snapshotURL(fileName: Self.activeAgentsFileName, createDirectory: false)
         guard fileManager.fileExists(atPath: url.path) else { return nil }
         return try LunaSnapshotCodec.decodeActiveAgents(Data(contentsOf: url))
+    }
+
+    func writeOpenAIWeeklyUsage(_ snapshot: OpenAIWeeklyUsageSnapshot) throws {
+        let url = try snapshotURL(
+            fileName: Self.openAIWeeklyUsageFileName,
+            createDirectory: true
+        )
+        try LunaSnapshotCodec.encodeOpenAIWeeklyUsage(snapshot).write(to: url, options: .atomic)
+    }
+
+    func readOpenAIWeeklyUsage() throws -> OpenAIWeeklyUsageSnapshot? {
+        let url = try snapshotURL(
+            fileName: Self.openAIWeeklyUsageFileName,
+            createDirectory: false
+        )
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        return try LunaSnapshotCodec.decodeOpenAIWeeklyUsage(Data(contentsOf: url))
     }
 
     private func snapshotURL(fileName: String, createDirectory: Bool) throws -> URL {

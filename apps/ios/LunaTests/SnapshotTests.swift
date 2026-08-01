@@ -68,6 +68,77 @@ struct SnapshotTests {
         #expect(!serialized.contains("message"))
     }
 
+    @Test @MainActor
+    func publishesOnlySanitizedWeeklyUsageAndDeduplicatesReloads() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LunaSnapshotStore(directoryURL: directory)
+        var reloadCount = 0
+        let publisher = OpenAIUsageSnapshotPublisher(
+            store: store,
+            reloadTimelines: { reloadCount += 1 }
+        )
+        let usage = OpenAiWeeklyUsage(
+            availability: .available,
+            usedPercent: 63,
+            resetsAt: "2030-03-17T17:46:40Z",
+            collectedAt: "2026-08-01T00:00:00Z"
+        )
+
+        publisher.publish(usage)
+        publisher.publish(usage)
+        let snapshot = try #require(try store.readOpenAIWeeklyUsage())
+        #expect(snapshot.availability == .available)
+        #expect(snapshot.usedPercent == 63)
+        let collectedAt = try #require(snapshot.collectedAt)
+        #expect(snapshot.freshness(at: collectedAt) == .current)
+        #expect(snapshot.freshness(at: collectedAt.addingTimeInterval(16 * 60)) == .stale)
+        #expect(
+            snapshot.freshness(at: collectedAt.addingTimeInterval(25 * 60 * 60))
+                == .unavailable
+        )
+        let staleEntry = OpenAIUsageWidgetEntry(
+            date: collectedAt.addingTimeInterval(16 * 60),
+            snapshot: snapshot
+        )
+        let unavailableEntry = OpenAIUsageWidgetEntry(
+            date: collectedAt.addingTimeInterval(25 * 60 * 60),
+            snapshot: snapshot
+        )
+        #expect(staleEntry.isStale)
+        #expect(staleEntry.usedPercent == 63)
+        #expect(unavailableEntry.freshness == .unavailable)
+        #expect(unavailableEntry.usedPercent == nil)
+        #expect(reloadCount == 1)
+
+        let data = try Data(
+            contentsOf: directory.appending(path: "openai-weekly-usage-v1.json")
+        )
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(
+            Set(object.keys)
+                == ["schemaVersion", "availability", "usedPercent", "resetsAt", "collectedAt"]
+        )
+        let serialized = try #require(String(data: data, encoding: .utf8))
+        #expect(!serialized.contains("token"))
+        #expect(!serialized.contains("account"))
+        #expect(!serialized.contains("credential"))
+
+        publisher.publish(
+            OpenAiWeeklyUsage(
+                availability: .unavailable,
+                usedPercent: nil,
+                resetsAt: nil,
+                collectedAt: nil
+            )
+        )
+        let unavailable = try #require(try store.readOpenAIWeeklyUsage())
+        #expect(unavailable.availability == .unavailable)
+        #expect(unavailable.usedPercent == nil)
+        #expect(reloadCount == 2)
+    }
+
     @Test
     func widgetDistinguishesCurrentStaleAndUnavailableSnapshots() {
         let date = Date(timeIntervalSince1970: 1_700_000_000)

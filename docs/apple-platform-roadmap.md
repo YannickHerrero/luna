@@ -7,7 +7,7 @@ Luna’s first TestFlight archive intentionally reserves the native products tha
 | Product         | Bundle identifier                             | Initial behavior                                        |
 | --------------- | --------------------------------------------- | ------------------------------------------------------- |
 | iPhone/iPad app | `com.yannickherrero.luna`                     | Complete authenticated Luna client                      |
-| iOS widget      | `com.yannickherrero.luna.widgets`             | A2 Activity field for current agents and deep links      |
+| iOS widgets     | `com.yannickherrero.luna.widgets`             | A2 Active Agents and B2 account weekly usage             |
 | Watch companion | `com.yannickherrero.luna.watchkitapp`         | Validates and displays WatchConnectivity snapshots       |
 | Watch widget    | `com.yannickherrero.luna.watchkitapp.widgets` | C3 Work pulse Smart Stack status                         |
 
@@ -32,7 +32,9 @@ Extensions and the Watch must never receive the bearer credential stored in the 
 
 The iOS Active Agents publisher includes only starting, working, compacting, restoring, and retrying conversations. It classifies raw activity into a fixed safe vocabulary, publishes only when display content changes, and requests a timeline reload after an atomic write. The A2 Activity field widget displays current, empty, stale, and unavailable states; small widgets feature one conversation while medium widgets deep-link up to three activity cards.
 
-The same encoded snapshot is sent as WatchConnectivity application context. The Watch rejects malformed or unsupported versions, atomically persists the latest valid value in its App Group, updates companion connection/freshness status, and reloads the C3 Work pulse widget. The widget is a classic user-pinnable accessory-rectangular Smart Stack surface: four static segments encode agent count, the exact total remains textual, and stale or unreachable state never presents old data as live.
+The iOS app also fetches the authenticated server's sanitized OpenAI weekly snapshot when it becomes active. It validates and atomically publishes only availability, used percentage, localizable reset date, and collection date. The B2 Capacity line widget shows percent used (never remaining), formats reset time in the device time zone, retains stale values with explicit age, and renders unavailable instead of inventing a value.
+
+The same encoded active-agent snapshot is sent as WatchConnectivity application context. The Watch rejects malformed or unsupported versions, atomically persists the latest valid value in its App Group, updates companion connection/freshness status, and reloads the C3 Work pulse widget. The widget is a classic user-pinnable accessory-rectangular Smart Stack surface: four static segments encode agent count, the exact total remains textual, and stale or unreachable state never presents old data as live.
 
 The intended flow is:
 

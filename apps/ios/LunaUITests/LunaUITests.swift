@@ -290,6 +290,25 @@ final class LunaUITests: XCTestCase {
     }
 
     @MainActor
+    func testOpenAIUsageWidgetLayoutsRender() {
+        let application = XCUIApplication()
+        application.launchArguments = [
+            "-ui-testing-ready", "-ui-testing-usage-widget-preview", "-luna-theme", "latte",
+        ]
+        application.launch()
+
+        XCTAssertTrue(
+            application.descendants(matching: .any)["openai-usage-widget-preview"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(application.staticTexts["B2 · Capacity line"].exists)
+        XCTAssertTrue(application.staticTexts["WEEKLY USAGE"].exists)
+        XCTAssertTrue(application.staticTexts["63%"].exists)
+        XCTAssertTrue(application.staticTexts["63% used"].exists)
+        XCTAssertFalse(application.staticTexts["37%"].exists)
+    }
+
+    @MainActor
     func testConversationSupportsLeadingEdgeSwipeBack() {
         let application = XCUIApplication()
         application.launchArguments = ["-ui-testing-ready", "-luna-theme", "latte"]

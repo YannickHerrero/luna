@@ -5,5 +5,6 @@ import WidgetKit
 struct LunaWidgetBundle: WidgetBundle {
     var body: some Widget {
         LunaActiveAgentsWidget()
+        LunaOpenAIWeeklyUsageWidget()
     }
 }

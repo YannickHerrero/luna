@@ -122,6 +122,40 @@ struct PairingTests {
     }
 
     @Test
+    func refreshesAndPublishesSanitizedAccountUsage() async throws {
+        let credentials = MemoryCredentialStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let snapshotStore = LunaSnapshotStore(directoryURL: directory)
+        let transport = PairingTransport([
+            .init(status: 201, data: pairingResponseData()),
+            .init(
+                status: 200,
+                data: Data(
+                    #"{"availability":"available","usedPercent":63,"resetsAt":"2030-03-17T17:46:40Z","collectedAt":"2026-08-01T00:00:00Z"}"#.utf8
+                )
+            ),
+        ])
+        let model = AppModel(
+            configuration: ServerConfiguration(defaults: temporaryDefaults(), fallback: server),
+            credentials: credentials,
+            transport: transport,
+            openAIUsageSnapshotPublisher: OpenAIUsageSnapshotPublisher(
+                store: snapshotStore,
+                reloadTimelines: {}
+            )
+        )
+
+        try await model.pair(code: "123456", deviceName: "Usage iPhone")
+        await model.refreshOpenAIWeeklyUsage()
+
+        #expect(model.openAiWeeklyUsage?.usedPercent == 63)
+        #expect(try snapshotStore.readOpenAIWeeklyUsage()?.usedPercent == 63)
+        #expect(await transport.lastRequest()?.url?.path == "/v1/account/openai-usage")
+    }
+
+    @Test
     func rejectsAnIncompatibleProtocolBeforeSavingCredentials() async {
         let credentials = MemoryCredentialStore()
         let incompatible = Data(

@@ -31,6 +31,7 @@
 		3EA48570E5A5D7725E448D37 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EBD08A622DC05B5D6C4BA28 /* RootView.swift */; };
 		45DB3855FB7B9F2F63A94E4B /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6EE1E3B3B745AD07D2E75 /* PairingView.swift */; };
 		468B9F13174914AE84E432A1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A63041E831EF9240CE61F907 /* PrivacyInfo.xcprivacy */; };
+		4D37068F333E44671CB99DEF /* LunaOpenAIWeeklyUsageWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13CA74F7C0A7A7CF504DA963 /* LunaOpenAIWeeklyUsageWidget.swift */; };
 		5024609EE38307661CBC945C /* LunaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446892BB5B365737EE00315F /* LunaApp.swift */; };
 		55B9BB28E50143DAD4976951 /* ConversationShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E74A437020C38E3448B41E /* ConversationShellView.swift */; };
 		56F7F3D8D5376ECA09ECCCC4 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
@@ -51,6 +52,7 @@
 		8A551BB80F78B6EB3575F6E2 /* LunaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECFD1B295E68E217F4E87326 /* LunaTheme.swift */; };
 		8D5EC7878405F2CDC13AF4DB /* AuthenticatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736E33EAB2B5AA9512E1F8B0 /* AuthenticatedImageView.swift */; };
 		8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E615B4F62478DD81610EC904 /* MarkdownView.swift */; };
+		93186B874405CD2E87DD6D74 /* OpenAIWeeklyUsageWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F614FF2902017E8F64F66046 /* OpenAIWeeklyUsageWidgetView.swift */; };
 		93FFE8FCDE8C11B7895E2171 /* ProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0A80C2D2C9CD3BC17BF432 /* ProtocolTests.swift */; };
 		960D617D2DD0D4E429DB97EB /* LunaColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A68162DD0A4DA703F05A031 /* LunaColors.swift */; };
 		9FC002CF6EAE2CE8DA87219A /* ComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541218330E7B427920F4074 /* ComposerTests.swift */; };
@@ -66,11 +68,13 @@
 		ADAA261DA97E6083EF38B36F /* ConversationProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222CFCA4902A56874DAE3523 /* ConversationProjectTests.swift */; };
 		B99CF26BC392563D2FC2C9EA /* WatchSnapshotReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF2045279740F035BC65FAD /* WatchSnapshotReceiver.swift */; };
 		B9DD7592B8189322F409309D /* NetworkingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */; };
+		BB339632BCCA8D0BEBE7B1FD /* OpenAIUsageSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420B5649FF5FDA33B452ABA1 /* OpenAIUsageSnapshotPublisher.swift */; };
 		C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAFADCFD36370FA374DB042 /* PreviewFixtures.swift */; };
 		C145F46484E61AF629AD4AD9 /* ConversationStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF07C179E6289F68DAA211AD /* ConversationStateTests.swift */; };
 		C248E43AA2CDE4213041AF56 /* LunaSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23D015387B7B2BCF485CCBD /* LunaSnapshot.swift */; };
 		C2F36A2D4F3DA6AED2E85243 /* CodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C04A59F739F0222CEDB8885F /* CodeHighlighter.swift */; };
 		C457C3B6B6A743B7D64EF1FE /* AgentControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D52EB1E0C99044C5EA937635 /* AgentControlsTests.swift */; };
+		C4AB73CB2C3EECD44F09786D /* OpenAIWeeklyUsageWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F614FF2902017E8F64F66046 /* OpenAIWeeklyUsageWidgetView.swift */; };
 		C57DD66DBB68DEAA4B849838 /* Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BBCE5382FCDBEC76F3E0884 /* Events.swift */; };
 		C68DA4A7E0EA7E8D80BA1CDA /* ServerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8489E32B1B544E45875F735D /* ServerConfiguration.swift */; };
 		C9B4CB2784C05A6A6CB1E3EA /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0695B7744D91951C5A34E305 /* ConversationStore.swift */; };
@@ -187,6 +191,7 @@
 		0EBD08A622DC05B5D6C4BA28 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		10DD83F26A896CBD3D7BB2BC /* Entities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entities.swift; sourceTree = "<group>"; };
 		1371E2642AF91DD26B4B5BB7 /* LunaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWidgets.swift; sourceTree = "<group>"; };
+		13CA74F7C0A7A7CF504DA963 /* LunaOpenAIWeeklyUsageWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaOpenAIWeeklyUsageWidget.swift; sourceTree = "<group>"; };
 		163F0417C18372A85FE3A2F0 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		19DB4F9947491A7E033BA1FA /* AuthenticatedImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedImageLoader.swift; sourceTree = "<group>"; };
 		1C370C7ADBA88F9E1C17C2E1 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
@@ -207,6 +212,7 @@
 		3BBCE5382FCDBEC76F3E0884 /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
 		3EF2045279740F035BC65FAD /* WatchSnapshotReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotReceiver.swift; sourceTree = "<group>"; };
 		3F653247BADE2D7A149AF14D /* LunaWatchStatusWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWatchStatusWidgetView.swift; sourceTree = "<group>"; };
+		420B5649FF5FDA33B452ABA1 /* OpenAIUsageSnapshotPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageSnapshotPublisher.swift; sourceTree = "<group>"; };
 		446892BB5B365737EE00315F /* LunaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaApp.swift; sourceTree = "<group>"; };
 		494275FBF9232216D6DD62DD /* LunaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LunaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B6D3245D093FD94CF3058BF /* LunaActiveAgentsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaActiveAgentsWidget.swift; sourceTree = "<group>"; };
@@ -258,6 +264,7 @@
 		ECFD1B295E68E217F4E87326 /* LunaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaTheme.swift; sourceTree = "<group>"; };
 		F35B1CB79E061E08CB29C3DF /* LunaSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaSurface.swift; sourceTree = "<group>"; };
 		F3C1CD8EA4E21A6E473A2295 /* ActiveAgentSnapshotPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveAgentSnapshotPublisher.swift; sourceTree = "<group>"; };
+		F614FF2902017E8F64F66046 /* OpenAIWeeklyUsageWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIWeeklyUsageWidgetView.swift; sourceTree = "<group>"; };
 		F65C6B3ABF9AC0E142BCDC55 /* NetworkingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingTests.swift; sourceTree = "<group>"; };
 		F77EA033D26FA403D3E29B40 /* ComposerDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDraft.swift; sourceTree = "<group>"; };
 		F7FC38FEEBDFE6AEEABF6F15 /* LunaActiveAgentsWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaActiveAgentsWidgetView.swift; sourceTree = "<group>"; };
@@ -453,6 +460,7 @@
 			isa = PBXGroup;
 			children = (
 				F7FC38FEEBDFE6AEEABF6F15 /* LunaActiveAgentsWidgetView.swift */,
+				F614FF2902017E8F64F66046 /* OpenAIWeeklyUsageWidgetView.swift */,
 			);
 			path = LunaWidgetShared;
 			sourceTree = "<group>";
@@ -461,6 +469,7 @@
 			isa = PBXGroup;
 			children = (
 				4B6D3245D093FD94CF3058BF /* LunaActiveAgentsWidget.swift */,
+				13CA74F7C0A7A7CF504DA963 /* LunaOpenAIWeeklyUsageWidget.swift */,
 				1371E2642AF91DD26B4B5BB7 /* LunaWidgets.swift */,
 				A63041E831EF9240CE61F907 /* PrivacyInfo.xcprivacy */,
 			);
@@ -549,6 +558,7 @@
 				F3C1CD8EA4E21A6E473A2295 /* ActiveAgentSnapshotPublisher.swift */,
 				994F478C79239B9A8C3F52C0 /* ConversationState.swift */,
 				0695B7744D91951C5A34E305 /* ConversationStore.swift */,
+				420B5649FF5FDA33B452ABA1 /* OpenAIUsageSnapshotPublisher.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -990,6 +1000,8 @@
 				8FD54FEB77B276E4D3A0302B /* MarkdownView.swift in Sources */,
 				17C99E4C508FB16C3508A883 /* MultipartForm.swift in Sources */,
 				E565027D51984EC95E5ACB47 /* NativeComposerInputs.swift in Sources */,
+				BB339632BCCA8D0BEBE7B1FD /* OpenAIUsageSnapshotPublisher.swift in Sources */,
+				C4AB73CB2C3EECD44F09786D /* OpenAIWeeklyUsageWidgetView.swift in Sources */,
 				45DB3855FB7B9F2F63A94E4B /* PairingView.swift in Sources */,
 				C07AD33770DB2AAE5E586782 /* PreviewFixtures.swift in Sources */,
 				3EA48570E5A5D7725E448D37 /* RootView.swift in Sources */,
@@ -1014,8 +1026,10 @@
 				3B0E15F02AAE51D48DC72EE5 /* LunaActiveAgentsWidget.swift in Sources */,
 				F3C64648157E5510355FD0AC /* LunaActiveAgentsWidgetView.swift in Sources */,
 				ABA8D6972EE584D148484EDF /* LunaColors.swift in Sources */,
+				4D37068F333E44671CB99DEF /* LunaOpenAIWeeklyUsageWidget.swift in Sources */,
 				C248E43AA2CDE4213041AF56 /* LunaSnapshot.swift in Sources */,
 				DF4CCA95E8B781CCC07B864A /* LunaWidgets.swift in Sources */,
+				93186B874405CD2E87DD6D74 /* OpenAIWeeklyUsageWidgetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -86,7 +86,7 @@ The iOS UI suite includes deterministic pairing and ready-state fixtures, popula
 - `LunaShared/Snapshots`: versioned, allowlisted App Group snapshot models and storage
 - `LunaTests`: protocol, networking, state, Markdown, composer, pairing, and control tests
 - `LunaUITests`: end-to-end native fixture and accessibility acceptance tests
-- `LunaWidgets`: A2 Activity field widget for current iPhone/iPad agents
+- `LunaWidgets`: A2 Active Agents and B2 OpenAI weekly-limit widgets
 - `LunaWatch`: WatchConnectivity-backed companion status and tests
 - `LunaWatchWidgets`: C3 Work pulse Smart Stack widget
 
@@ -96,7 +96,7 @@ Simulator builds do not require signing. For physical-device signing, copy `Conf
 
 The main app reserves the Push Notifications entitlement, stable `luna://home` and `luna://conversation/<UUID>` routes, and the server’s existing notification-target state. Notification permission, APNs token registration, and provider delivery remain intentionally deferred. Do not add or reuse an APNs provider `.p8` key until the server registration and delivery routes are designed and approved.
 
-The app, widget, Watch app, and Watch widget declare `group.com.yannickherrero.luna` and compile the same versioned, allowlisted active-agent snapshot store. The iPhone sends only that encoded snapshot through WatchConnectivity application context; the Watch validates and persists it before reloading the C3 Smart Stack widget. Device credentials remain in the iOS Keychain and are never represented in snapshot models or copied to extensions or the Watch. Physical-device and distribution signing require associating the App Group with every participating App ID and regenerating profiles during an explicitly approved release stage.
+The app, widget, Watch app, and Watch widget declare `group.com.yannickherrero.luna` and compile the same versioned, allowlisted snapshot store. Active-agent and OpenAI usage files have separate schemas; the latter contains only source availability, used percentage, reset time, and collection time. The iPhone sends only the encoded active-agent snapshot through WatchConnectivity application context; the Watch validates and persists it before reloading the C3 Smart Stack widget. Device credentials remain in the iOS Keychain and are never represented in snapshot models or copied to extensions or the Watch. Physical-device and distribution signing require associating the App Group with every participating App ID and regenerating profiles during an explicitly approved release stage.
 
 ## TestFlight
 
