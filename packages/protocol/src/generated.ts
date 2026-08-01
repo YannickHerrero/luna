@@ -212,6 +212,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/devices/me/apns': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put: operations['apns_registration_upsert']
+    post?: never
+    delete: operations['apns_registration_delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/health/live': {
     parameters: {
       query?: never
@@ -389,6 +405,8 @@ export interface components {
       requestId?: string | null
       retryable: boolean
     }
+    /** @enum {string} */
+    ApnsEnvironment: 'sandbox' | 'production'
     Attachment: {
       /** Format: int64 */
       byteSize: number
@@ -603,7 +621,7 @@ export interface components {
       'pending' | 'accepted' | 'queued' | 'streaming' | 'completed' | 'interrupted' | 'failed'
     NotificationTargetChanged: {
       /** Format: uuid */
-      deviceId: string
+      deviceId?: string | null
     }
     /** @enum {string} */
     OpenAiUsageAvailability: 'available' | 'stale' | 'unavailable'
@@ -832,6 +850,12 @@ export interface components {
       /** Format: uuid */
       avatarAttachmentId?: string | null
       title?: string | null
+    }
+    UpsertApnsRegistrationRequest: {
+      appVersion?: string | null
+      environment: components['schemas']['ApnsEnvironment']
+      token: string
+      topic: string
     }
     WorkspaceUpdated: {
       workingDirectory: string
@@ -1277,6 +1301,80 @@ export interface operations {
         }
       }
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
+  apns_registration_upsert: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpsertApnsRegistrationRequest']
+      }
+    }
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Device']
+        }
+      }
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApiError']
+        }
+      }
+    }
+  }
+  apns_registration_delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Device']
+        }
+      }
+      401: {
         headers: {
           [name: string]: unknown
         }
