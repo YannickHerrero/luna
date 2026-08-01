@@ -198,6 +198,47 @@ async fn orders_conversations_by_their_latest_message() {
 }
 
 #[tokio::test]
+async fn marks_active_runtime_states_interrupted_for_graceful_shutdown() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let database = Database::connect(&directory.path().join("shutdown.sqlite"))
+        .await
+        .expect("database");
+    let id = Uuid::new_v4();
+    database
+        .create_conversation(id, "/Users/test", "2026-01-01T00:00:00Z")
+        .await
+        .expect("conversation");
+    database
+        .set_conversation_state(id, SessionState::Working, "2026-01-01T00:01:00Z")
+        .await
+        .expect("working state");
+
+    assert_eq!(
+        database
+            .interrupt_active_conversations("2026-01-01T00:02:00Z")
+            .await
+            .expect("graceful interruption"),
+        vec![id]
+    );
+    assert_eq!(
+        database
+            .conversation(id)
+            .await
+            .expect("conversation")
+            .expect("present")
+            .state,
+        SessionState::Interrupted
+    );
+    assert!(
+        database
+            .recover_interrupted_conversations("2026-01-01T00:03:00Z")
+            .await
+            .expect("restart recovery")
+            .is_empty()
+    );
+}
+
+#[tokio::test]
 async fn marks_interrupted_runtime_states_as_crashed() {
     let directory = tempfile::tempdir().expect("temp directory");
     let database = Database::connect(&directory.path().join("recovery.sqlite"))

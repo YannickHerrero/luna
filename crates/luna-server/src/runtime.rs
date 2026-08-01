@@ -385,6 +385,9 @@ impl ConversationRuntime {
     pub async fn shutdown(&self) {
         self.shutting_down.store(true, Ordering::Release);
         self.supervisor.shutdown().await;
+        if let Err(error) = self.persist_shutdown_interruptions().await {
+            warn!("Unable to persist graceful shutdown state: {error}");
+        }
     }
 
     async fn pump(self: Arc<Self>, session: Arc<ManagedSession>) {
@@ -850,6 +853,56 @@ impl ConversationRuntime {
                 &timestamp,
             )
             .await?;
+        Ok(())
+    }
+
+    async fn persist_shutdown_interruptions(&self) -> Result<(), AppError> {
+        let timestamp = now()?;
+        let interrupted = self
+            .database
+            .interrupt_active_conversations(&timestamp)
+            .await?;
+        for message in self.database.recover_streaming_messages(&timestamp).await? {
+            self.events
+                .append(
+                    Some(message.conversation_id),
+                    Some(message.id),
+                    &ServerEvent::MessageUpserted(message),
+                    &timestamp,
+                )
+                .await?;
+        }
+        for conversation_id in interrupted {
+            let reset = self
+                .database
+                .reset_agent_activities(conversation_id, &timestamp)
+                .await?;
+            self.events.publish(reset);
+            self.events
+                .append(
+                    Some(conversation_id),
+                    Some(conversation_id),
+                    &ServerEvent::AgentActivityChanged(AgentActivityChanged {
+                        active: false,
+                        phase: ActivityPhase::Thinking,
+                    }),
+                    &timestamp,
+                )
+                .await?;
+            self.events
+                .append(
+                    Some(conversation_id),
+                    Some(conversation_id),
+                    &ServerEvent::SessionStateChanged {
+                        state: SessionState::Interrupted,
+                    },
+                    &timestamp,
+                )
+                .await?;
+            self.notifications
+                .complete_cycle(conversation_id, None, AgentCycleOutcome::Interrupted)
+                .await?;
+        }
         Ok(())
     }
 

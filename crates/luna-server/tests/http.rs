@@ -1302,3 +1302,76 @@ async fn proxies_voice_transcription_without_persisting_audio() {
     assert!(!directory.path().join("attachments").exists());
     upstream.abort();
 }
+
+#[tokio::test]
+async fn graceful_shutdown_persists_interrupted_conversation_state() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let built = app::build(config(directory.path())).await.expect("app");
+    let conversation_id = uuid::Uuid::new_v4();
+    built
+        .database
+        .create_conversation(conversation_id, "/Users/test", "2026-08-01T12:00:00Z")
+        .await
+        .expect("conversation");
+    built
+        .database
+        .set_conversation_state(
+            conversation_id,
+            luna_protocol::SessionState::Working,
+            "2026-08-01T12:00:01Z",
+        )
+        .await
+        .expect("working state");
+    built
+        .database
+        .upsert_agent_activity(
+            conversation_id,
+            uuid::Uuid::new_v4(),
+            0,
+            "Restarting Luna",
+            "2026-08-01T12:00:02Z",
+        )
+        .await
+        .expect("agent activity");
+    let assistant_message_id = uuid::Uuid::new_v4();
+    built
+        .database
+        .begin_assistant_message(
+            conversation_id,
+            assistant_message_id,
+            "2026-08-01T12:00:03Z",
+        )
+        .await
+        .expect("streaming message");
+
+    built.runtime.shutdown().await;
+
+    assert_eq!(
+        built
+            .database
+            .conversation(conversation_id)
+            .await
+            .expect("conversation")
+            .expect("present")
+            .state,
+        luna_protocol::SessionState::Interrupted
+    );
+    assert!(
+        built
+            .database
+            .agent_activities(conversation_id)
+            .await
+            .expect("activities")
+            .is_empty()
+    );
+    let messages = built
+        .database
+        .messages(conversation_id, None, 10)
+        .await
+        .expect("messages");
+    assert_eq!(messages.len(), 1);
+    assert_eq!(
+        messages[0].status,
+        luna_protocol::MessageStatus::Interrupted
+    );
+}

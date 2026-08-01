@@ -158,6 +158,28 @@ impl Database {
         }))
     }
 
+    pub async fn interrupt_active_conversations(
+        &self,
+        updated_at: &str,
+    ) -> Result<Vec<Uuid>, StorageError> {
+        let ids: Vec<String> = sqlx::query_scalar(
+            "SELECT id FROM conversations WHERE archived_at IS NULL AND state IN ('starting', 'working', 'compacting', 'retrying', 'restoring')",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        if !ids.is_empty() {
+            sqlx::query(
+                "UPDATE conversations SET state = 'interrupted', updated_at = ?, version = version + 1 WHERE archived_at IS NULL AND state IN ('starting', 'working', 'compacting', 'retrying', 'restoring')",
+            )
+            .bind(updated_at)
+            .execute(self.pool())
+            .await?;
+        }
+        ids.into_iter()
+            .map(|id| Uuid::parse_str(&id).map_err(StorageError::from))
+            .collect()
+    }
+
     pub async fn recover_interrupted_conversations(
         &self,
         updated_at: &str,
