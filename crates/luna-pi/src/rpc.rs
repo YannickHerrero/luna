@@ -99,7 +99,9 @@ impl PiProcess {
         }
         let mut child = command.spawn().map_err(PiError::Spawn)?;
         let child_pid = child.id();
-        let stdin = child.stdin.take().ok_or(PiError::NotRunning)?;
+        let stdin = Arc::new(Mutex::new(Some(
+            child.stdin.take().ok_or(PiError::NotRunning)?,
+        )));
         let stdout = child.stdout.take().ok_or(PiError::NotRunning)?;
         let stderr = child.stderr.take().ok_or(PiError::NotRunning)?;
         let pending = Pending::default();
@@ -107,7 +109,13 @@ impl PiProcess {
         let (status_sender, status) = watch::channel(ProcessStatus::Starting);
         let (shutdown, mut shutdown_receiver) = mpsc::channel(1);
 
-        tokio::spawn(read_stdout(stdout, pending.clone(), events.clone()));
+        tokio::spawn(read_stdout(
+            stdout,
+            pending.clone(),
+            events.clone(),
+            stdin.clone(),
+            shutdown.clone(),
+        ));
         tokio::spawn(async move {
             let mut lines = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
@@ -148,14 +156,17 @@ impl PiProcess {
         });
 
         let process = Self {
-            stdin: Arc::new(Mutex::new(Some(stdin))),
+            stdin,
             pending,
             events,
             status,
             shutdown,
             request_timeout: config.request_timeout,
         };
-        process.get_state().await?;
+        if let Err(error) = process.get_state().await {
+            process.shutdown().await;
+            return Err(error);
+        }
         Ok(process)
     }
 
@@ -331,6 +342,8 @@ async fn read_stdout(
     stdout: tokio::process::ChildStdout,
     pending: Pending,
     events: broadcast::Sender<PiEvent>,
+    stdin: Arc<Mutex<Option<ChildStdin>>>,
+    shutdown: mpsc::Sender<()>,
 ) {
     let mut reader = BufReader::new(stdout);
     loop {
@@ -352,6 +365,8 @@ async fn read_stdout(
             }
         }
     }
+    stdin.lock().await.take();
+    let _ = shutdown.send(()).await;
     let mut pending = pending.lock().await;
     for (_, sender) in pending.drain() {
         let _ = sender.send(Err(PiError::NotRunning));

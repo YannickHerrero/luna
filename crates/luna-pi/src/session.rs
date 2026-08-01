@@ -1,10 +1,11 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
-use tokio::sync::Mutex;
+use tokio::{fs::File, io::BufReader, sync::Mutex};
 use uuid::Uuid;
 
 use crate::{
     BridgeError, PiBridge, PiError, PiProcess, PiProcessConfig, RpcDelivery, RpcImage, RpcResponse,
+    read_jsonl_record,
 };
 
 #[derive(Debug, Clone)]
@@ -20,6 +21,7 @@ pub struct ManagedSession {
     pub conversation_id: Uuid,
     pub process: PiProcess,
     pub bridge: PiBridge,
+    session_path: Option<PathBuf>,
     dispatch_lock: Mutex<()>,
 }
 
@@ -49,25 +51,10 @@ impl ManagedSession {
     }
 
     pub async fn has_dispatch_marker(&self, dispatch_id: Uuid) -> Result<bool, SessionError> {
-        let response = self.process.get_entries(None).await?;
-        let dispatch_id = dispatch_id.to_string();
-        let entries = response
-            .data
-            .as_ref()
-            .and_then(|data| data.get("entries"))
-            .and_then(serde_json::Value::as_array);
-        Ok(entries.is_some_and(|entries| {
-            entries.iter().any(|entry| {
-                entry.get("type").and_then(serde_json::Value::as_str) == Some("custom")
-                    && entry.get("customType").and_then(serde_json::Value::as_str)
-                        == Some("luna-dispatch")
-                    && entry
-                        .get("data")
-                        .and_then(|data| data.get("dispatchId"))
-                        .and_then(serde_json::Value::as_str)
-                        .is_some_and(|value| value == dispatch_id)
-            })
-        }))
+        let Some(session_path) = &self.session_path else {
+            return Ok(false);
+        };
+        Ok(session_contains_dispatch_marker(session_path, dispatch_id).await?)
     }
 
     pub async fn abort(&self) -> Result<RpcResponse, SessionError> {
@@ -144,7 +131,7 @@ impl SessionSupervisor {
             executable: self.config.pi_executable.clone(),
             working_directory,
             session_directory: self.config.session_directory.clone(),
-            session_path,
+            session_path: session_path.clone(),
             extension_path: Some(self.config.bridge_extension.clone()),
             environment,
             request_timeout: self.config.request_timeout,
@@ -166,6 +153,7 @@ impl SessionSupervisor {
             conversation_id,
             process,
             bridge,
+            session_path,
             dispatch_lock: Mutex::new(()),
         });
         sessions.insert(conversation_id, session.clone());
@@ -192,10 +180,92 @@ impl SessionSupervisor {
     }
 }
 
+async fn session_contains_dispatch_marker(
+    session_path: &std::path::Path,
+    dispatch_id: Uuid,
+) -> Result<bool, PiError> {
+    let file = File::open(session_path).await?;
+    let mut reader = BufReader::new(file);
+    let dispatch_id = dispatch_id.to_string();
+    while let Some(entry) = read_jsonl_record(&mut reader).await? {
+        if entry.get("type").and_then(serde_json::Value::as_str) == Some("custom")
+            && entry.get("customType").and_then(serde_json::Value::as_str) == Some("luna-dispatch")
+            && entry
+                .get("data")
+                .and_then(|data| data.get("dispatchId"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value == dispatch_id)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
     #[error(transparent)]
     Pi(#[from] PiError),
     #[error(transparent)]
     Bridge(#[from] BridgeError),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use serde_json::json;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn scans_dispatch_markers_after_more_than_one_rpc_frame_of_history() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let session_path = directory.path().join("large-session.jsonl");
+        let mut session = std::fs::File::create(&session_path).expect("session file");
+        let payload = "x".repeat(1024 * 1024);
+        for sequence in 0..17 {
+            writeln!(
+                session,
+                "{}",
+                json!({
+                    "type": "custom",
+                    "id": format!("history-{sequence}"),
+                    "customType": "history",
+                    "data": { "payload": &payload }
+                })
+            )
+            .expect("history entry");
+        }
+        let dispatch_id = Uuid::new_v4();
+        writeln!(
+            session,
+            "{}",
+            json!({
+                "type": "custom",
+                "id": "dispatch-marker",
+                "customType": "luna-dispatch",
+                "data": { "dispatchId": dispatch_id }
+            })
+        )
+        .expect("dispatch marker");
+        session.flush().expect("flush session");
+
+        assert!(
+            std::fs::metadata(&session_path)
+                .expect("session metadata")
+                .len()
+                > 16 * 1024 * 1024
+        );
+        assert!(
+            session_contains_dispatch_marker(&session_path, dispatch_id)
+                .await
+                .expect("marker scan")
+        );
+        assert!(
+            !session_contains_dispatch_marker(&session_path, Uuid::new_v4())
+                .await
+                .expect("missing marker scan")
+        );
+    }
 }

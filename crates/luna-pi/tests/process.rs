@@ -3,6 +3,16 @@ use std::{collections::HashMap, fs, path::Path, time::Duration};
 use luna_pi::{NormalizedPiEvent, PiProcess, PiProcessConfig, RpcDelivery};
 use serde_json::json;
 
+fn make_executable(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("permissions");
+    }
+}
+
 fn write_fake_pi(path: &Path) {
     fs::write(
         path,
@@ -41,13 +51,49 @@ process.stdin.on('data', chunk => {
 "#,
     )
     .expect("fake Pi");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut permissions = fs::metadata(path).expect("metadata").permissions();
-        permissions.set_mode(0o700);
-        fs::set_permissions(path, permissions).expect("permissions");
+    make_executable(path);
+}
+
+fn write_failing_pi(path: &Path) {
+    fs::write(
+        path,
+        r#"#!/usr/bin/env node
+const fs = require('node:fs')
+const failOn = process.env.FAKE_PI_FAIL_ON
+const stoppedPath = process.env.FAKE_PI_STOPPED_PATH
+let buffer = ''
+process.stdin.on('data', chunk => {
+  buffer += chunk.toString('utf8')
+  while (buffer.includes('\n')) {
+    const index = buffer.indexOf('\n')
+    const request = JSON.parse(buffer.slice(0, index))
+    buffer = buffer.slice(index + 1)
+    if (request.type === failOn) {
+      console.log('{')
+    } else if (request.type === 'get_state') {
+      console.log(JSON.stringify({id: request.id, type:'response', command:'get_state', success:true, data:{isStreaming:false, sessionId:'fake'}}))
     }
+  }
+})
+process.stdin.on('end', () => {
+  fs.writeFileSync(stoppedPath, 'stopped')
+  process.exit(0)
+})
+setInterval(() => {}, 1000)
+"#,
+    )
+    .expect("failing fake Pi");
+    make_executable(path);
+}
+
+async fn wait_for_file(path: &Path) {
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while !path.exists() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("process cleanup");
 }
 
 #[tokio::test]
@@ -128,4 +174,67 @@ async fn controls_a_structured_rpc_process() {
         NormalizedPiEvent::AgentSettled
     );
     process.shutdown().await;
+}
+
+#[tokio::test]
+async fn stops_the_child_when_initial_state_fails() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let executable = directory.path().join("failing-pi");
+    let stopped_path = directory.path().join("stopped");
+    write_failing_pi(&executable);
+    let result = PiProcess::spawn(PiProcessConfig {
+        executable,
+        working_directory: directory.path().into(),
+        session_directory: directory.path().join("sessions"),
+        session_path: None,
+        extension_path: None,
+        environment: HashMap::from([
+            ("FAKE_PI_FAIL_ON".into(), "get_state".into()),
+            (
+                "FAKE_PI_STOPPED_PATH".into(),
+                stopped_path.to_string_lossy().into_owned(),
+            ),
+        ]),
+        request_timeout: Duration::from_secs(2),
+    })
+    .await;
+
+    assert!(result.is_err());
+    wait_for_file(&stopped_path).await;
+}
+
+#[tokio::test]
+async fn stops_the_child_when_rpc_stdout_becomes_invalid() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let executable = directory.path().join("failing-pi");
+    let stopped_path = directory.path().join("stopped");
+    write_failing_pi(&executable);
+    let process = PiProcess::spawn(PiProcessConfig {
+        executable,
+        working_directory: directory.path().into(),
+        session_directory: directory.path().join("sessions"),
+        session_path: None,
+        extension_path: None,
+        environment: HashMap::from([
+            ("FAKE_PI_FAIL_ON".into(), "get_available_models".into()),
+            (
+                "FAKE_PI_STOPPED_PATH".into(),
+                stopped_path.to_string_lossy().into_owned(),
+            ),
+        ]),
+        request_timeout: Duration::from_secs(2),
+    })
+    .await
+    .expect("Pi process");
+
+    assert!(process.get_available_models().await.is_err());
+    wait_for_file(&stopped_path).await;
+    let mut status = process.status();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while matches!(*status.borrow(), luna_pi::ProcessStatus::Running) {
+            status.changed().await.expect("status change");
+        }
+    })
+    .await
+    .expect("process exit status");
 }
