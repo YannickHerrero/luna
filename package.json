@@ -7,8 +7,9 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "pnpm build:web && cargo build --release -p luna-server",
+    "build": "pnpm build:web && cargo build --release -p luna-server -p luna-tui",
     "build:server": "cargo build --release -p luna-server",
+    "build:tui": "cargo build --release -p luna-tui",
     "build:web": "pnpm --filter @luna/protocol build && pnpm --filter @luna/web build",
     "dev": "cargo run -p luna-server",
     "dev:web": "pnpm --filter @luna/web dev",

@@ -18,9 +18,31 @@ pnpm build
 ```
 
 `pnpm build` exports the PWA to `apps/web/out` and builds
-`target/release/luna-server`. Citadel starts only that release binary; Node is used by the Pi
+`target/release/luna-server` plus the on-demand `target/release/luna-tui` client. Citadel starts
+only the server binary; the TUI runs solely for interactive SSH sessions. Node is used by the Pi
 subprocess and at build time, not as a second web service. The server invokes the locally
 authenticated `codex app-server` on demand to collect the general account weekly limit.
+
+## Install the optional SSH terminal client
+
+Install the release binary for the account used by SSH:
+
+```sh
+install -d "$HOME/.local/bin"
+install -m 755 target/release/luna-tui "$HOME/.local/bin/luna-tui"
+```
+
+Pair it through the private Tailscale HTTPS origin before relying on remote access:
+
+```sh
+"$HOME/.local/bin/luna-tui" --server https://your-mac.example.ts.net:8447
+ssh -t luna-host '$HOME/.local/bin/luna-tui'
+```
+
+The host must be able to reach its own Tailscale Serve origin. The TUI is not a service, does not
+need a Citadel manifest, and must not be pointed directly at SQLite or a Pi process. Its bearer
+credential is stored under `~/.config/luna/tui` with restrictive permissions; never print or copy
+the profile contents into deployment logs. See [`apps/tui/README.md`](../apps/tui/README.md).
 
 ## Private configuration
 

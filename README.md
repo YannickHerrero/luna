@@ -6,7 +6,7 @@
 
 <p align="center">
   Persistent Pi conversations from every device.<br>
-  A private Rust server with web, iPhone, and iPad clients for continuing agent work without losing context.
+  A private Rust server with web, terminal, iPhone, and iPad clients for continuing agent work without losing context.
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 - Generates concise contextual conversation titles with an isolated Pi model request.
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
-- Runs as a responsive, offline-capable PWA and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
+- Runs as a responsive, offline-capable PWA, a disposable SSH-friendly Rust TUI, and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
 - Ships reserved iOS/watchOS widget surfaces and an embedded Apple Watch companion placeholder for staged native expansion.
 - Serves everything from one loopback-bound Rust process.
 
@@ -41,6 +41,8 @@ Pi process stdout never reaches clients. Output from an authenticated user's exp
 flowchart LR
     Web[Installable PWA] -->|HTTPS / WebSocket| TS[Tailscale Serve]
     Apple[Native iPhone and iPad app] -->|HTTPS / WebSocket| TS
+    SSH[Remote SSH terminal] --> TUI[luna-tui]
+    TUI -->|HTTPS / WebSocket| TS
     TS -->|loopback HTTP| Server[luna-server\nAxum + Tokio]
     Server --> DB[(SQLite)]
     Server --> Media[Private media storage]
@@ -60,6 +62,7 @@ The server owns authentication, normalized event persistence, session supervisio
 | `crates/luna-pi`         | Strict JSONL RPC client, process supervision, and normalization |
 | `crates/luna-protocol`   | Canonical Serde/Schemars/Utoipa protocol types                  |
 | `apps/web`               | Statically exported Next.js PWA                                 |
+| `apps/tui`               | Rust/Ratatui terminal client for disposable SSH sessions        |
 | `apps/ios`               | iPhone/iPad app, widgets, Watch companion, tests, and XcodeGen  |
 | `integrations/pi`        | Pi bridge extension                                             |
 | `integrations/citadel`   | Production service manifest                                     |
@@ -88,6 +91,25 @@ LUNA_ENV_FILE=/tmp/luna-development.env cargo run -p luna-server
 ```
 
 On the pairing screen, choose **Ask for a pairing code**. Luna writes a fresh six-digit, single-use, 15-minute code to its Citadel stdout log and invalidates older unused codes. Enter that newest code with a device name; the web client exchanges it for a credential stored in an HttpOnly, SameSite cookie.
+
+### Terminal client over SSH
+
+Build and pair the on-demand terminal client once:
+
+```sh
+pnpm build:tui
+install -d "$HOME/.local/bin"
+install -m 755 target/release/luna-tui "$HOME/.local/bin/luna-tui"
+luna-tui --server https://your-mac.example.ts.net:8447
+```
+
+Subsequent sessions are disposable and can be opened directly through SSH:
+
+```sh
+ssh -t luna-host luna-tui
+```
+
+Quitting the TUI does not interrupt Pi. Reopening reloads durable messages and catches up from retained events. See [`apps/tui/README.md`](apps/tui/README.md) for profiles, credential storage, keys, and MVP limitations.
 
 Run deterministic browser acceptance coverage with locally installed Chrome:
 
@@ -138,4 +160,4 @@ See [`docs/deployment.md`](docs/deployment.md) for build, backup, Citadel, Tails
 
 ## Current scope
 
-Luna V1 provides the server, PWA, universal native iPhone/iPad client, A2/B2 iOS widgets, Watch companion, and C3 Smart Stack widget. Device-targeted APNs registration and provider delivery preserve initiating-device ownership across steering and route notification taps through stable conversation deep links. Signed physical-device delivery and distribution provisioning remain release-stage verification.
+Luna V1 provides the server, PWA, SSH-friendly Rust TUI, universal native iPhone/iPad client, A2/B2 iOS widgets, Watch companion, and C3 Smart Stack widget. Device-targeted APNs registration and provider delivery preserve initiating-device ownership across steering and route notification taps through stable conversation deep links. Signed physical-device delivery and distribution provisioning remain release-stage verification.
