@@ -187,8 +187,8 @@ fn render_transcript(frame: &mut Frame<'_>, app: &App, area: Rect) {
         .border_style(style(app, if active { BLUE } else { SURFACE }, BASE));
     let inner = block.inner(area);
     let lines = transcript_lines(app);
-    let line_count = wrapped_line_count(&lines, inner.width);
     let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
+    let line_count = paragraph.line_count(inner.width).min(usize::from(u16::MAX)) as u16;
     let maximum_scroll = line_count.saturating_sub(inner.height);
     let scroll = maximum_scroll.saturating_sub(app.transcript_offset_from_bottom);
     frame.render_widget(paragraph.scroll((scroll, 0)).block(block), area);
@@ -427,15 +427,6 @@ fn compact_path(value: &str) -> String {
     component.unwrap_or(clean)
 }
 
-fn wrapped_line_count(lines: &[Line<'_>], width: u16) -> u16 {
-    let width = usize::from(width.max(1));
-    lines
-        .iter()
-        .map(|line| line.width().max(1).div_ceil(width))
-        .sum::<usize>()
-        .min(usize::from(u16::MAX)) as u16
-}
-
 const fn session_state(state: SessionState) -> &'static str {
     match state {
         SessionState::Creating => "creating",
@@ -498,6 +489,34 @@ mod tests {
             assert!(rendered.contains("Conversation"));
             assert!(rendered.contains("connected") || rendered.contains("connecting"));
         }
+    }
+
+    #[test]
+    fn keeps_the_latest_wrapped_output_visible() {
+        let mut app = App::new(bootstrap());
+        let conversation_id = app.state.selected_conversation_id.expect("selection");
+        app.state.set_messages(
+            conversation_id,
+            serde_json::from_value(serde_json::json!({
+                "messages": [{
+                    "id": "00000000-0000-0000-0000-000000000003",
+                    "conversationId": conversation_id,
+                    "role": "assistant",
+                    "status": "completed",
+                    "text": format!("{}LATEST OUTPUT", "wrapped words ".repeat(200)),
+                    "attachments": [],
+                    "ordinal": 1,
+                    "createdAt": "2026-01-01T00:00:01Z",
+                    "updatedAt": "2026-01-01T00:00:01Z"
+                }]
+            }))
+            .expect("messages"),
+        );
+        let backend = TestBackend::new(70, 24);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal.draw(|frame| render(frame, &app)).expect("draw");
+
+        assert!(buffer_text(terminal.backend().buffer()).contains("LATEST OUTPUT"));
     }
 
     #[test]
