@@ -5,13 +5,16 @@ use std::sync::{
 
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{State, WebSocketUpgrade, ws::Message as WebSocketMessage},
     http::{HeaderMap, StatusCode, header},
     response::Redirect,
     routing::{get, post},
 };
-use luna_protocol::{DevicePlatform, PairingExchangeRequest};
-use luna_tui::api::{ApiClientError, LunaApi, ServerOrigin};
+use luna_protocol::{DevicePlatform, PairingExchangeRequest, ServerEvent};
+use luna_tui::{
+    api::{ApiClientError, LunaApi, ServerOrigin},
+    realtime::EventSocket,
+};
 
 #[derive(Clone)]
 struct TestState {
@@ -77,6 +80,56 @@ async fn pairs_as_a_tui_and_authenticates_bootstrap() {
     let authenticated = LunaApi::new(origin, Some(paired.token)).expect("client");
     let bootstrap = authenticated.bootstrap().await.expect("bootstrap");
     assert_eq!(bootstrap.device.platform, DevicePlatform::Tui);
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn supports_concurrent_event_sockets_with_one_credential() {
+    let router = Router::new().route(
+        "/v1/events",
+        get(
+            |headers: HeaderMap, websocket: WebSocketUpgrade| async move {
+                assert_eq!(
+                    headers
+                        .get(header::AUTHORIZATION)
+                        .and_then(|value| value.to_str().ok()),
+                    Some("Bearer shared-token")
+                );
+                websocket.on_upgrade(|mut socket| async move {
+                    socket
+                        .send(WebSocketMessage::Text(
+                            serde_json::json!({
+                                "version": 1,
+                                "emittedAt": "2026-01-01T00:00:00Z",
+                                "type": "server.welcome",
+                                "payload": {"cursor": 7, "resumed": true}
+                            })
+                            .to_string()
+                            .into(),
+                        ))
+                        .await
+                        .expect("welcome");
+                })
+            },
+        ),
+    );
+    let (origin, server) = spawn(router).await;
+    let api = LunaApi::new(origin, Some("shared-token".into())).expect("client");
+
+    let (left, right) = tokio::join!(EventSocket::connect(&api, 4), EventSocket::connect(&api, 4));
+    let mut left = left.expect("left socket");
+    let mut right = right.expect("right socket");
+    let (left_event, right_event) = tokio::join!(left.next(), right.next());
+    for event in [left_event, right_event] {
+        assert!(matches!(
+            event.expect("event").expect("welcome").event,
+            ServerEvent::ServerWelcome {
+                cursor: 7,
+                resumed: true
+            }
+        ));
+    }
 
     server.abort();
 }

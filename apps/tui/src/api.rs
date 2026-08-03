@@ -1,11 +1,17 @@
 use std::time::Duration;
 
 use luna_protocol::{
-    ApiError, Bootstrap, DevicePlatform, PairingCodeRequestResponse, PairingExchangeRequest,
-    PairingExchangeResponse,
+    ApiError, Bootstrap, Conversation, ConversationMessages, CreateConversationRequest,
+    DevicePlatform, PairingCodeRequestResponse, PairingExchangeRequest, PairingExchangeResponse,
+    SendMessageRequest, SendMessageResponse,
 };
 use reqwest::{Client, Method, StatusCode, Url, redirect::Policy};
 use serde::{Serialize, de::DeserializeOwned};
+use tokio_tungstenite::tungstenite::{
+    client::IntoClientRequest,
+    http::{HeaderValue, Request, header::AUTHORIZATION},
+};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServerOrigin(Url);
@@ -121,6 +127,71 @@ impl LunaApi {
             .await
     }
 
+    pub async fn create_conversation(&self) -> Result<Conversation, ApiClientError> {
+        self.request(
+            Method::POST,
+            "/v1/conversations",
+            Some(&CreateConversationRequest {}),
+        )
+        .await
+    }
+
+    pub async fn messages(
+        &self,
+        conversation_id: Uuid,
+        before_ordinal: Option<i64>,
+    ) -> Result<ConversationMessages, ApiClientError> {
+        let mut path = format!("/v1/conversations/{conversation_id}/messages?limit=100");
+        if let Some(before) = before_ordinal {
+            path.push_str(&format!("&beforeOrdinal={before}"));
+        }
+        self.request(Method::GET, &path, Option::<&()>::None).await
+    }
+
+    pub async fn send_message(
+        &self,
+        conversation_id: Uuid,
+        text: String,
+    ) -> Result<SendMessageResponse, ApiClientError> {
+        self.request(
+            Method::POST,
+            &format!("/v1/conversations/{conversation_id}/messages"),
+            Some(&SendMessageRequest {
+                client_message_id: Uuid::new_v4(),
+                text,
+                attachment_ids: vec![],
+            }),
+        )
+        .await
+    }
+
+    pub async fn abort_conversation(&self, conversation_id: Uuid) -> Result<(), ApiClientError> {
+        self.request_empty(
+            Method::POST,
+            &format!("/v1/conversations/{conversation_id}/abort"),
+            Option::<&()>::None,
+        )
+        .await
+    }
+
+    pub fn events_request(&self, after: i64) -> Result<Request<()>, ApiClientError> {
+        let token = self
+            .token
+            .as_deref()
+            .ok_or(ApiClientError::AuthenticationRequired)?;
+        let mut url = self.origin.endpoint("/v1/events")?;
+        url.set_scheme(if url.scheme() == "https" { "wss" } else { "ws" })
+            .map_err(|()| ApiClientError::InvalidWebSocketUrl)?;
+        url.query_pairs_mut()
+            .append_pair("after", &after.max(0).to_string());
+        let mut request = url.as_str().into_client_request()?;
+        request.headers_mut().insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {token}"))?,
+        );
+        Ok(request)
+    }
+
     async fn request<Response, Body>(
         &self,
         method: Method,
@@ -129,6 +200,31 @@ impl LunaApi {
     ) -> Result<Response, ApiClientError>
     where
         Response: DeserializeOwned,
+        Body: Serialize + ?Sized,
+    {
+        let bytes = self.send(method, path, body).await?;
+        serde_json::from_slice(&bytes).map_err(ApiClientError::Decode)
+    }
+
+    async fn request_empty<Body>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&Body>,
+    ) -> Result<(), ApiClientError>
+    where
+        Body: Serialize + ?Sized,
+    {
+        self.send(method, path, body).await.map(|_| ())
+    }
+
+    async fn send<Body>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&Body>,
+    ) -> Result<bytes::Bytes, ApiClientError>
+    where
         Body: Serialize + ?Sized,
     {
         let mut request = self.client.request(method, self.origin.endpoint(path)?);
@@ -153,7 +249,7 @@ impl LunaApi {
                 message,
             });
         }
-        serde_json::from_slice(&bytes).map_err(ApiClientError::Decode)
+        Ok(bytes)
     }
 }
 
@@ -168,6 +264,16 @@ fn fallback_status_message(status: StatusCode) -> String {
 pub enum ApiClientError {
     #[error(transparent)]
     InvalidOrigin(#[from] ServerOriginError),
+    #[error("an authenticated device credential is required")]
+    AuthenticationRequired,
+    #[error("the server URL could not be converted to a WebSocket URL")]
+    InvalidWebSocketUrl,
+    #[error("the WebSocket request is invalid: {0}")]
+    WebSocketRequest(#[from] tokio_tungstenite::tungstenite::Error),
+    #[error("the device credential cannot be used as an HTTP header: {0}")]
+    InvalidCredentialHeader(
+        #[from] tokio_tungstenite::tungstenite::http::header::InvalidHeaderValue,
+    ),
     #[error("Luna returned HTTP {status}: {message}")]
     Server { status: u16, message: String },
     #[error("Luna refused an HTTP redirect ({0}) to protect the device credential")]
