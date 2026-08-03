@@ -4,8 +4,10 @@ use clap::{Parser, Subcommand};
 use luna_protocol::PROTOCOL_VERSION;
 use luna_tui::{
     api::{LunaApi, ServerOrigin},
+    app,
     config::{ProfileStore, validate_profile_name},
     setup::pair_interactively,
+    terminal::TerminalSession,
 };
 
 #[derive(Debug, Parser)]
@@ -88,10 +90,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         )
         .into());
     }
-    println!(
-        "Connected to Luna as '{}' with {} active conversation(s).",
-        bootstrap.device.name,
-        bootstrap.conversations.len()
-    );
+    let mut terminal = TerminalSession::enter()?;
+    app::run(terminal.terminal(), api, bootstrap).await?;
     Ok(())
 }

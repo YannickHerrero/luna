@@ -8,6 +8,141 @@ use tokio_tungstenite::{
 
 use crate::api::{ApiClientError, LunaApi};
 
+#[derive(Debug)]
+pub enum RealtimeUpdate {
+    Connecting,
+    Connected,
+    Disconnected(String),
+    Event(Box<ServerEventEnvelope>),
+}
+
+pub struct RealtimeHandle {
+    cursor: tokio::sync::watch::Sender<i64>,
+    shutdown: tokio::sync::watch::Sender<bool>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl RealtimeHandle {
+    pub fn set_cursor(&self, cursor: i64) {
+        self.cursor.send_replace(cursor.max(0));
+    }
+
+    pub async fn shutdown(self) {
+        self.shutdown.send_replace(true);
+        let _ = self.task.await;
+    }
+}
+
+pub fn spawn_realtime(
+    api: LunaApi,
+    initial_cursor: i64,
+) -> (RealtimeHandle, tokio::sync::mpsc::Receiver<RealtimeUpdate>) {
+    let (updates_tx, updates_rx) = tokio::sync::mpsc::channel(256);
+    let (cursor_tx, cursor_rx) = tokio::sync::watch::channel(initial_cursor.max(0));
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let task = tokio::spawn(reconnect_loop(api, updates_tx, cursor_rx, shutdown_rx));
+    (
+        RealtimeHandle {
+            cursor: cursor_tx,
+            shutdown: shutdown_tx,
+            task,
+        },
+        updates_rx,
+    )
+}
+
+async fn reconnect_loop(
+    api: LunaApi,
+    updates: tokio::sync::mpsc::Sender<RealtimeUpdate>,
+    mut cursor: tokio::sync::watch::Receiver<i64>,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+) {
+    let mut delay = 1_u64;
+    let mut after = *cursor.borrow_and_update();
+    loop {
+        if *shutdown.borrow() {
+            return;
+        }
+        if updates.send(RealtimeUpdate::Connecting).await.is_err() {
+            return;
+        }
+        after = after.max(*cursor.borrow());
+        match EventSocket::connect(&api, after).await {
+            Ok(mut socket) => {
+                delay = 1;
+                if updates.send(RealtimeUpdate::Connected).await.is_err() {
+                    return;
+                }
+                loop {
+                    tokio::select! {
+                        changed = shutdown.changed() => {
+                            if changed.is_err() || *shutdown.borrow() {
+                                let _ = socket.close().await;
+                                return;
+                            }
+                        }
+                        changed = cursor.changed() => {
+                            if changed.is_err() {
+                                let _ = socket.close().await;
+                                return;
+                            }
+                            after = after.max(*cursor.borrow_and_update());
+                        }
+                        event = socket.next() => {
+                            match event {
+                                Ok(Some(event)) => {
+                                    if let Some(event_id) = event.event_id {
+                                        after = after.max(event_id);
+                                    }
+                                    let reset = matches!(
+                                        event.event,
+                                        luna_protocol::ServerEvent::SyncResetRequired { .. }
+                                    );
+                                    if updates.send(RealtimeUpdate::Event(Box::new(event))).await.is_err() {
+                                        return;
+                                    }
+                                    if reset {
+                                        break;
+                                    }
+                                }
+                                Ok(None) => break,
+                                Err(error) => {
+                                    if updates
+                                        .send(RealtimeUpdate::Disconnected(error.to_string()))
+                                        .await
+                                        .is_err()
+                                    {
+                                        return;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(error) => {
+                if updates
+                    .send(RealtimeUpdate::Disconnected(error.to_string()))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+        }
+        tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_secs(delay)) => {}
+            changed = shutdown.changed() => {
+                if changed.is_err() || *shutdown.borrow() {
+                    return;
+                }
+            }
+        }
+        delay = (delay * 2).min(15);
+    }
+}
+
 pub struct EventSocket {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
 }
