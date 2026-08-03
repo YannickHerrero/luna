@@ -1,4 +1,4 @@
-use luna_protocol::{MessageDelivery, MessageRole, MessageStatus, SessionState};
+use luna_protocol::{Conversation, MessageDelivery, MessageRole, MessageStatus, SessionState};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -60,6 +60,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
 fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let active = app.focus == Focus::List;
     let border = if active { ACCENT } else { SURFACE };
+    let separator = "─".repeat(usize::from(area.width.saturating_sub(4)));
     let items = if app.state.conversations.is_empty() {
         vec![ListItem::new(Line::from(Span::styled(
             "No conversations — press n",
@@ -79,11 +80,10 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     )),
                     Line::from(vec![
                         Span::styled(state, style(app, state_color(conversation.state), BASE)),
-                        Span::styled(
-                            format!("  {}", compact_path(&conversation.active_working_directory)),
-                            style(app, SUBTEXT, BASE),
-                        ),
+                        Span::styled(" · ", style(app, SUBTEXT, BASE)),
+                        Span::styled(conversation_project(conversation), style(app, ACCENT, BASE)),
                     ]),
+                    Line::from(Span::styled(separator.clone(), style(app, SUBTEXT, BASE))),
                 ])
             })
             .collect()
@@ -419,6 +419,16 @@ fn style(app: &App, foreground: Color, background: Color) -> Style {
     }
 }
 
+fn conversation_project(conversation: &Conversation) -> String {
+    conversation
+        .repositories
+        .iter()
+        .find(|repository| repository.active)
+        .or_else(|| conversation.repositories.first())
+        .map(|repository| sanitize_terminal_text(&repository.display_name))
+        .unwrap_or_else(|| compact_path(&conversation.active_working_directory))
+}
+
 fn compact_path(value: &str) -> String {
     let clean = sanitize_terminal_text(value);
     let component = clean
@@ -492,6 +502,53 @@ mod tests {
                 assert!(rendered.contains("Enter open"));
             }
         }
+    }
+
+    #[test]
+    fn distinguishes_conversations_and_shows_the_active_project() {
+        let mut bootstrap = bootstrap();
+        bootstrap.conversations[0].repositories = serde_json::from_value(serde_json::json!([{
+            "id": "00000000-0000-0000-0000-000000000010",
+            "displayName": "inactive-project",
+            "rootPath": "/tmp/inactive",
+            "branch": "main",
+            "active": false,
+            "icon": {
+                "repositoryId": "00000000-0000-0000-0000-000000000010",
+                "fallbackText": "IP",
+                "fallbackColor": "blue"
+            },
+            "firstSeenAt": "2026-01-01T00:00:00Z",
+            "lastSeenAt": "2026-01-01T00:00:00Z"
+        }, {
+            "id": "00000000-0000-0000-0000-000000000011",
+            "displayName": "luna-project",
+            "rootPath": "/tmp/luna",
+            "branch": "main",
+            "active": true,
+            "icon": {
+                "repositoryId": "00000000-0000-0000-0000-000000000011",
+                "fallbackText": "LP",
+                "fallbackColor": "cyan"
+            },
+            "firstSeenAt": "2026-01-01T00:00:00Z",
+            "lastSeenAt": "2026-01-01T00:00:00Z"
+        }]))
+        .expect("repositories");
+        let app = App::new(bootstrap);
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        let rendered = buffer_text(terminal.backend().buffer());
+
+        assert!(rendered.contains("idle · luna-project"));
+        assert!(!rendered.contains("idle · inactive-project"));
+        assert!(rendered.contains("────────"));
+    }
+
+    #[test]
+    fn falls_back_to_the_working_directory_for_the_project_name() {
+        assert_eq!(conversation_project(&bootstrap().conversations[0]), "luna");
     }
 
     #[test]
