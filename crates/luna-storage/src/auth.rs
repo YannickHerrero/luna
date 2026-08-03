@@ -33,6 +33,7 @@ fn platform_name(platform: DevicePlatform) -> &'static str {
     match platform {
         DevicePlatform::Ios => "ios",
         DevicePlatform::Ipados => "ipados",
+        DevicePlatform::Tui => "tui",
         DevicePlatform::Web => "web",
     }
 }
@@ -41,6 +42,7 @@ fn parse_platform(value: &str) -> Result<DevicePlatform, StorageError> {
     match value {
         "ios" => Ok(DevicePlatform::Ios),
         "ipados" => Ok(DevicePlatform::Ipados),
+        "tui" => Ok(DevicePlatform::Tui),
         "web" => Ok(DevicePlatform::Web),
         value => Err(StorageError::InvalidEnum(value.into())),
     }

@@ -50,6 +50,46 @@ async fn pairing_codes_are_single_use() {
 }
 
 #[tokio::test]
+async fn tui_devices_round_trip_through_authentication() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let database = Database::connect(&directory.path().join("luna.sqlite"))
+        .await
+        .expect("database");
+    database
+        .create_pairing_code(NewPairingCode {
+            id: Uuid::new_v4(),
+            code_hash: "tui-pairing-hash",
+            created_at: "2026-01-01T00:00:00Z",
+            expires_at: "2026-01-01T01:00:00Z",
+        })
+        .await
+        .expect("pairing code");
+
+    let paired = database
+        .redeem_pairing_code(
+            "tui-pairing-hash",
+            NewDevice {
+                id: Uuid::new_v4(),
+                name: "SSH terminal",
+                platform: DevicePlatform::Tui,
+                credential_hash: "tui-credential-hash",
+                created_at: "2026-01-01T00:10:00Z",
+            },
+        )
+        .await
+        .expect("redeem")
+        .expect("device");
+    let authenticated = database
+        .authenticate_device("tui-credential-hash", "2026-01-01T00:20:00Z")
+        .await
+        .expect("authenticate")
+        .expect("authenticated device");
+
+    assert_eq!(paired.platform, DevicePlatform::Tui);
+    assert_eq!(authenticated.platform, DevicePlatform::Tui);
+}
+
+#[tokio::test]
 async fn a_new_pairing_code_invalidates_older_unused_codes() {
     let directory = tempfile::tempdir().expect("temp directory");
     let database = Database::connect(&directory.path().join("luna.sqlite"))

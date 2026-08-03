@@ -1648,7 +1648,7 @@
       },
       "DevicePlatform": {
         "type": "string",
-        "enum": ["ios", "ipados", "web"]
+        "enum": ["ios", "ipados", "tui", "web"]
       },
       "ErrorCode": {
         "type": "string",

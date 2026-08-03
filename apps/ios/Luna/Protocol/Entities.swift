@@ -5,6 +5,7 @@ typealias LunaTimestamp = String
 enum DevicePlatform: String, Codable, Sendable {
     case ios
     case ipados
+    case tui
     case web
 }
 

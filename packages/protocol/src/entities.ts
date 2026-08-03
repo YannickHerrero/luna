@@ -7,6 +7,7 @@ export type Theme = Static<typeof ThemeSchema>
 export const DevicePlatformSchema = Type.Union([
   Type.Literal('ios'),
   Type.Literal('ipados'),
+  Type.Literal('tui'),
   Type.Literal('web'),
 ])
 export type DevicePlatform = Static<typeof DevicePlatformSchema>

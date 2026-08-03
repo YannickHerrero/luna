@@ -1,4 +1,4 @@
-use luna_protocol::{ClientCommand, ClientHello, ServerEvent, ServerEventEnvelope};
+use luna_protocol::{ClientCommand, ClientHello, DevicePlatform, ServerEvent, ServerEventEnvelope};
 use uuid::Uuid;
 
 #[test]
@@ -14,6 +14,16 @@ fn client_commands_use_top_level_discriminators() {
     let value = serde_json::to_value(command).expect("serialize command");
     assert_eq!(value["type"], "client.hello");
     assert_eq!(value["lastCursor"], 42);
+}
+
+#[test]
+fn tui_devices_have_a_stable_wire_value() {
+    let value = serde_json::to_value(DevicePlatform::Tui).expect("serialize platform");
+    assert_eq!(value, "tui");
+    assert_eq!(
+        serde_json::from_value::<DevicePlatform>(value).expect("deserialize platform"),
+        DevicePlatform::Tui
+    );
 }
 
 #[test]

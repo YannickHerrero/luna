@@ -555,7 +555,7 @@ export interface components {
       platform: components['schemas']['DevicePlatform']
     }
     /** @enum {string} */
-    DevicePlatform: 'ios' | 'ipados' | 'web'
+    DevicePlatform: 'ios' | 'ipados' | 'tui' | 'web'
     /** @enum {string} */
     ErrorCode:
       | 'authentication_required'

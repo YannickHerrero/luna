@@ -17,6 +17,7 @@ pub enum Theme {
 pub enum DevicePlatform {
     Ios,
     Ipados,
+    Tui,
     Web,
 }
 

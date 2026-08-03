@@ -95,6 +95,16 @@ struct ProtocolTests {
     }
 
     @Test
+    func recognizesTUIPlatformFromTheSharedProtocol() throws {
+        let platform = try JSONDecoder().decode(
+            DevicePlatform.self,
+            from: Data(#""tui""#.utf8)
+        )
+
+        #expect(platform == .tui)
+    }
+
+    @Test
     func encodesNativePairingPlatform() throws {
         let request = PairingExchangeRequest(code: "123456", deviceName: "Yannick’s iPhone", platform: .ios)
         let object = try #require(
