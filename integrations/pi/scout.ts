@@ -281,6 +281,7 @@ function executeScoutProcess(
       if (Buffer.byteLength(line, 'utf8') > MAX_RECORD_BYTES) {
         failure = new Error(`Scout ${label} emitted an oversized JSON record`)
         kill('SIGTERM')
+        scheduleForceKill()
         return
       }
       let event: JsonEvent
@@ -315,6 +316,7 @@ function executeScoutProcess(
       if (Buffer.byteLength(stdoutBuffer, 'utf8') > MAX_RECORD_BYTES) {
         failure = new Error(`Scout ${label} exceeded its streaming buffer limit`)
         kill('SIGTERM')
+        scheduleForceKill()
         return
       }
       const lines = stdoutBuffer.split('\n')
