@@ -53,6 +53,7 @@ pub struct App {
     pub show_help: bool,
     pub confirm_interrupt: bool,
     pub pending_action: bool,
+    deferred_message_load: Option<Uuid>,
     pub reset_required: bool,
     pub should_quit: bool,
     pub color: bool,
@@ -74,6 +75,7 @@ impl App {
             show_help: false,
             confirm_interrupt: false,
             pending_action: false,
+            deferred_message_load: None,
             reset_required: false,
             should_quit: false,
             color: std::env::var_os("NO_COLOR").is_none(),
@@ -320,10 +322,27 @@ fn select_conversation(
     };
     app.state.select(conversation_id);
     app.transcript_offset_from_bottom = 0;
-    if !app.state.messages.contains_key(&conversation_id) {
-        spawn_load_messages(app, api, actions, conversation_id, None);
+    if app.state.messages.contains_key(&conversation_id) {
+        app.deferred_message_load = None;
+    } else {
+        app.deferred_message_load = Some(conversation_id);
+        spawn_deferred_message_load(app, api, actions);
     }
     true
+}
+
+fn spawn_deferred_message_load(app: &mut App, api: &LunaApi, actions: &mpsc::Sender<ActionResult>) {
+    if app.pending_action {
+        return;
+    }
+    let Some(conversation_id) = app.deferred_message_load.take() else {
+        return;
+    };
+    if app.state.selected_conversation_id == Some(conversation_id)
+        && !app.state.messages.contains_key(&conversation_id)
+    {
+        spawn_load_messages(app, api, actions, conversation_id, None);
+    }
 }
 
 fn handle_transcript_key(
@@ -463,6 +482,7 @@ fn handle_action_result(
         app.reset_required = false;
         spawn_reload(app, api, actions);
     }
+    spawn_deferred_message_load(app, api, actions);
 }
 
 fn spawn_load_messages(
@@ -649,6 +669,33 @@ mod tests {
         app.show_help = true;
         click(&mut app, &regions, 40, 25, &api, &actions);
         assert_eq!(app.focus, Focus::List);
+    }
+
+    #[tokio::test]
+    async fn defers_a_selected_conversation_load_until_the_current_action_finishes() {
+        let mut app = App::new(bootstrap());
+        let conversation_id = app.state.selected_conversation_id.expect("selection");
+        app.pending_action = true;
+        let api = LunaApi::new(
+            ServerOrigin::parse("http://127.0.0.1:9").expect("origin"),
+            Some("token".into()),
+        )
+        .expect("API");
+        let (actions, mut receiver) = mpsc::channel(1);
+
+        assert!(select_conversation(&mut app, 0, &api, &actions));
+        assert_eq!(app.deferred_message_load, Some(conversation_id));
+
+        app.pending_action = false;
+        spawn_deferred_message_load(&mut app, &api, &actions);
+        assert!(app.pending_action);
+        assert!(matches!(
+            tokio::time::timeout(Duration::from_secs(2), receiver.recv()).await,
+            Ok(Some(ActionResult::Messages {
+                conversation_id: loaded,
+                result: Err(_),
+            })) if loaded == conversation_id
+        ));
     }
 
     #[test]
