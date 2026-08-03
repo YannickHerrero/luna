@@ -3,8 +3,8 @@ use std::io::{IsTerminal, Stdout, stdout};
 use crossterm::{
     cursor::{Hide, Show},
     event::{
-        DisableBracketedPaste, EnableBracketedPaste, KeyboardEnhancementFlags,
-        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -25,6 +25,7 @@ impl TerminalSession {
         if let Err(error) = execute!(
             output,
             EnterAlternateScreen,
+            EnableMouseCapture,
             EnableBracketedPaste,
             PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES),
             Hide
@@ -48,6 +49,7 @@ impl Drop for TerminalSession {
             self.terminal.backend_mut(),
             PopKeyboardEnhancementFlags,
             DisableBracketedPaste,
+            DisableMouseCapture,
             Show,
             LeaveAlternateScreen
         );

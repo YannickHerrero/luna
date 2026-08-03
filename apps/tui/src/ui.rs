@@ -22,9 +22,52 @@ const GREEN: Color = Color::Green;
 const YELLOW: Color = Color::Yellow;
 const RED: Color = Color::Red;
 const ASSISTANT: Color = Color::Magenta;
+const CONVERSATION_ITEM_HEIGHT: u16 = 3;
 
-pub fn render(frame: &mut Frame<'_>, app: &App) {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UiRegions {
+    pub(crate) list: Option<Rect>,
+    pub(crate) conversations: Vec<ConversationRegion>,
+    pub(crate) transcript: Option<Rect>,
+    pub(crate) composer: Option<Rect>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ConversationRegion {
+    pub index: usize,
+    pub area: Rect,
+}
+
+impl UiRegions {
+    #[must_use]
+    pub fn conversation_at(&self, column: u16, row: u16) -> Option<usize> {
+        self.conversations
+            .iter()
+            .find(|region| contains(region.area, column, row))
+            .map(|region| region.index)
+    }
+
+    #[must_use]
+    pub fn list_contains(&self, column: u16, row: u16) -> bool {
+        self.list.is_some_and(|area| contains(area, column, row))
+    }
+
+    #[must_use]
+    pub fn transcript_contains(&self, column: u16, row: u16) -> bool {
+        self.transcript
+            .is_some_and(|area| contains(area, column, row))
+    }
+
+    #[must_use]
+    pub fn composer_contains(&self, column: u16, row: u16) -> bool {
+        self.composer
+            .is_some_and(|area| contains(area, column, row))
+    }
+}
+
+pub fn render(frame: &mut Frame<'_>, app: &App) -> UiRegions {
     let area = frame.area();
+    let mut regions = UiRegions::default();
     frame.render_widget(Block::default().style(style(app, TEXT, BASE)), area);
     if area.width < 50 || area.height < 16 {
         frame.render_widget(
@@ -34,7 +77,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
                 .wrap(Wrap { trim: false }),
             area,
         );
-        return;
+        return regions;
     }
 
     if area.width >= 90 {
@@ -42,22 +85,28 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
             .direction(Direction::Horizontal)
             .constraints([Constraint::Length(31), Constraint::Min(40)])
             .split(area);
-        render_conversations(frame, app, columns[0]);
-        render_conversation(frame, app, columns[1]);
+        regions.list = Some(columns[0]);
+        regions.conversations = render_conversations(frame, app, columns[0]);
+        render_conversation(frame, app, columns[1], &mut regions);
     } else if app.focus == Focus::List {
-        render_conversations(frame, app, area);
+        regions.list = Some(area);
+        regions.conversations = render_conversations(frame, app, area);
     } else {
-        render_conversation(frame, app, area);
+        render_conversation(frame, app, area, &mut regions);
     }
 
     if app.show_help {
         render_help(frame, app, centered(area, 62, 18));
-    } else if app.confirm_interrupt {
-        render_confirmation(frame, app, centered(area, 52, 7));
+        return UiRegions::default();
     }
+    if app.confirm_interrupt {
+        render_confirmation(frame, app, centered(area, 52, 7));
+        return UiRegions::default();
+    }
+    regions
 }
 
-fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
+fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) -> Vec<ConversationRegion> {
     let active = app.focus == Focus::List;
     let border = if active { ACCENT } else { SURFACE };
     let separator = "─".repeat(usize::from(area.width.saturating_sub(4)));
@@ -88,14 +137,14 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
             })
             .collect()
     };
+    let block = Block::default()
+        .title(" Luna ")
+        .title_bottom(Line::from(" n new · Enter open · ? help ").centered())
+        .borders(Borders::ALL)
+        .border_style(style(app, border, BASE));
+    let inner = block.inner(area);
     let list = List::new(items)
-        .block(
-            Block::default()
-                .title(" Luna ")
-                .title_bottom(Line::from(" n new · Enter open · ? help ").centered())
-                .borders(Borders::ALL)
-                .border_style(style(app, border, BASE)),
-        )
+        .block(block)
         .highlight_symbol("› ")
         .highlight_style(style(app, TEXT, BASE).add_modifier(Modifier::BOLD | Modifier::REVERSED));
     let mut list_state = ListState::default();
@@ -106,9 +155,34 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
         ));
     }
     frame.render_stateful_widget(list, area, &mut list_state);
+    visible_conversation_regions(inner, list_state.offset(), app.state.conversations.len())
 }
 
-fn render_conversation(frame: &mut Frame<'_>, app: &App, area: Rect) {
+fn visible_conversation_regions(
+    area: Rect,
+    offset: usize,
+    conversation_count: usize,
+) -> Vec<ConversationRegion> {
+    let visible_count = usize::from(area.height / CONVERSATION_ITEM_HEIGHT);
+    (offset..conversation_count.min(offset.saturating_add(visible_count)))
+        .enumerate()
+        .map(|(row, index)| ConversationRegion {
+            index,
+            area: Rect::new(
+                area.x,
+                area.y.saturating_add(
+                    u16::try_from(row)
+                        .unwrap_or(u16::MAX)
+                        .saturating_mul(CONVERSATION_ITEM_HEIGHT),
+                ),
+                area.width,
+                CONVERSATION_ITEM_HEIGHT,
+            ),
+        })
+        .collect()
+}
+
+fn render_conversation(frame: &mut Frame<'_>, app: &App, area: Rect, regions: &mut UiRegions) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -118,6 +192,8 @@ fn render_conversation(frame: &mut Frame<'_>, app: &App, area: Rect) {
             Constraint::Length(1),
         ])
         .split(area);
+    regions.transcript = Some(rows[1]);
+    regions.composer = Some(rows[2]);
     render_header(frame, app, rows[0]);
     render_transcript(frame, app, rows[1]);
     render_composer(frame, app, rows[2]);
@@ -362,6 +438,7 @@ fn render_help(frame: &mut Frame<'_>, app: &App, area: Rect) {
             Line::default(),
             Line::from("Tab              cycle focus"),
             Line::from("Ctrl-h/j/k/l     move focus directionally"),
+            Line::from("Left click       focus panel / select conversation"),
             Line::from("↑/↓ or j/k       navigate and scroll"),
             Line::from("Enter            open conversation / send message"),
             Line::from("Alt-Enter        insert newline"),
@@ -467,6 +544,10 @@ const fn state_color(state: SessionState) -> Color {
     }
 }
 
+const fn contains(area: Rect, column: u16, row: u16) -> bool {
+    column >= area.x && column < area.right() && row >= area.y && row < area.bottom()
+}
+
 fn centered(area: Rect, width: u16, height: u16) -> Rect {
     let width = width.min(area.width.saturating_sub(2));
     let height = height.min(area.height.saturating_sub(2));
@@ -492,7 +573,11 @@ mod tests {
         for (width, height) in [(120, 36), (70, 24)] {
             let backend = TestBackend::new(width, height);
             let mut terminal = Terminal::new(backend).expect("terminal");
-            terminal.draw(|frame| render(frame, &app)).expect("draw");
+            terminal
+                .draw(|frame| {
+                    render(frame, &app);
+                })
+                .expect("draw");
             let rendered = buffer_text(terminal.backend().buffer());
             assert!(rendered.contains("Luna"));
             assert!(rendered.contains("Conversation"));
@@ -502,6 +587,45 @@ mod tests {
                 assert!(rendered.contains("Enter open"));
             }
         }
+    }
+
+    #[test]
+    fn maps_clicks_to_scrolled_conversation_rows() {
+        let mut bootstrap = bootstrap();
+        let template = bootstrap.conversations[0].clone();
+        for id in 3..=11 {
+            let mut conversation = template.clone();
+            conversation.id = uuid::Uuid::from_u128(id);
+            conversation.title = format!("Conversation {id}");
+            bootstrap.conversations.push(conversation);
+        }
+        let mut app = App::new(bootstrap);
+        app.list_index = app.state.conversations.len() - 1;
+        let backend = TestBackend::new(70, 16);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        let mut regions = UiRegions::default();
+        terminal
+            .draw(|frame| regions = render(frame, &app))
+            .expect("draw");
+
+        assert_eq!(regions.conversations.len(), 4);
+        assert_eq!(regions.conversation_at(1, 1), Some(6));
+        assert_eq!(regions.conversation_at(1, 10), Some(9));
+        assert_eq!(regions.conversation_at(1, 13), None);
+    }
+
+    #[test]
+    fn modal_overlays_disable_background_hit_regions() {
+        let mut app = App::new(bootstrap());
+        app.show_help = true;
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        let mut regions = UiRegions::default();
+        terminal
+            .draw(|frame| regions = render(frame, &app))
+            .expect("draw");
+
+        assert_eq!(regions, UiRegions::default());
     }
 
     #[test]
@@ -538,7 +662,11 @@ mod tests {
         let app = App::new(bootstrap);
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).expect("terminal");
-        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        terminal
+            .draw(|frame| {
+                render(frame, &app);
+            })
+            .expect("draw");
         let rendered = buffer_text(terminal.backend().buffer());
 
         assert!(rendered.contains("idle · luna-project"));
@@ -556,7 +684,11 @@ mod tests {
         let app = App::new(bootstrap());
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).expect("terminal");
-        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        terminal
+            .draw(|frame| {
+                render(frame, &app);
+            })
+            .expect("draw");
         let cells = terminal.backend().buffer().content();
 
         assert!(cells.iter().all(|cell| cell.bg == Color::Reset));
@@ -594,7 +726,11 @@ mod tests {
         );
         let backend = TestBackend::new(70, 24);
         let mut terminal = Terminal::new(backend).expect("terminal");
-        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        terminal
+            .draw(|frame| {
+                render(frame, &app);
+            })
+            .expect("draw");
 
         assert!(buffer_text(terminal.backend().buffer()).contains("LATEST OUTPUT"));
     }
@@ -606,7 +742,11 @@ mod tests {
         let app = App::new(bootstrap);
         let backend = TestBackend::new(100, 24);
         let mut terminal = Terminal::new(backend).expect("terminal");
-        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        terminal
+            .draw(|frame| {
+                render(frame, &app);
+            })
+            .expect("draw");
         let rendered = buffer_text(terminal.backend().buffer());
         assert!(!rendered.contains('\u{1b}'));
         assert!(!rendered.contains('\u{7}'));

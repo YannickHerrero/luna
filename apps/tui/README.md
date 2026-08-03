@@ -62,12 +62,15 @@ Every invocation is a new UI process. Quitting closes only its WebSocket and lea
 
 The TUI leaves the terminal's default foreground and background untouched. Focus, status, warning, and error accents use standard ANSI colors, so their actual values come from the active terminal palette. Set `NO_COLOR=1` to disable color accents while retaining text emphasis and selection.
 
+Conversation entries show the active repository name (or working-directory name as a fallback) and use palette-aware separators to keep neighboring conversations distinct.
+
 ## Keys
 
 | Key              | Action                                            |
 | ---------------- | ------------------------------------------------- |
 | `Tab`            | Cycle conversation list, transcript, and composer |
 | `Ctrl-H/J/K/L`   | Move focus left, down, up, or right               |
+| Left click       | Focus a panel or select a conversation            |
 | `↑`/`↓`, `j`/`k` | Navigate or scroll                                |
 | `Enter`          | Open a conversation or send a message             |
 | `Alt-Enter`      | Insert a composer newline                         |
@@ -81,7 +84,7 @@ The TUI leaves the terminal's default foreground and background untouched. Focus
 
 The conversation list has focus on launch. `Ctrl-H/J/K/L` uses the terminal keyboard-enhancement protocol to distinguish `Ctrl-H` from Backspace and `Ctrl-J` from Enter; `Tab` remains the fallback in terminals that do not support enhanced keyboard events.
 
-Bracketed multiline paste is supported. `!` messages use Luna's existing bounded shell-command path. Resize events are handled automatically, with a single-pane fallback for narrow terminals.
+Bracketed multiline paste is supported. Mouse capture works through normal SSH terminal forwarding; hold `Shift` while dragging when you want to select terminal text. `!` messages use Luna's existing bounded shell-command path. Resize events are handled automatically, with a single-pane fallback for narrow terminals.
 
 ## MVP limitations
 

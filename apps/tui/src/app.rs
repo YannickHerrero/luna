@@ -1,6 +1,9 @@
 use std::{io::Stdout, time::Duration};
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    Event, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
+};
 use futures_util::StreamExt;
 use luna_protocol::{Bootstrap, Conversation, ConversationMessages, SendMessageResponse};
 use ratatui::{Terminal, backend::CrosstermBackend};
@@ -128,15 +131,18 @@ pub async fn run(
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let termination = termination_signal();
     tokio::pin!(termination);
+    let mut regions = ui::UiRegions::default();
 
     while !app.should_quit {
-        terminal.draw(|frame| ui::render(frame, &app))?;
+        terminal.draw(|frame| regions = ui::render(frame, &app))?;
         tokio::select! {
             _ = tick.tick() => {}
             _ = &mut termination => app.should_quit = true,
             event = terminal_events.next() => {
                 match event {
-                    Some(Ok(event)) => handle_terminal_event(&mut app, event, &api, &actions_tx),
+                    Some(Ok(event)) => {
+                        handle_terminal_event(&mut app, event, &regions, &api, &actions_tx);
+                    }
                     Some(Err(error)) => return Err(AppError::Terminal(error)),
                     None => app.should_quit = true,
                 }
@@ -159,6 +165,7 @@ pub async fn run(
 fn handle_terminal_event(
     app: &mut App,
     event: Event,
+    regions: &ui::UiRegions,
     api: &LunaApi,
     actions: &mpsc::Sender<ActionResult>,
 ) {
@@ -169,7 +176,36 @@ fn handle_terminal_event(
         Event::Paste(value) if app.focus == Focus::Composer && !app.pending_action => {
             app.composer.insert_paste(&value);
         }
+        Event::Mouse(mouse) => handle_mouse(app, mouse, regions, api, actions),
         _ => {}
+    }
+}
+
+fn handle_mouse(
+    app: &mut App,
+    mouse: MouseEvent,
+    regions: &ui::UiRegions,
+    api: &LunaApi,
+    actions: &mpsc::Sender<ActionResult>,
+) {
+    if app.show_help
+        || app.confirm_interrupt
+        || mouse.kind != MouseEventKind::Down(MouseButton::Left)
+    {
+        return;
+    }
+    app.notice = None;
+    if let Some(index) = regions.conversation_at(mouse.column, mouse.row) {
+        app.list_index = index;
+        if select_conversation(app, index, api, actions) {
+            app.focus = Focus::List;
+        }
+    } else if regions.list_contains(mouse.column, mouse.row) {
+        app.focus = Focus::List;
+    } else if regions.transcript_contains(mouse.column, mouse.row) {
+        app.focus = Focus::Transcript;
+    } else if regions.composer_contains(mouse.column, mouse.row) {
+        app.focus = Focus::Composer;
     }
 }
 
@@ -260,20 +296,34 @@ fn handle_list_key(
             app.list_index =
                 (app.list_index + 1).min(app.state.conversations.len().saturating_sub(1));
         }
-        KeyCode::Enter => {
-            if let Some(conversation) = app.state.conversations.get(app.list_index) {
-                let conversation_id = conversation.id;
-                app.state.select(conversation_id);
-                app.transcript_offset_from_bottom = 0;
-                app.focus = Focus::Transcript;
-                if !app.state.messages.contains_key(&conversation_id) {
-                    spawn_load_messages(app, api, actions, conversation_id, None);
-                }
-            }
+        KeyCode::Enter if select_conversation(app, app.list_index, api, actions) => {
+            app.focus = Focus::Transcript;
         }
         KeyCode::Char('n') => spawn_create(app, api, actions),
         _ => {}
     }
+}
+
+fn select_conversation(
+    app: &mut App,
+    index: usize,
+    api: &LunaApi,
+    actions: &mpsc::Sender<ActionResult>,
+) -> bool {
+    let Some(conversation_id) = app
+        .state
+        .conversations
+        .get(index)
+        .map(|conversation| conversation.id)
+    else {
+        return false;
+    };
+    app.state.select(conversation_id);
+    app.transcript_offset_from_bottom = 0;
+    if !app.state.messages.contains_key(&conversation_id) {
+        spawn_load_messages(app, api, actions, conversation_id, None);
+    }
+    true
 }
 
 fn handle_transcript_key(
@@ -551,9 +601,55 @@ pub enum AppError {
 #[cfg(test)]
 mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::layout::Rect;
 
     use super::*;
     use crate::api::ServerOrigin;
+
+    #[test]
+    fn left_click_selects_conversations_and_focuses_panels() {
+        let mut bootstrap = bootstrap();
+        let mut second = bootstrap.conversations[0].clone();
+        second.id = Uuid::from_u128(3);
+        second.title = "Second conversation".into();
+        bootstrap.conversations.push(second);
+        let mut app = App::new(bootstrap);
+        let target = app.state.conversations[1].id;
+        app.state.messages.insert(target, Vec::new());
+        app.focus = Focus::Composer;
+        let regions = ui::UiRegions {
+            list: Some(Rect::new(0, 0, 31, 30)),
+            conversations: vec![ui::ConversationRegion {
+                index: 1,
+                area: Rect::new(1, 4, 29, 3),
+            }],
+            transcript: Some(Rect::new(31, 4, 69, 20)),
+            composer: Some(Rect::new(31, 24, 69, 5)),
+        };
+        let api = LunaApi::new(
+            ServerOrigin::parse("http://127.0.0.1:9").expect("origin"),
+            Some("token".into()),
+        )
+        .expect("API");
+        let (actions, _receiver) = mpsc::channel(1);
+
+        click(&mut app, &regions, 2, 4, &api, &actions);
+        assert_eq!(app.focus, Focus::List);
+        assert_eq!(app.list_index, 1);
+        assert_eq!(app.state.selected_conversation_id, Some(target));
+
+        click(&mut app, &regions, 40, 5, &api, &actions);
+        assert_eq!(app.focus, Focus::Transcript);
+        click(&mut app, &regions, 40, 25, &api, &actions);
+        assert_eq!(app.focus, Focus::Composer);
+        click(&mut app, &regions, 2, 10, &api, &actions);
+        assert_eq!(app.focus, Focus::List);
+        assert_eq!(app.state.selected_conversation_id, Some(target));
+
+        app.show_help = true;
+        click(&mut app, &regions, 40, 25, &api, &actions);
+        assert_eq!(app.focus, Focus::List);
+    }
 
     #[test]
     fn starts_with_the_conversation_list_focused() {
@@ -615,6 +711,28 @@ mod tests {
             receiver.try_recv(),
             Err(mpsc::error::TryRecvError::Empty)
         ));
+    }
+
+    fn click(
+        app: &mut App,
+        regions: &ui::UiRegions,
+        column: u16,
+        row: u16,
+        api: &LunaApi,
+        actions: &mpsc::Sender<ActionResult>,
+    ) {
+        handle_terminal_event(
+            app,
+            Event::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column,
+                row,
+                modifiers: KeyModifiers::NONE,
+            }),
+            regions,
+            api,
+            actions,
+        );
     }
 
     fn press(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
