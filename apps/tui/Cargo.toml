@@ -1,0 +1,22 @@
+[package]
+name = "luna-tui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+clap.workspace = true
+directories.workspace = true
+luna-protocol = { path = "../../crates/luna-protocol" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+tempfile.workspace = true
