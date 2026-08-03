@@ -96,7 +96,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) -> UiRegions {
     }
 
     if app.show_help {
-        render_help(frame, app, centered(area, 62, 18));
+        render_help(frame, app, centered(area, 62, 19));
         return UiRegions::default();
     }
     if app.confirm_interrupt {
@@ -439,6 +439,7 @@ fn render_help(frame: &mut Frame<'_>, app: &App, area: Rect) {
             Line::from("Tab              cycle focus"),
             Line::from("Ctrl-h/j/k/l     move focus directionally"),
             Line::from("Left click       focus panel / select conversation"),
+            Line::from("Mouse wheel      scroll transcript / conversation list"),
             Line::from("↑/↓ or j/k       navigate and scroll"),
             Line::from("Enter            open conversation / send message"),
             Line::from("Alt-Enter        insert newline"),

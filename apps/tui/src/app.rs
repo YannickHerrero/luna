@@ -40,6 +40,8 @@ enum FocusDirection {
     Right,
 }
 
+const MOUSE_SCROLL_LINES: u16 = 3;
+
 pub struct App {
     pub state: ClientState,
     pub focus: Focus,
@@ -190,24 +192,49 @@ fn handle_mouse(
     api: &LunaApi,
     actions: &mpsc::Sender<ActionResult>,
 ) {
-    if app.show_help
-        || app.confirm_interrupt
-        || mouse.kind != MouseEventKind::Down(MouseButton::Left)
-    {
+    if app.show_help || app.confirm_interrupt {
         return;
     }
-    app.notice = None;
-    if let Some(index) = regions.conversation_at(mouse.column, mouse.row) {
-        app.list_index = index;
-        if select_conversation(app, index, api, actions) {
-            app.focus = Focus::List;
+    let over_list = regions.list_contains(mouse.column, mouse.row);
+    let over_transcript = regions.transcript_contains(mouse.column, mouse.row);
+    match mouse.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            app.notice = None;
+            if let Some(index) = regions.conversation_at(mouse.column, mouse.row) {
+                app.list_index = index;
+                if select_conversation(app, index, api, actions) {
+                    app.focus = Focus::List;
+                }
+            } else if over_list {
+                app.focus = Focus::List;
+            } else if over_transcript {
+                app.focus = Focus::Transcript;
+            } else if regions.composer_contains(mouse.column, mouse.row) {
+                app.focus = Focus::Composer;
+            }
         }
-    } else if regions.list_contains(mouse.column, mouse.row) {
-        app.focus = Focus::List;
-    } else if regions.transcript_contains(mouse.column, mouse.row) {
-        app.focus = Focus::Transcript;
-    } else if regions.composer_contains(mouse.column, mouse.row) {
-        app.focus = Focus::Composer;
+        MouseEventKind::ScrollUp if over_transcript => {
+            app.focus = Focus::Transcript;
+            app.transcript_offset_from_bottom = app
+                .transcript_offset_from_bottom
+                .saturating_add(MOUSE_SCROLL_LINES);
+        }
+        MouseEventKind::ScrollDown if over_transcript => {
+            app.focus = Focus::Transcript;
+            app.transcript_offset_from_bottom = app
+                .transcript_offset_from_bottom
+                .saturating_sub(MOUSE_SCROLL_LINES);
+        }
+        MouseEventKind::ScrollUp if over_list => {
+            app.focus = Focus::List;
+            app.list_index = app.list_index.saturating_sub(1);
+        }
+        MouseEventKind::ScrollDown if over_list => {
+            app.focus = Focus::List;
+            app.list_index =
+                (app.list_index + 1).min(app.state.conversations.len().saturating_sub(1));
+        }
+        _ => {}
     }
 }
 
@@ -627,7 +654,7 @@ mod tests {
     use crate::api::ServerOrigin;
 
     #[test]
-    fn left_click_selects_conversations_and_focuses_panels() {
+    fn mouse_clicks_focus_panels_and_the_wheel_scrolls_content() {
         let mut bootstrap = bootstrap();
         let mut second = bootstrap.conversations[0].clone();
         second.id = Uuid::from_u128(3);
@@ -660,10 +687,61 @@ mod tests {
 
         click(&mut app, &regions, 40, 5, &api, &actions);
         assert_eq!(app.focus, Focus::Transcript);
+        mouse(
+            &mut app,
+            &regions,
+            MouseEventKind::ScrollUp,
+            40,
+            5,
+            &api,
+            &actions,
+        );
+        assert_eq!(app.transcript_offset_from_bottom, MOUSE_SCROLL_LINES);
+        assert_eq!(app.focus, Focus::Transcript);
+        mouse(
+            &mut app,
+            &regions,
+            MouseEventKind::ScrollLeft,
+            40,
+            5,
+            &api,
+            &actions,
+        );
+        assert_eq!(app.transcript_offset_from_bottom, MOUSE_SCROLL_LINES);
+        mouse(
+            &mut app,
+            &regions,
+            MouseEventKind::ScrollDown,
+            40,
+            5,
+            &api,
+            &actions,
+        );
+        assert_eq!(app.transcript_offset_from_bottom, 0);
+
         click(&mut app, &regions, 40, 25, &api, &actions);
         assert_eq!(app.focus, Focus::Composer);
-        click(&mut app, &regions, 2, 10, &api, &actions);
+        mouse(
+            &mut app,
+            &regions,
+            MouseEventKind::ScrollUp,
+            2,
+            10,
+            &api,
+            &actions,
+        );
         assert_eq!(app.focus, Focus::List);
+        assert_eq!(app.list_index, 0);
+        mouse(
+            &mut app,
+            &regions,
+            MouseEventKind::ScrollDown,
+            2,
+            10,
+            &api,
+            &actions,
+        );
+        assert_eq!(app.list_index, 1);
         assert_eq!(app.state.selected_conversation_id, Some(target));
 
         app.show_help = true;
@@ -768,10 +846,30 @@ mod tests {
         api: &LunaApi,
         actions: &mpsc::Sender<ActionResult>,
     ) {
+        mouse(
+            app,
+            regions,
+            MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            api,
+            actions,
+        );
+    }
+
+    fn mouse(
+        app: &mut App,
+        regions: &ui::UiRegions,
+        kind: MouseEventKind,
+        column: u16,
+        row: u16,
+        api: &LunaApi,
+        actions: &mpsc::Sender<ActionResult>,
+    ) {
         handle_terminal_event(
             app,
             Event::Mouse(MouseEvent {
-                kind: MouseEventKind::Down(MouseButton::Left),
+                kind,
                 column,
                 row,
                 modifiers: KeyModifiers::NONE,

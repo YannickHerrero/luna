@@ -71,6 +71,7 @@ Conversation entries show the active repository name (or working-directory name 
 | `Tab`            | Cycle conversation list, transcript, and composer |
 | `Ctrl-H/J/K/L`   | Move focus left, down, up, or right               |
 | Left click       | Focus a panel or select a conversation            |
+| Mouse wheel      | Scroll the transcript or conversation list        |
 | `↑`/`↓`, `j`/`k` | Navigate or scroll                                |
 | `Enter`          | Open a conversation or send a message             |
 | `Alt-Enter`      | Insert a composer newline                         |
