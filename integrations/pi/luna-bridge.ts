@@ -4,6 +4,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { isToolCallEventType, type ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import { registerPlanProgress, type PlanProgress } from './plan-progress.js'
+import { registerReadOnlyScout } from './scout.js'
 import { instrumentBash, rewriteToolPath } from './workspace.js'
 
 type BridgeCommand =
@@ -21,6 +22,7 @@ type WorkspaceEntry = {
 }
 
 export default function lunaBridge(pi: ExtensionAPI) {
+  registerReadOnlyScout(pi)
   const socketPath = process.env.LUNA_BRIDGE_SOCKET
   let socket: Socket | undefined
   let reconnectTimer: NodeJS.Timeout | undefined

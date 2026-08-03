@@ -91,6 +91,8 @@ pnpm verify:code
 
 It runs the Rust suite once after generation, then parallelizes the independent web tests, type checking, and linting. This avoids Cargo contention while shortening the remaining critical path. `pnpm verify` adds the serialized browser E2E and release-build gates and writes timing metadata under ignored `.data/verification/`.
 
+For broad codebase analysis, Luna's Pi bridge exposes a `luna_scout` tool that can run up to two isolated read-only investigations concurrently. Scouts are restricted to the current Git repository, receive only read/search tools, load no project extensions or context files, inherit only bounded runtime/provider environment variables, and return capped evidence for the coordinating agent to verify and synthesize. They cannot implement, build, test, use Git, push, deploy, or recursively delegate.
+
 Run the complete application locally:
 
 ```sh
