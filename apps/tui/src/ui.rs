@@ -335,7 +335,7 @@ fn render_footer(frame: &mut Frame<'_>, app: &App, area: Rect) {
         })
         .unwrap_or_else(|| {
             (
-                "Tab focus · ↑/↓ scroll · PageUp history · s stop · q quit".into(),
+                "Tab / Ctrl-hjkl focus · ↑/↓ scroll · PageUp history · s stop · q quit".into(),
                 SUBTEXT,
             )
         });
@@ -361,6 +361,7 @@ fn render_help(frame: &mut Frame<'_>, app: &App, area: Rect) {
             )),
             Line::default(),
             Line::from("Tab              cycle focus"),
+            Line::from("Ctrl-h/j/k/l     move focus directionally"),
             Line::from("↑/↓ or j/k       navigate and scroll"),
             Line::from("Enter            open conversation / send message"),
             Line::from("Alt-Enter        insert newline"),
@@ -483,11 +484,13 @@ mod tests {
             let mut terminal = Terminal::new(backend).expect("terminal");
             terminal.draw(|frame| render(frame, &app)).expect("draw");
             let rendered = buffer_text(terminal.backend().buffer());
-            if width >= 90 {
-                assert!(rendered.contains("Luna"));
-            }
+            assert!(rendered.contains("Luna"));
             assert!(rendered.contains("Conversation"));
-            assert!(rendered.contains("connected") || rendered.contains("connecting"));
+            if width >= 90 {
+                assert!(rendered.contains("connected") || rendered.contains("connecting"));
+            } else {
+                assert!(rendered.contains("Enter open"));
+            }
         }
     }
 
@@ -513,6 +516,7 @@ mod tests {
     #[test]
     fn keeps_the_latest_wrapped_output_visible() {
         let mut app = App::new(bootstrap());
+        app.focus = Focus::Transcript;
         let conversation_id = app.state.selected_conversation_id.expect("selection");
         app.state.set_messages(
             conversation_id,

@@ -29,6 +29,14 @@ pub enum ConnectionStatus {
     Waiting,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FocusDirection {
+    Left,
+    Down,
+    Up,
+    Right,
+}
+
 pub struct App {
     pub state: ClientState,
     pub focus: Focus,
@@ -52,7 +60,7 @@ impl App {
     pub fn new(bootstrap: Bootstrap) -> Self {
         Self {
             state: ClientState::from_bootstrap(bootstrap),
-            focus: Focus::Transcript,
+            focus: Focus::List,
             connection: ConnectionStatus::Connecting,
             connection_detail: None,
             composer: Composer::default(),
@@ -74,6 +82,16 @@ impl App {
             Focus::List => Focus::Transcript,
             Focus::Transcript => Focus::Composer,
             Focus::Composer => Focus::List,
+        };
+    }
+
+    fn move_focus(&mut self, direction: FocusDirection) {
+        self.focus = match (self.focus, direction) {
+            (Focus::List, FocusDirection::Right) => Focus::Transcript,
+            (Focus::Transcript | Focus::Composer, FocusDirection::Left) => Focus::List,
+            (Focus::Transcript, FocusDirection::Down) => Focus::Composer,
+            (Focus::Composer, FocusDirection::Up) => Focus::Transcript,
+            (focus, _) => focus,
         };
     }
 
@@ -182,6 +200,19 @@ fn handle_key(app: &mut App, key: KeyEvent, api: &LunaApi, actions: &mpsc::Sende
     if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
         app.should_quit = true;
         return;
+    }
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        let direction = match key.code {
+            KeyCode::Char('h') => Some(FocusDirection::Left),
+            KeyCode::Char('j') => Some(FocusDirection::Down),
+            KeyCode::Char('k') => Some(FocusDirection::Up),
+            KeyCode::Char('l') => Some(FocusDirection::Right),
+            _ => None,
+        };
+        if let Some(direction) = direction {
+            app.move_focus(direction);
+            return;
+        }
     }
     match key.code {
         KeyCode::Char('?') if app.focus != Focus::Composer => {
@@ -525,6 +556,44 @@ mod tests {
     use crate::api::ServerOrigin;
 
     #[test]
+    fn starts_with_the_conversation_list_focused() {
+        assert_eq!(App::new(bootstrap()).focus, Focus::List);
+    }
+
+    #[test]
+    fn control_hjkl_moves_focus_directionally() {
+        let mut app = App::new(bootstrap());
+
+        press(&mut app, KeyCode::Char('l'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::Transcript);
+        press(&mut app, KeyCode::Char('j'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::Composer);
+        press(&mut app, KeyCode::Char('k'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::Transcript);
+        press(&mut app, KeyCode::Char('h'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::List);
+
+        press(&mut app, KeyCode::Char('k'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::List);
+        press(&mut app, KeyCode::Char('j'), KeyModifiers::CONTROL);
+        assert_eq!(app.focus, Focus::List);
+    }
+
+    #[test]
+    fn unmodified_hjkl_keep_their_panel_actions() {
+        let mut app = App::new(bootstrap());
+        app.focus = Focus::Transcript;
+        press(&mut app, KeyCode::Char('k'), KeyModifiers::NONE);
+        assert_eq!(app.transcript_offset_from_bottom, 1);
+        assert_eq!(app.focus, Focus::Transcript);
+
+        app.focus = Focus::Composer;
+        press(&mut app, KeyCode::Char('h'), KeyModifiers::NONE);
+        assert_eq!(app.composer.text(), "h");
+        assert_eq!(app.focus, Focus::Composer);
+    }
+
+    #[test]
     fn quitting_schedules_no_interrupt_action() {
         let mut app = App::new(bootstrap());
         let api = LunaApi::new(
@@ -546,6 +615,16 @@ mod tests {
             receiver.try_recv(),
             Err(mpsc::error::TryRecvError::Empty)
         ));
+    }
+
+    fn press(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
+        let api = LunaApi::new(
+            ServerOrigin::parse("http://127.0.0.1:9").expect("origin"),
+            Some("token".into()),
+        )
+        .expect("API");
+        let (actions, _receiver) = mpsc::channel(1);
+        handle_key(app, KeyEvent::new(code, modifiers), &api, &actions);
     }
 
     fn bootstrap() -> Bootstrap {

@@ -2,7 +2,10 @@ use std::io::{IsTerminal, Stdout, stdout};
 
 use crossterm::{
     cursor::{Hide, Show},
-    event::{DisableBracketedPaste, EnableBracketedPaste},
+    event::{
+        DisableBracketedPaste, EnableBracketedPaste, KeyboardEnhancementFlags,
+        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+    },
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -19,7 +22,13 @@ impl TerminalSession {
             return Err(TerminalError::NotATerminal);
         }
         enable_raw_mode()?;
-        if let Err(error) = execute!(output, EnterAlternateScreen, EnableBracketedPaste, Hide) {
+        if let Err(error) = execute!(
+            output,
+            EnterAlternateScreen,
+            EnableBracketedPaste,
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES),
+            Hide
+        ) {
             let _ = disable_raw_mode();
             return Err(TerminalError::Io(error));
         }
@@ -37,6 +46,7 @@ impl Drop for TerminalSession {
         let _ = self.terminal.show_cursor();
         let _ = execute!(
             self.terminal.backend_mut(),
+            PopKeyboardEnhancementFlags,
             DisableBracketedPaste,
             Show,
             LeaveAlternateScreen

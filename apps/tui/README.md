@@ -67,6 +67,7 @@ The TUI leaves the terminal's default foreground and background untouched. Focus
 | Key              | Action                                            |
 | ---------------- | ------------------------------------------------- |
 | `Tab`            | Cycle conversation list, transcript, and composer |
+| `Ctrl-H/J/K/L`   | Move focus left, down, up, or right               |
 | `↑`/`↓`, `j`/`k` | Navigate or scroll                                |
 | `Enter`          | Open a conversation or send a message             |
 | `Alt-Enter`      | Insert a composer newline                         |
@@ -77,6 +78,8 @@ The TUI leaves the terminal's default foreground and background untouched. Focus
 | `End`            | Return to live output                             |
 | `?`              | Toggle help                                       |
 | `q`, `Ctrl-C`    | Quit without interrupting Pi                      |
+
+The conversation list has focus on launch. `Ctrl-H/J/K/L` uses the terminal keyboard-enhancement protocol to distinguish `Ctrl-H` from Backspace and `Ctrl-J` from Enter; `Tab` remains the fallback in terminals that do not support enhanced keyboard events.
 
 Bracketed multiline paste is supported. `!` messages use Luna's existing bounded shell-command path. Resize events are handled automatically, with a single-pane fallback for narrow terminals.
 
