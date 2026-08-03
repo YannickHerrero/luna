@@ -33,5 +33,19 @@ export default tseslint.config(
       '@typescript-eslint/no-misused-promises': 'error',
     },
   },
+  {
+    files: ['scripts/*.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: {
+        AbortController: 'readonly',
+        clearTimeout: 'readonly',
+        console: 'readonly',
+        performance: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
   prettier,
 )

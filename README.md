@@ -83,6 +83,14 @@ pnpm lint
 pnpm build
 ```
 
+For faster agent and local-development feedback, run the same generated-code and static/unit checks through the resource-aware scheduler:
+
+```sh
+pnpm verify:code
+```
+
+It runs the Rust suite once after generation, then parallelizes the independent web tests, type checking, and linting. This avoids Cargo contention while shortening the remaining critical path. `pnpm verify` adds the serialized browser E2E and release-build gates and writes timing metadata under ignored `.data/verification/`.
+
 Run the complete application locally:
 
 ```sh

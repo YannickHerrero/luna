@@ -9,15 +9,10 @@ From the Luna repository:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm generate
-pnpm test
-pnpm --filter @luna/web test:e2e
-pnpm typecheck
-pnpm lint
-pnpm build
+pnpm verify
 ```
 
-`pnpm build` exports the PWA to `apps/web/out` and builds
+The verification scheduler runs generation and the Rust suite first, parallelizes the independent package tests, type checking, and linting without competing with Cargo, then serializes browser E2E and the final release build. It writes machine-readable timing metadata under ignored `.data/verification/`; command output remains attached to the terminal and is not persisted. `pnpm build` exports the PWA to `apps/web/out` and builds
 `target/release/luna-server` plus the on-demand `target/release/luna-tui` client. Citadel starts
 only the server binary; the TUI runs solely for interactive SSH sessions. Node is used by the Pi
 subprocess and at build time, not as a second web service. The server invokes the locally
