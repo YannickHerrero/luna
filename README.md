@@ -29,7 +29,7 @@
 - Generates concise contextual conversation titles with an isolated Pi model request.
 - Tracks multiple repositories and discovers project icons automatically.
 - Syncs reconnecting devices through retained, cursor-based events.
-- Runs as a responsive, offline-capable PWA, a disposable SSH-friendly Rust TUI, and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
+- Runs as a responsive, offline-capable PWA, a terminal-palette-aware Rust TUI for disposable SSH sessions, and a universal native iPhone/iPad app with Catppuccin Latte and Mocha themes.
 - Ships reserved iOS/watchOS widget surfaces and an embedded Apple Watch companion placeholder for staged native expansion.
 - Serves everything from one loopback-bound Rust process.
 

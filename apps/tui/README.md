@@ -58,6 +58,10 @@ ssh -t luna-host '$HOME/.local/bin/luna-tui'
 
 Every invocation is a new UI process. Quitting closes only its WebSocket and leaves Pi work running. Reopening fetches durable state and catches up through retained events. Multiple processes can use the same profile simultaneously; named profiles are available when separate device attribution is preferred.
 
+## Appearance
+
+The TUI leaves the terminal's default foreground and background untouched. Focus, status, warning, and error accents use standard ANSI colors, so their actual values come from the active terminal palette. Set `NO_COLOR=1` to disable color accents while retaining text emphasis and selection.
+
 ## Keys
 
 | Key              | Action                                            |

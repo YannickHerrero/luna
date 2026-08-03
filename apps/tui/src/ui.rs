@@ -13,15 +13,15 @@ use crate::{
     input::sanitize_terminal_text,
 };
 
-const BASE: Color = Color::Rgb(30, 30, 46);
-const SURFACE: Color = Color::Rgb(49, 50, 68);
-const TEXT: Color = Color::Rgb(205, 214, 244);
-const SUBTEXT: Color = Color::Rgb(166, 173, 200);
-const BLUE: Color = Color::Rgb(137, 180, 250);
-const GREEN: Color = Color::Rgb(166, 227, 161);
-const YELLOW: Color = Color::Rgb(249, 226, 175);
-const RED: Color = Color::Rgb(243, 139, 168);
-const MAUVE: Color = Color::Rgb(203, 166, 247);
+const BASE: Color = Color::Reset;
+const SURFACE: Color = Color::DarkGray;
+const TEXT: Color = Color::Reset;
+const SUBTEXT: Color = Color::DarkGray;
+const ACCENT: Color = Color::Cyan;
+const GREEN: Color = Color::Green;
+const YELLOW: Color = Color::Yellow;
+const RED: Color = Color::Red;
+const ASSISTANT: Color = Color::Magenta;
 
 pub fn render(frame: &mut Frame<'_>, app: &App) {
     let area = frame.area();
@@ -59,7 +59,7 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
 
 fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let active = app.focus == Focus::List;
-    let border = if active { BLUE } else { SURFACE };
+    let border = if active { ACCENT } else { SURFACE };
     let items = if app.state.conversations.is_empty() {
         vec![ListItem::new(Line::from(Span::styled(
             "No conversations — press n",
@@ -97,7 +97,7 @@ fn render_conversations(frame: &mut Frame<'_>, app: &App, area: Rect) {
                 .border_style(style(app, border, BASE)),
         )
         .highlight_symbol("› ")
-        .highlight_style(style(app, BASE, BLUE).add_modifier(Modifier::BOLD));
+        .highlight_style(style(app, TEXT, BASE).add_modifier(Modifier::BOLD | Modifier::REVERSED));
     let mut list_state = ListState::default();
     if !app.state.conversations.is_empty() {
         list_state.select(Some(
@@ -166,7 +166,7 @@ fn render_header(frame: &mut Frame<'_>, app: &App, area: Rect) {
     if let Some(activity) = conversation.activities.last() {
         lines.push(Line::from(Span::styled(
             sanitize_terminal_text(&activity.summary),
-            style(app, MAUVE, BASE),
+            style(app, ASSISTANT, BASE),
         )));
     }
     frame.render_widget(
@@ -184,7 +184,7 @@ fn render_transcript(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = Block::default()
         .title(" Transcript ")
         .borders(Borders::ALL)
-        .border_style(style(app, if active { BLUE } else { SURFACE }, BASE));
+        .border_style(style(app, if active { ACCENT } else { SURFACE }, BASE));
     let inner = block.inner(area);
     let lines = transcript_lines(app);
     let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
@@ -214,8 +214,8 @@ fn transcript_lines(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     for message in app.state.selected_messages() {
         let (label, color) = match message.role {
-            MessageRole::User => ("YOU", BLUE),
-            MessageRole::Assistant => ("LUNA", MAUVE),
+            MessageRole::User => ("YOU", ACCENT),
+            MessageRole::Assistant => ("LUNA", ASSISTANT),
         };
         let delivery = match message.delivery {
             Some(MessageDelivery::Steer) => " · steer",
@@ -265,7 +265,7 @@ fn render_composer(frame: &mut Frame<'_>, app: &App, area: Rect) {
             " Composer · Enter send · Alt-Enter newline "
         })
         .borders(Borders::ALL)
-        .border_style(style(app, if active { BLUE } else { SURFACE }, BASE));
+        .border_style(style(app, if active { ACCENT } else { SURFACE }, BASE));
     let inner = block.inner(area);
     let (cursor_row, cursor_column) = composer_cursor(app, inner.width.max(1));
     let scroll = cursor_row.saturating_sub(inner.height.saturating_sub(1));
@@ -343,7 +343,7 @@ fn render_footer(frame: &mut Frame<'_>, app: &App, area: Rect) {
         Paragraph::new(Line::from(vec![
             Span::styled(
                 format!(" {} ", connection.0),
-                style(app, BASE, connection.1),
+                style(app, connection.1, BASE).add_modifier(Modifier::BOLD),
             ),
             Span::styled(format!(" {}", message.0), style(app, message.1, BASE)),
         ])),
@@ -357,7 +357,7 @@ fn render_help(frame: &mut Frame<'_>, app: &App, area: Rect) {
         Paragraph::new(vec![
             Line::from(Span::styled(
                 "Luna TUI",
-                style(app, MAUVE, BASE).add_modifier(Modifier::BOLD),
+                style(app, ASSISTANT, BASE).add_modifier(Modifier::BOLD),
             )),
             Line::default(),
             Line::from("Tab              cycle focus"),
@@ -380,7 +380,7 @@ fn render_help(frame: &mut Frame<'_>, app: &App, area: Rect) {
             Block::default()
                 .title(" Help ")
                 .borders(Borders::ALL)
-                .border_style(style(app, BLUE, BASE)),
+                .border_style(style(app, ACCENT, BASE)),
         )
         .style(style(app, TEXT, BASE)),
         area,
@@ -489,6 +489,25 @@ mod tests {
             assert!(rendered.contains("Conversation"));
             assert!(rendered.contains("connected") || rendered.contains("connecting"));
         }
+    }
+
+    #[test]
+    fn inherits_the_terminal_palette_and_background() {
+        let app = App::new(bootstrap());
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).expect("terminal");
+        terminal.draw(|frame| render(frame, &app)).expect("draw");
+        let cells = terminal.backend().buffer().content();
+
+        assert!(cells.iter().all(|cell| cell.bg == Color::Reset));
+        assert!(cells.iter().all(|cell| {
+            !matches!(cell.fg, Color::Rgb(_, _, _)) && !matches!(cell.bg, Color::Rgb(_, _, _))
+        }));
+        assert!(
+            cells
+                .iter()
+                .any(|cell| cell.modifier.contains(Modifier::REVERSED))
+        );
     }
 
     #[test]
